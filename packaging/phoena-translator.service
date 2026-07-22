@@ -1,0 +1,40 @@
+[Unit]
+Description=PhoenaTranslator document translation service
+After=network-online.target
+Wants=network-online.target
+# A partially installed/restored release must never auto-start after a reboot.
+ConditionPathExists=!/var/lib/phoena-translator-installer/transaction.state
+
+[Service]
+Type=simple
+User=phoena-translator
+Group=phoena-translator
+WorkingDirectory=/opt/phoena-translator/current/app
+EnvironmentFile=/etc/phoena-translator/translator.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStartPre=/usr/bin/test -r /opt/phoena-translator/current/app/app.py
+ExecStart=/opt/phoena-translator/current/venv/bin/gunicorn --workers 1 --threads 20 --bind 127.0.0.1:8501 --timeout 1800 --graceful-timeout 30 --access-logfile - --error-logfile - app:app
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=45
+UMask=0077
+NoNewPrivileges=true
+CapabilityBoundingSet=
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+ProtectProc=invisible
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/phoena-translator/uploads /var/lib/phoena-translator/outputs /var/lib/phoena-translator/progress /var/log/phoena-translator
+
+[Install]
+WantedBy=multi-user.target
