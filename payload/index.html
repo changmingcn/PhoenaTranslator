@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智译 - AI翻译工具</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary: #4f46e5;
+  --primary-light: #818cf8;
+  --primary-dark: #3730a3;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --text-secondary: #64748b;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --radius: 12px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.25rem;
+}
+
+header h1 span {
+  font-weight: 300;
+  color: var(--text-secondary);
+}
+
+header p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* Upload area */
+.upload-card {
+  background: var(--card);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem 2rem;
+  text-align: center;
+  transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+
+.upload-card.dragover {
+  border-color: var(--primary);
+  background: #eef2ff;
+}
+
+.upload-card svg {
+  width: 48px;
+  height: 48px;
+  color: var(--primary-light);
+  margin-bottom: 1rem;
+}
+
+.upload-card h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.upload-card p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.upload-card .formats {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.upload-card .formats span {
+  background: #f1f5f9;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.upload-card input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  padding: 0.7rem 1.8rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 1rem;
+}
+
+.upload-btn:hover { background: var(--primary-dark); }
+.upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Tasks */
+.tasks-section {
+  margin-top: 2.5rem;
+}
+
+.tasks-section h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text);
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.task-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  transition: box-shadow 0.2s;
+}
+
+.task-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.task-filename {
+  font-weight: 600;
+  font-size: 0.95rem;
+  word-break: break-all;
+}
+
+.task-type {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-left: 0.75rem;
+}
+
+.task-type.epub { background: #dbeafe; color: #1d4ed8; }
+.task-type.pdf { background: #fce7f3; color: #be185d; }
+
+.task-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.queued { background: var(--text-secondary); }
+.status-dot.translating { background: var(--warning); animation: pulse 1.5s infinite; }
+.status-dot.completed { background: var(--success); }
+.status-dot.failed { background: var(--danger); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--primary-light));
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+.progress-bar.completed {
+  background: var(--success);
+}
+
+.progress-bar.failed {
+  background: var(--danger);
+}
+
+.task-detail {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.task-actions {
+  margin-top: 0.75rem;
+}
+
+.download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--success);
+  color: #fff;
+  border: none;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.download-btn:hover { background: #059669; }
+
+.delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: 0.5rem;
+}
+
+.delete-btn:hover { background: #dc2626; }
+
+.error-msg {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 2rem;
+  font-size: 0.9rem;
+}
+
+/* Toast notifications */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--text);
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  z-index: 1000;
+  transition: transform 0.3s ease;
+  white-space: nowrap;
+}
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .container { padding: 1.25rem 1rem; }
+  header h1 { font-size: 1.5rem; }
+  .upload-card { padding: 1.5rem 1rem; }
+  .task-card { padding: 1rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>智译 <span>AI翻译工具</span></h1>
+    <p>上传英文 EPUB 或 PDF 文件，AI 自动翻译为中文</p>
+  </header>
+
+  <div class="upload-card" id="dropZone">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+    </svg>
+    <h3>拖放文件到此处，或点击选择</h3>
+    <p>支持最大 100MB 的文件</p>
+    <div class="formats">
+      <span>.epub</span>
+      <span>.pdf</span>
+    </div>
+    <input type="file" id="fileInput" accept=".epub,.pdf">
+  </div>
+
+  <div class="tasks-section">
+    <h2>翻译任务</h2>
+    <div class="task-list" id="taskList">
+      <div class="empty-state" id="emptyState">暂无翻译任务</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  const API = '/api';
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const taskList = document.getElementById('taskList');
+  const emptyState = document.getElementById('emptyState');
+  const toast = document.getElementById('toast');
+  let refreshTimer = null;
+
+  function apiFetch(path, options) {
+    return fetch(API + path, options || {});
+  }
+
+  // --- Toast ---
+  function showToast(msg, duration) {
+    duration = duration || 3000;
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(function() { toast.classList.remove('show'); }, duration);
+  }
+
+  // --- Drag & drop ---
+  ['dragenter', 'dragover'].forEach(function(evt) {
+    dropZone.addEventListener(evt, function(e) {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(function(evt) {
+    dropZone.addEventListener(evt, function(e) {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+    });
+  });
+
+  dropZone.addEventListener('drop', function(e) {
+    var files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFile(files[0]);
+    }
+  });
+
+  fileInput.addEventListener('change', function() {
+    if (fileInput.files.length > 0) {
+      handleFile(fileInput.files[0]);
+    }
+  });
+
+  function handleFile(file) {
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'epub' && ext !== 'pdf') {
+      showToast('仅支持 .epub 和 .pdf 格式');
+      return;
+    }
+    if (file.size > 100 * 1024 * 1024) {
+      showToast('文件大小不能超过 100MB');
+      return;
+    }
+    uploadFile(file);
+  }
+
+  // --- Upload ---
+  function uploadFile(file) {
+    var formData = new FormData();
+    formData.append('file', file);
+
+    // If PDF, ask for optional password
+    if (file.name.toLowerCase().endsWith('.pdf')) {
+      var pwd = prompt('如果PDF有打开密码，请输入（无密码请留空）：');
+      if (pwd) {
+        formData.append('password', pwd);
+      }
+    }
+
+    var sizeMB = (file.size / 1024 / 1024).toFixed(1);
+    showToast('正在上传 ' + file.name + ' (' + sizeMB + 'MB)...', 30000);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/upload', true);
+    xhr.timeout = 300000; // 5 minutes for large files
+
+    xhr.upload.onprogress = function(e) {
+      if (e.lengthComputable) {
+        var pct = Math.round((e.loaded / e.total) * 100);
+        showToast('上传中: ' + pct + '% (' + file.name + ')', 30000);
+      }
+    };
+
+    xhr.onload = function() {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        if (xhr.status === 200 && !data.error) {
+          showToast('上传成功，开始翻译 ' + file.name);
+          fileInput.value = '';
+          refreshTasks();
+        } else {
+          showToast('上传失败: ' + (data.error || '服务器错误 ' + xhr.status));
+        }
+      } catch(e) {
+        showToast('上传失败: 服务器返回异常');
+      }
+    };
+
+    xhr.onerror = function() {
+      showToast('上传失败: 网络错误，请重试');
+    };
+
+    xhr.ontimeout = function() {
+      showToast('上传超时，请检查网络后重试');
+    };
+
+    xhr.send(formData);
+  }
+
+  // --- Render tasks ---
+  function statusLabel(status) {
+    var map = {
+      queued: '排队中',
+      translating: '翻译中',
+      completed: '已完成',
+      failed: '失败',
+      paused: '已暂停',
+      needs_password: '等待重新输入 PDF 密码'
+    };
+    return map[status] || status;
+  }
+
+  function renderTasks(tasksObj) {
+    var entries = Object.entries(tasksObj);
+    // Sort newest tasks first so the latest translation stays at the top.
+    entries.sort(function(a, b) {
+      var createdA = Number(a[1] && a[1].created_at);
+      var createdB = Number(b[1] && b[1].created_at);
+      createdA = isFinite(createdA) ? createdA : 0;
+      createdB = isFinite(createdB) ? createdB : 0;
+      if (createdA !== createdB) {
+        return createdB - createdA;
+      }
+      return String(b[0]).localeCompare(String(a[0]));
+    });
+
+    if (entries.length === 0) {
+      taskList.innerHTML = '';
+      taskList.appendChild(emptyState);
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < entries.length; i++) {
+      var tid = entries[i][0];
+      var t = entries[i][1];
+      var pct = t.total > 0 ? Math.round((t.progress / t.total) * 100) : 0;
+      var ext = t.type || 'epub';
+      var barClass = t.status === 'completed' ? 'completed' : (t.status === 'failed' ? 'failed' : '');
+
+      html += '<div class="task-card">';
+      html += '<div class="task-header">';
+      html += '<span class="task-filename">' + escapeHtml(t.filename || 'unknown') + '</span>';
+      html += '<span class="task-type ' + ext + '">' + ext + '</span>';
+      html += '</div>';
+
+      html += '<div class="task-status">';
+      html += '<span class="status-dot ' + t.status + '"></span>';
+      html += '<span>' + statusLabel(t.status);
+      if (t.status === 'translating' && t.total > 0) {
+        html += ' - ' + t.progress + '/' + t.total + ' (' + pct + '%)';
+      }
+      html += '</span>';
+      html += '</div>';
+
+      html += '<div class="progress-bar-container"><div class="progress-bar ' + barClass + '" style="width:' + (t.status === 'completed' ? 100 : pct) + '%"></div></div>';
+
+      if (t.current_file && t.status === 'translating') {
+        html += '<div class="task-detail">正在翻译: ' + escapeHtml(t.current_file) + '</div>';
+      }
+
+      if (t.status === 'completed') {
+        html += '<div class="task-actions"><a class="download-btn" href="' + API + '/download/' + tid + '">';
+        html += '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12M12 16.5V3" /></svg>';
+        html += '下载译文</a>';
+        html += '<button class="delete-btn" onclick="deleteTask(\'' + tid + '\')">&#128465; 删除</button>';
+        html += '</div>';
+      }
+
+      if (t.status === 'failed' && t.error) {
+        html += '<div class="error-msg">错误: ' + escapeHtml(t.error) + '</div>';
+        html += '<div class="task-actions"><button class="delete-btn" onclick="deleteTask(\'' + tid + '\')">&#128465; 删除</button></div>';
+      }
+
+      if (t.status === 'needs_password') {
+        html += '<div class="task-actions"><button class="upload-btn" onclick="resumeTask(\'' + tid + '\')">输入密码并继续</button>';
+        html += '<button class="delete-btn" onclick="deleteTask(\'' + tid + '\')">&#128465; 删除</button></div>';
+      }
+
+      html += '</div>';
+    }
+
+    taskList.innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // --- Polling ---
+  function refreshTasks() {
+    apiFetch('/tasks')
+      .then(function(res) {
+        if (!res.ok) throw new Error('任务列表请求失败');
+        return res.json();
+      })
+      .then(function(data) {
+        renderTasks(data);
+        // Continue polling if any task is active
+        var hasActive = Object.values(data).some(function(t) {
+          return t.status === 'translating' || t.status === 'queued';
+        });
+        clearTimeout(refreshTimer);
+        if (hasActive) {
+          refreshTimer = setTimeout(refreshTasks, 3000);
+        } else {
+          // Still poll occasionally
+          refreshTimer = setTimeout(refreshTasks, 10000);
+        }
+      })
+      .catch(function() {
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(refreshTasks, 5000);
+      });
+  }
+
+  // --- Delete task ---
+  window.deleteTask = function(taskId) {
+    if (!confirm('确认删除此任务？')) return;
+    apiFetch('/task/' + taskId, { method: 'DELETE' })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          showToast('任务已删除');
+          refreshTasks();
+        } else {
+          showToast('删除失败: ' + (data.error || '未知错误'));
+        }
+      })
+      .catch(function() {
+        showToast('删除失败: 网络错误');
+      });
+  };
+
+  window.resumeTask = function(taskId) {
+    var password = prompt('请重新输入 PDF 打开密码：');
+    if (!password) return;
+    apiFetch('/task/' + taskId + '/resume', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: password })
+    }).then(function(res) { return res.json().then(function(data) {
+      return { ok: res.ok, data: data };
+    }); }).then(function(result) {
+      password = '';
+      if (result.ok) {
+        showToast('任务已重新排队');
+        refreshTasks();
+      } else {
+        showToast('继续任务失败: ' + (result.data.error || '未知错误'));
+      }
+    }).catch(function() {
+      password = '';
+      showToast('继续任务失败: 网络错误');
+    });
+  };
+
+  refreshTasks();
+})();
+</script>
+</body>
+</html>
