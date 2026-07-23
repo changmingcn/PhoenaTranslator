@@ -15,9 +15,9 @@
 从 [Releases](https://github.com/changmingcn/PhoenaTranslator/releases/latest) 下载安装包和 SHA-256 校验文件，然后在服务器执行：
 
 ```bash
-sha256sum -c PhoenaTranslator-20260722-clean-installer.tar.gz.sha256
-tar -xzf PhoenaTranslator-20260722-clean-installer.tar.gz
-cd PhoenaTranslator-20260722-clean-installer
+sha256sum -c PhoenaTranslator-20260723-clean-installer.tar.gz.sha256
+tar -xzf PhoenaTranslator-20260723-clean-installer.tar.gz
+cd PhoenaTranslator-20260723-clean-installer
 ./install.sh --verify-only   # 可选预检
 sudo ./install.sh
 ```
@@ -44,8 +44,9 @@ http://服务器IP/
 
 ## 注意事项
 
+- PDF 输出需要 TrueType 中文字体（.ttf）：字体大于 4MB 且无法子集化（如 CFF 风味 OTF）时任务会在启动阶段明确报错，可用 `TRANSLATOR_PDF_FONT_REGULAR` / `TRANSLATOR_PDF_FONT_BOLD` 指定字体文件；沿用 `~/fonts` 下 TTF 的现有部署无需任何改动
 - 翻译结果由所选模型和原文复杂度共同决定，建议对重要文档人工复核
 - 默认部署只提供 HTTP，且网页没有内置登录限制；如暴露到公网，请自行配置 TLS、防火墙或外部身份验证
 - 安装包不包含旧任务、原始文档、翻译结果、日志、缓存或 API Key
 
-当前版本：`2026.07.22-r1`
+当前版本：`2026.07.23-r1`

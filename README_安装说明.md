@@ -1,8 +1,8 @@
 # PhoenaTranslator 干净重装包
 
-版本：`2026.07.22-r1`
+版本：`2026.07.23-r1`
 
-这是当前已修正翻译程序的恢复安装版。它只包含 51 个运行时源码文件和安装元数据，不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
+这是当前已修正翻译程序的恢复安装版。它只包含 52 个源码文件（51 个运行时文件 + 1 个回归测试文件）和安装元数据，不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
 
 ## 支持范围
 
@@ -17,9 +17,9 @@
 先在下载目录校验压缩包（校验文件与压缩包应在同一目录）：
 
 ```bash
-sha256sum -c PhoenaTranslator-20260722-clean-installer.tar.gz.sha256
-tar -xzf PhoenaTranslator-20260722-clean-installer.tar.gz
-cd PhoenaTranslator-20260722-clean-installer
+sha256sum -c PhoenaTranslator-20260723-clean-installer.tar.gz.sha256
+tar -xzf PhoenaTranslator-20260723-clean-installer.tar.gz
+cd PhoenaTranslator-20260723-clean-installer
 # 可选的完整预检（需要系统已装 python3）
 ./install.sh --verify-only
 sudo ./install.sh
