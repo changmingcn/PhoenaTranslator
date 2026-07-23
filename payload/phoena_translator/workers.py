@@ -73,10 +73,12 @@ class TaskWorkerPool:
         max_pending_bytes: int,
         handler: Callable[[TaskJob, int], None],
         logger: logging.Logger,
+        mark_failed: Callable[[str, str], None] | None = None,
     ) -> None:
         if max_workers < 1 or max_queue < 1:
             raise ValueError("worker and queue limits must be positive")
         self._max_workers = max_workers
+        self._mark_failed = mark_failed
         self._queue: queue.Queue[TaskJob] = queue.Queue(maxsize=max_queue)
         self._admission = AdmissionController(
             max_tasks=max_queue + max_workers,
@@ -138,12 +140,24 @@ class TaskWorkerPool:
                 self._active_ids.add(job.task_id)
             try:
                 self._handler(job, worker_id)
-            except Exception:
+            except Exception as handler_error:
                 self._logger.exception(
                     "[%s] Worker %s: unhandled translation error",
                     job.task_id,
                     worker_id,
                 )
+                # The pipelines record their own terminal states; this is the
+                # last resort so a crashed job can never stay "translating"
+                # forever (which would also make it undeletable).
+                if self._mark_failed is not None:
+                    try:
+                        self._mark_failed(job.task_id, str(handler_error))
+                    except Exception:
+                        self._logger.exception(
+                            "[%s] Worker %s: could not record crash failure",
+                            job.task_id,
+                            worker_id,
+                        )
             finally:
                 with self._lock:
                     self._active_ids.discard(job.task_id)

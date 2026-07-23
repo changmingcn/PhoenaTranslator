@@ -27,7 +27,7 @@ from phoena_translator.api_runtime import (
     usage_as_dict as _usage_as_dict,  # noqa: F401 - legacy API
     wait_for_api_slot as _wait_for_api_slot_impl,
 )
-from phoena_translator.config import AppConfig
+from phoena_translator.config import AppConfig, get_app_config
 from phoena_translator.epub.archive import ArchiveLimits
 from phoena_translator.epub.pipeline import (
     EPUBPipeline,
@@ -61,7 +61,6 @@ from phoena_translator.pdf.translation import (
     PDFTranslationDependencies,
     translate_text as _translate_text_impl,
 )
-from phoena_translator.pdf.types import PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE
 from phoena_translator.prompts import SYSTEM_PROMPT_TEXT, SYSTEM_PROMPT_XHTML
 from phoena_translator.task_store import TaskStore
 from phoena_translator.task_runtime import (
@@ -98,7 +97,7 @@ def __dir__() -> list[str]:
     return sorted({*globals(), *legacy_exports.exported_names()})
 
 
-APP_CONFIG = AppConfig.from_env()
+APP_CONFIG = get_app_config()
 LOG_FILE = str(APP_CONFIG.log_file)
 log = logging.getLogger("translator")
 if not log.handlers:
@@ -419,6 +418,21 @@ def _run_translation_job(job: TaskJob, worker_id: int) -> None:
     )
 
 
+def _mark_task_failed_after_crash(task_id: str, error: str) -> None:
+    """Last-resort terminal state for a job whose handler crashed."""
+    record = load_progress(task_id) or {}
+    if record.get("status") in ("completed", "failed"):
+        return
+    record.update(
+        {
+            "status": "failed",
+            "current_file": "",
+            "error": f"Unhandled worker error: {error}"[:500],
+        }
+    )
+    save_progress(task_id, record)
+
+
 def _get_task_worker_pool() -> TaskWorkerPool:
     global _task_worker_pool
     with _task_worker_pool_lock:
@@ -429,6 +443,7 @@ def _get_task_worker_pool() -> TaskWorkerPool:
                 max_pending_bytes=PENDING_BYTES_MAX,
                 handler=_run_translation_job,
                 logger=log,
+                mark_failed=_mark_task_failed_after_crash,
             )
         return _task_worker_pool
 
@@ -570,7 +585,7 @@ def translate_pdf(
         assembly_max_concurrency=PDF_ASSEMBLY_MAX_CONCURRENCY,
         extraction_max_concurrency=PDF_EXTRACTION_MAX_CONCURRENCY,
         fail_open_to_source_page=PDF_FAIL_OPEN_TO_SOURCE_PAGE,
-        minimum_htmlbox_scale=PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,
+        minimum_htmlbox_scale=APP_CONFIG.pdf_min_acceptable_htmlbox_scale,
         save_clean=PDF_SAVE_CLEAN,
         save_garbage=PDF_SAVE_GARBAGE,
         use_htmlbox=PDF_USE_HTMLBOX,
@@ -594,6 +609,12 @@ def translate_pdf(
         check_output_structure_serialized=_check_pdf_output_structure_serialized,
         save_translation_progress=_save_pdf_translation_progress,
         font_subsetting_available=pdf_font_subsetting_available(),
+        font_regular_override=(
+            str(APP_CONFIG.pdf_font_regular) if APP_CONFIG.pdf_font_regular else None
+        ),
+        font_bold_override=(
+            str(APP_CONFIG.pdf_font_bold) if APP_CONFIG.pdf_font_bold else None
+        ),
     )
     return _translate_pdf_impl(
         task_id,

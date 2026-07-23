@@ -88,11 +88,18 @@ def build_glossary_text(
     candidates = {item.term: item for item in extract_term_candidates(text, max_terms=max_terms * 4)}
     selected: list[tuple[int, int, str, str]] = []
     for order, (source, target) in enumerate(mapping.items()):
-        occurrences = text.count(source)
-        if occurrences <= 0:
+        # Whole-term occurrences only: plain substring counting matched "Art"
+        # inside "Article" and skewed both selection and ranking.
+        term_pattern = re.compile(
+            rf"(?<![A-Za-z0-9]){re.escape(source)}(?![A-Za-z0-9])"
+        )
+        first_match = term_pattern.search(text)
+        if first_match is None:
             continue
-        first_offset = text.find(source)
-        candidate_count = candidates.get(source).count if source in candidates else occurrences
+        occurrences = len(term_pattern.findall(text))
+        first_offset = first_match.start()
+        candidate = candidates.get(source)
+        candidate_count = candidate.count if candidate is not None else occurrences
         selected.append((-candidate_count, first_offset, source, target))
     selected.sort(key=lambda item: (item[0], item[1], item[2].casefold()))
     return "\n".join(

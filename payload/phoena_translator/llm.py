@@ -19,6 +19,9 @@ class LLMSettings:
     base_url: str
     model: str
     timeout_seconds: float = 120.0
+    # Retry policy is owned exclusively by ``api_runtime``; the SDK's built-in
+    # retries would multiply attempts and hide 429s from burst accounting.
+    max_retries: int = 0
 
 
 class DeepSeekTranslationAdapter:
@@ -47,6 +50,7 @@ class DeepSeekTranslationAdapter:
                         api_key=self._settings.api_key,
                         base_url=self._settings.base_url,
                         timeout=self._settings.timeout_seconds,
+                        max_retries=self._settings.max_retries,
                     )
         return self._client_instance
 

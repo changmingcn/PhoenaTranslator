@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
@@ -70,6 +71,8 @@ class AppConfig:
     pdf_min_acceptable_htmlbox_scale: float = 0.60
     pdf_vector_ocr_dpi: int = 216
     pdf_vector_ocr_min_alpha_words: int = 60
+    pdf_font_regular: Path | None = None
+    pdf_font_bold: Path | None = None
     glossary_json: Path | None = None
     deepseek_api_key: str = field(default="", repr=False)
     deepseek_base_url: str = "https://api.deepseek.com"
@@ -95,6 +98,8 @@ class AppConfig:
             minimum=1024,
         )
         glossary_raw = env.get("TRANSLATOR_GLOSSARY_JSON", "").strip()
+        font_regular_raw = env.get("TRANSLATOR_PDF_FONT_REGULAR", "").strip()
+        font_bold_raw = env.get("TRANSLATOR_PDF_FONT_BOLD", "").strip()
         return cls(
             upload_dir=Path(env.get("TRANSLATOR_UPLOAD_DIR", base / "translator_uploads")).expanduser(),
             output_dir=Path(env.get("TRANSLATOR_OUTPUT_DIR", base / "translator_outputs")).expanduser(),
@@ -212,6 +217,10 @@ class AppConfig:
                 60,
                 minimum=20,
             ),
+            pdf_font_regular=(
+                Path(font_regular_raw).expanduser() if font_regular_raw else None
+            ),
+            pdf_font_bold=Path(font_bold_raw).expanduser() if font_bold_raw else None,
             glossary_json=Path(glossary_raw).expanduser() if glossary_raw else None,
             deepseek_api_key=env.get("DEEPSEEK_API_KEY", ""),
             deepseek_base_url=env.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
@@ -241,3 +250,30 @@ class AppConfig:
     def ensure_runtime_directories(self) -> None:
         for directory in (self.upload_dir, self.output_dir, self.progress_dir):
             directory.mkdir(parents=True, exist_ok=True)
+
+
+_shared_config: AppConfig | None = None
+_shared_config_lock = threading.Lock()
+
+
+def get_app_config() -> AppConfig:
+    """Return the process-wide AppConfig, reading the environment exactly once.
+
+    Every module that needs configuration at import time must use this
+    accessor so the whole process observes one consistent snapshot.  To embed
+    the package with a custom configuration, call :func:`set_app_config`
+    before importing any ``phoena_translator.pdf`` module.
+    """
+    global _shared_config
+    if _shared_config is None:
+        with _shared_config_lock:
+            if _shared_config is None:
+                _shared_config = AppConfig.from_env()
+    return _shared_config
+
+
+def set_app_config(config: AppConfig | None) -> None:
+    """Install (or with ``None`` reset) the process-wide AppConfig."""
+    global _shared_config
+    with _shared_config_lock:
+        _shared_config = config

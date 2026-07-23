@@ -65,7 +65,11 @@ class CompletionDependencies:
 
 
 def strip_think_tags(text: str) -> str:
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    # A truncated response may never close the tag; the unclosed remainder is
+    # reasoning noise, not translation output.
+    text = re.sub(r"<think>.*\Z", "", text, flags=re.DOTALL)
+    return text.strip()
 
 
 def is_rate_limit_error(exc: Exception) -> bool:
@@ -73,8 +77,9 @@ def is_rate_limit_error(exc: Exception) -> bool:
     status_code = getattr(exc, "status_code", None)
     return (
         status_code == 429
-        or "429" in text
+        or re.search(r"(?<!\d)429(?!\d)", text) is not None
         or "rate_limit" in text
+        or "rate limit" in text
         or "too many requests" in text
     )
 

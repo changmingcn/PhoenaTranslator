@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import logging
 import threading
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 
 _LOCK = threading.Lock()
 _HANDLER_MARKER = "_phoena_translator_handler"
+# The service has no external logrotate; bound the on-disk footprint here.
+_LOG_MAX_BYTES = 50 * 1024 * 1024
+_LOG_BACKUP_COUNT = 5
 
 
 def configure_logging(
@@ -31,7 +35,12 @@ def configure_logging(
         formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
         handlers: list[logging.Handler] = [
             logging.StreamHandler(),
-            logging.FileHandler(log_file, encoding="utf-8"),
+            RotatingFileHandler(
+                log_file,
+                maxBytes=_LOG_MAX_BYTES,
+                backupCount=_LOG_BACKUP_COUNT,
+                encoding="utf-8",
+            ),
         ]
         for handler in handlers:
             setattr(handler, _HANDLER_MARKER, True)
