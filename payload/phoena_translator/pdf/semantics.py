@@ -114,6 +114,8 @@ from phoena_translator.pdf.semantic_cross_page import (
     _cross_page_geometry_rejection,
     _cross_page_element_rejection,
     _merge_cross_page_sentences,
+    _absorb_cross_page_orphan_tails,
+    _cross_page_orphan_tail_fragment,
 )
 
 __all__ = (
@@ -216,4 +218,6 @@ __all__ = (
     "_cross_page_geometry_rejection",
     "_cross_page_element_rejection",
     "_merge_cross_page_sentences",
+    "_absorb_cross_page_orphan_tails",
+    "_cross_page_orphan_tail_fragment",
 )

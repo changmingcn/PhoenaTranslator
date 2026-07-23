@@ -19,9 +19,36 @@ except ImportError:  # Optional: full fonts remain usable without subsetting.
 def pdf_font_subsetting_available() -> bool:
     return fonttools_subset is not None
 
-def _get_chinese_font_path(bold: bool = False) -> str:
+
+# HTML-box insertion embeds a fresh copy of the font per call; only final
+# compaction deduplicates them.  An unsubsettable font beyond this size grows
+# the incremental work file by gigabytes and has been observed to silently
+# lose the last pages' assembly, so it must be rejected up front.
+PDF_HTMLBOX_MAX_EMBED_FONT_BYTES = 4 * 1024 * 1024
+
+
+def pdf_font_is_safely_embeddable(font_path: str) -> bool:
+    """Return whether a font can be used for per-insert HTML-box embedding."""
+    try:
+        size = os.path.getsize(font_path)
+    except OSError:
+        return False
+    if size <= PDF_HTMLBOX_MAX_EMBED_FONT_BYTES:
+        return True
+    # Large fonts are fine only when the subsetting path can shrink them.
+    return pdf_font_subsetting_available() and not _pdf_font_is_cff(font_path)
+
+def _get_chinese_font_path(bold: bool = False, *, override: str | None = None) -> str:
     """Return the filesystem path to a Chinese font for fitz insert_textbox().
-    If bold=True, try to find a bold variant first."""
+    An explicit configured override wins; otherwise search the known system
+    locations. If bold=True, try to find a bold variant first."""
+    if override:
+        override_path = os.path.expanduser(str(override))
+        if os.path.exists(override_path):
+            return override_path
+        raise RuntimeError(
+            f"Configured Chinese font does not exist: {override_path}"
+        )
     if bold:
         bold_candidates = [
             os.path.expanduser("~/fonts/NotoSansSC-Bold.ttf"),
@@ -65,9 +92,24 @@ def _collect_pdf_font_chars(page_extractions, translated_texts) -> str:
     return "".join(sorted(chars))
 
 
+def _pdf_font_is_cff(source_path: str) -> bool:
+    """Return whether the font file is CFF-flavored OpenType (``OTTO``)."""
+    try:
+        with open(source_path, "rb") as handle:
+            return handle.read(4) == b"OTTO"
+    except OSError:
+        return False
+
+
 def _subset_pdf_font(source_path: str, text_chars: str, output_dir: str, suffix: str) -> str:
     """Create a font subset containing only characters used by this PDF."""
     if not fonttools_subset:
+        return source_path
+    if _pdf_font_is_cff(source_path):
+        # MuPDF's HTML-box @font-face loader mis-renders fontTools-subset
+        # CFF outlines (CJK codepoints resolve to wrong or empty glyphs)
+        # regardless of subsetter options.  Embed the complete font instead;
+        # save-time garbage collection deduplicates the single copy.
         return source_path
 
     subset_path = os.path.join(output_dir, f"{Path(source_path).stem}-{suffix}{Path(source_path).suffix}")

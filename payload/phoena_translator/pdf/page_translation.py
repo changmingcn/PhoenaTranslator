@@ -71,8 +71,10 @@ def _clean_translated_text(
             candidate = restored
         else:
             restoration_failures.append("superscript-token-restore")
-    if len(candidate) > len(source_text) * 2:
-        candidate = candidate[: int(len(source_text) * 1.5)]
+    # Oversized candidates are rejected by the expansion gate in
+    # ``_translation_part_needs_retry`` and retried; truncating here could cut
+    # a just-restored URL or tag in half and manufacture new integrity
+    # failures.
     candidate = re.sub(r"^#+\s*", "", candidate, flags=re.MULTILINE)
     candidate = re.sub(r"^\*+\s*", "", candidate, flags=re.MULTILINE)
     candidate = _normalize_pdf_translation(candidate)

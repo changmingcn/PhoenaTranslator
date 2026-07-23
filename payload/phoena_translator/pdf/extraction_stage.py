@@ -16,6 +16,7 @@ from phoena_translator.pdf.audit import (
     _collect_pdf_vector_ocr_expectations,
     _expand_pdf_fallback_pages_for_accepted_merges,
     _pdf_formula_protection_fallback_pages,
+    _preserve_pdf_formula_mid_sentence_neighbors,
     _preserve_pdf_formula_risk_text_elements,
 )
 from phoena_translator.pdf.cache import (
@@ -382,12 +383,32 @@ def reconcile_extraction(
                 info["elements"],
                 result.page_rects[page_num],
             )
-    _merge_cross_page_sentences(
+    absorbed_tails = _merge_cross_page_sentences(
         result.page_extractions,
         result.total_pages,
         result.page_rects,
         audit_log=context.pdf_audit["merge_decisions"],
     )
+    if absorbed_tails:
+        context.logger.info(
+            f"[{context.task_id}] Completed {absorbed_tails} page-broken "
+            "sentence(s) by absorbing next-page tails"
+        )
+    # Mid-sentence stubs must be marked BEFORE cache binding: the mark is part
+    # of the element identity, so a stale cached translation for the stub can
+    # never rebind and override the preservation.
+    mid_sentence_preserved = _preserve_pdf_formula_mid_sentence_neighbors(
+        result.page_extractions
+    )
+    if mid_sentence_preserved:
+        context.pdf_audit["formula_mid_sentence_preserved_elements"] = (
+            mid_sentence_preserved
+        )
+        context.logger.warning(
+            f"[{context.task_id}] Kept {len(mid_sentence_preserved)} "
+            "mid-sentence stub(s) coupled to protected formula lines as "
+            "exact source"
+        )
     _bind_and_reconcile_caches(context, result)
     result.completed_indices.update(result.forced_fallbacks_by_index)
 

@@ -41,6 +41,9 @@ class PDFPipelineDependencies:
     check_output_structure_serialized: Callable[..., dict]
     save_translation_progress: Callable[..., None]
     font_subsetting_available: bool
+    # Optional configured font files; ``None`` falls back to system discovery.
+    font_regular_override: str | None = None
+    font_bold_override: str | None = None
 
 
 @dataclass(frozen=True)

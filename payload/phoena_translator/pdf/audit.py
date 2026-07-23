@@ -37,8 +37,19 @@ from phoena_translator.pdf.cache import (
     _save_pdf_audit,
 )
 from phoena_translator.pdf.semantic_cross_page import (
+    CROSS_PAGE_ABSORBED_TAIL_MAX_CHARS,
     _cross_page_destination_start_evidence,
     _cross_page_destination_start_rejection,
+    _cross_page_dominant_fontsize,
+    _first_cross_page_lexical_char,
+    _strip_trailing_footnote_marker,
+)
+from phoena_translator.pdf.semantic_text import (
+    _ends_with_sentence_boundary,
+    _is_heading_like_elem,
+)
+from phoena_translator.pdf.geometry import (
+    _get_pdf_elem_rect,
 )
 
 log = logging.getLogger("translator")
@@ -282,6 +293,84 @@ def _preserve_pdf_formula_risk_text_elements(page_extractions: dict) -> list[dic
     return preserved
 
 
+def _preserve_pdf_formula_mid_sentence_neighbors(
+    page_extractions: dict,
+) -> list[dict]:
+    """Preserve prose whose sentence continues inside a protected formula line.
+
+    Math detection can promote the marker-bearing lines of one paragraph to
+    immutable formula regions, leaving the leading prose lines behind as a
+    text element that stops mid-sentence ("... the Up phase and the Down
+    phase").  Translating that stub alone truncates the sentence, so keep the
+    stub as exact source: the whole paragraph then reads coherently in the
+    original language, matching the conservative delivery policy.
+    """
+    preserved = []
+    dominant_fontsize = _cross_page_dominant_fontsize(page_extractions or {})
+    for page_num in sorted(page_extractions or {}):
+        info = page_extractions.get(page_num) or {}
+        elements = info.get("elements") or []
+        formula_rects = [
+            _get_pdf_elem_rect(elem)
+            for elem in elements
+            if elem.get("type") == "formula_image"
+        ]
+        if not formula_rects:
+            continue
+        for elem_index, elem in enumerate(elements):
+            if elem.get("type") != "text":
+                continue
+            if not _pdf_element_requires_translation(elem):
+                continue
+            # Headings, table cells and rotated labels legitimately end
+            # without punctuation; only running prose can continue into a
+            # protected formula line.
+            if (
+                elem.get("table_hint")
+                or elem.get("non_horizontal")
+                or elem.get("layout_class") == "table"
+                or _is_heading_like_elem(elem)
+                or float(elem.get("fontsize", dominant_fontsize))
+                > dominant_fontsize * 1.15
+            ):
+                continue
+            plain = re.sub(
+                r"\s+", " ", _plain_text(elem.get("content") or "")
+            ).strip()
+            if not plain or _ends_with_sentence_boundary(plain):
+                continue
+            rect = _get_pdf_elem_rect(elem)
+            if rect.is_empty:
+                continue
+            line_height = max(
+                float(elem.get("line_height", 0.0) or 0.0),
+                float(elem.get("fontsize", 11.0) or 11.0) * 1.2,
+                8.0,
+            )
+            coupled = False
+            for formula_rect in formula_rects:
+                gap = formula_rect.y0 - rect.y1
+                if gap < -line_height * 0.5 or gap > line_height * 1.8:
+                    continue
+                overlap = min(rect.x1, formula_rect.x1) - max(
+                    rect.x0, formula_rect.x0
+                )
+                if overlap < min(rect.width, formula_rect.width) * 0.5:
+                    continue
+                coupled = True
+                break
+            if not coupled:
+                continue
+            elem["skip_translate_reason"] = "formula_risk_preserved"
+            preserved.append({
+                "page": int(page_num) + 1,
+                "element": elem_index,
+                "reason": "mid-sentence-into-formula",
+                "text": plain[:120],
+            })
+    return preserved
+
+
 def _summarize_pdf_formula_protection(
     expectations: list[dict],
     total_pages: int,
@@ -485,12 +574,12 @@ def _pdf_merge_original_element_text(elem: dict) -> str:
     return str(elem.get("content") or "")
 
 
-def _pdf_merge_audit_element(
+def _pdf_merge_raw_element(
     page_extractions: dict,
     page_number,
     element_index,
 ) -> dict | None:
-    """Resolve a decision reference to a copy containing original text."""
+    """Resolve a decision reference to the live (post-merge) element dict."""
     if not isinstance(page_extractions, dict):
         return None
     if isinstance(page_number, bool) or isinstance(element_index, bool):
@@ -511,7 +600,17 @@ def _pdf_merge_audit_element(
     if not isinstance(elements, list) or resolved_element_index >= len(elements):
         return None
     elem = elements[resolved_element_index]
-    if not isinstance(elem, dict):
+    return elem if isinstance(elem, dict) else None
+
+
+def _pdf_merge_audit_element(
+    page_extractions: dict,
+    page_number,
+    element_index,
+) -> dict | None:
+    """Resolve a decision reference to a copy containing original text."""
+    elem = _pdf_merge_raw_element(page_extractions, page_number, element_index)
+    if elem is None:
         return None
     original = dict(elem)
     original_text = _pdf_merge_original_element_text(elem)
@@ -543,6 +642,65 @@ def _pdf_merge_start_evidence(
     return source_elem, destination_elem, start_kind, start_exception
 
 
+def _normalized_audit_text(text: str) -> str:
+    return re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+
+
+def _validate_pdf_orphan_tail_decision(
+    decision: dict,
+    page_extractions: dict | None,
+) -> str | None:
+    """Verify one accepted orphan-tail absorption end to end.
+
+    The load-bearing invariant is single ownership of the carried words: the
+    source sentence must now end with the tail, and the orphan element must be
+    merged away so the tail can neither duplicate nor vanish."""
+    tail = _normalized_audit_text(str(decision.get("carried_tail") or ""))
+    if (
+        not tail
+        or len(tail) > CROSS_PAGE_ABSORBED_TAIL_MAX_CHARS
+        or not _ends_with_sentence_boundary(_strip_trailing_footnote_marker(tail))
+        or not _first_cross_page_lexical_char(tail).islower()
+    ):
+        return "orphan-tail-malformed"
+    if page_extractions is None:
+        return None
+    source = _pdf_merge_raw_element(
+        page_extractions,
+        decision.get("source_page"),
+        decision.get("source_element"),
+    )
+    destination = _pdf_merge_raw_element(
+        page_extractions,
+        decision.get("destination_page"),
+        decision.get("destination_element"),
+    )
+    if source is None or destination is None:
+        return "merge-evidence-missing"
+    if not _normalized_audit_text(source.get("content", "")).endswith(tail):
+        return "orphan-tail-not-absorbed"
+    source_original = _normalized_audit_text(
+        _pdf_merge_original_element_text(source)
+    )
+    if source_original.endswith(tail):
+        return "orphan-tail-source-not-mid-sentence"
+    destination_original = _normalized_audit_text(
+        _pdf_merge_original_element_text(destination)
+    )
+    if not destination_original.startswith(tail):
+        return "orphan-tail-destination-mismatch"
+    remainder = destination_original[len(tail):].strip()
+    if destination.get("type") == "text_merged_away":
+        if remainder:
+            return "orphan-tail-destination-mismatch"
+        return None
+    if not remainder:
+        return "orphan-element-not-merged-away"
+    if _normalized_audit_text(destination.get("content", "")) != remainder:
+        return "orphan-tail-destination-mismatch"
+    return None
+
+
 def _validate_pdf_merge_audit(
     merge_decisions: list[dict],
     page_extractions: dict | None = None,
@@ -550,6 +708,32 @@ def _validate_pdf_merge_audit(
     warnings = []
     for index, decision in enumerate(merge_decisions or []):
         if not isinstance(decision, dict) or decision.get("decision") != "accepted":
+            continue
+        kind = str(decision.get("kind") or "cross-page-merge")
+        if kind == "cross-page-orphan-tail":
+            orphan_invariant = _validate_pdf_orphan_tail_decision(
+                decision,
+                page_extractions,
+            )
+            if decision.get("reason") != "accepted":
+                orphan_invariant = orphan_invariant or "accepted-reason"
+            if orphan_invariant:
+                warnings.append({
+                    "type": "merge-invariant-violation",
+                    "decision_index": index,
+                    "source_page": decision.get("source_page"),
+                    "destination_page": decision.get("destination_page"),
+                    "invariant": orphan_invariant,
+                })
+            continue
+        if kind != "cross-page-merge":
+            warnings.append({
+                "type": "merge-invariant-violation",
+                "decision_index": index,
+                "source_page": decision.get("source_page"),
+                "destination_page": decision.get("destination_page"),
+                "invariant": "unknown-merge-kind",
+            })
             continue
         invariant = None
         if decision.get("reason") != "accepted":

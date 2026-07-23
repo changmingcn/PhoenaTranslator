@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from phoena_translator.config import AppConfig
+from phoena_translator.config import get_app_config
 
 SKIP_SECTION_HEADING_RE = re.compile(
     r"(?i)^(?:section\s+)?(?:\d+(?:\.\d+)*[.):]?\s*)?"
@@ -321,7 +321,10 @@ _PDF_TOC_ENTRY_RE = re.compile(
     r"(?P<leader>(?:[.…·]\s*){4,})\s*(?P<page>\d+)\b"
 )
 
-_PDF_CONFIG = AppConfig.from_env()
+# One shared configuration snapshot for the whole process (see
+# ``config.get_app_config``): the composition root and these module constants
+# must never disagree about the same knob.
+_PDF_CONFIG = get_app_config()
 PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE = _PDF_CONFIG.pdf_min_acceptable_htmlbox_scale
 PDF_VECTOR_OCR_DPI = _PDF_CONFIG.pdf_vector_ocr_dpi
 PDF_VECTOR_OCR_MIN_ALPHA_WORDS = _PDF_CONFIG.pdf_vector_ocr_min_alpha_words

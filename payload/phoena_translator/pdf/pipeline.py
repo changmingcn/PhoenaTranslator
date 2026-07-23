@@ -159,7 +159,10 @@ def _run_pdf_attempt(
 ) -> None:
     """Run one PDF attempt; retry control belongs only to ``translate_pdf``."""
 
-    font_path, bold_font_path = resolve_output_fonts()
+    font_path, bold_font_path = resolve_output_fonts(
+        dependencies.font_regular_override,
+        dependencies.font_bold_override,
+    )
     extraction_context = PDFExtractionStageContext(
         task_id=task_id,
         src_path=src_path,

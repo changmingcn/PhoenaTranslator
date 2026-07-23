@@ -1080,10 +1080,20 @@ def _extract_pdf_image_elements(
                             "rect": rect,
                             "bbox": [rect.x0, rect.y0, rect.x1, rect.y1],
                         })
-            except Exception:
+            except Exception as image_exc:
+                log.warning(
+                    "Page %s: skipped unreadable image placement: %s",
+                    page.number + 1,
+                    image_exc,
+                )
                 continue
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning(
+            "Page %s: image enumeration failed; continuing without image "
+            "placeholders: %s",
+            page.number + 1,
+            exc,
+        )
     return elements, image_rects
 
 
@@ -1511,30 +1521,41 @@ def _extract_pdf_text_elements(
     page,
     table_rects: list[fitz.Rect],
 ) -> list[dict]:
-    """Extract rich text and formula elements from every text block."""
+    """Extract rich text and formula elements from every text block.
+
+    A ``get_text`` failure must propagate: the extraction stage wraps it into
+    ``PDFPageExtractionError`` so the recovery policy preserves the exact
+    source page with an audit record, instead of silently emitting a page
+    with no text elements.
+    """
     elements: list[dict] = []
-    try:
-        page_dict = page.get_text(
-            "dict",
-            flags=fitz.TEXT_PRESERVE_WHITESPACE,
+    page_dict = page.get_text(
+        "dict",
+        flags=fitz.TEXT_PRESERVE_WHITESPACE,
+    )
+    dropped_blocks = 0
+    for block in page_dict.get("blocks", []):
+        if block.get("type") != 0:
+            continue
+        try:
+            _append_pdf_text_block_elements(
+                elements,
+                block,
+                page,
+                table_rects,
+            )
+        except Exception as block_exc:
+            dropped_blocks += 1
+            log.warning(
+                "PDF text block extraction failed at "
+                f"{block.get('bbox')}: {block_exc}"
+            )
+    if dropped_blocks:
+        log.warning(
+            "Page %s: dropped %s unextractable text block(s)",
+            page.number + 1,
+            dropped_blocks,
         )
-        for block in page_dict.get("blocks", []):
-            if block.get("type") != 0:
-                continue
-            try:
-                _append_pdf_text_block_elements(
-                    elements,
-                    block,
-                    page,
-                    table_rects,
-                )
-            except Exception as block_exc:
-                log.warning(
-                    "PDF text block extraction failed at "
-                    f"{block.get('bbox')}: {block_exc}"
-                )
-    except Exception:
-        pass
     return elements
 
 

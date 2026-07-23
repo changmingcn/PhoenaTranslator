@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from typing import Callable
-from phoena_translator.config import AppConfig
+from phoena_translator.config import get_app_config
 import hashlib
 import json
 import os
@@ -46,7 +46,7 @@ def configure_pdf_cache_progress_dir(provider: Callable[[], str]) -> None:
 def _cache_progress_dir() -> str:
     if _progress_dir_provider is not None:
         return str(_progress_dir_provider())
-    return str(AppConfig.from_env().progress_dir)
+    return str(get_app_config().progress_dir)
 
 def _pdf_source_sha256(path: str) -> str:
     digest = hashlib.sha256()
