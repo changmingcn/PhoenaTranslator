@@ -91,6 +91,23 @@ def _pdf_rect_intersects_protected(
     return False
 
 
+def _safe_bbox_rect(value) -> fitz.Rect | None:
+    """Convert an untrusted bbox value to a non-empty Rect, or ``None``.
+
+    Element/paragraph metadata may legitimately lack geometry fields.  PyMuPDF
+    does not raise a uniform exception type for malformed input (this build
+    raises ``AssertionError`` for ``Rect(None)``), so the conversion must be
+    guarded broadly instead of enumerating exception classes.
+    """
+    if value is None:
+        return None
+    try:
+        rect = fitz.Rect(value)
+    except Exception:
+        return None
+    return None if rect.is_empty else rect
+
+
 def _get_pdf_source_ink_rects(elem: dict) -> list[fitz.Rect]:
     """Return each recorded source-glyph rectangle without filling gaps.
 
@@ -104,40 +121,29 @@ def _get_pdf_source_ink_rects(elem: dict) -> list[fitz.Rect]:
     for paragraph in elem.get("paragraphs") or []:
         paragraph_rects: list[fitz.Rect] = []
         for line in paragraph.get("source_lines") or []:
-            fragment_rects: list[fitz.Rect] = []
-            for fragment in line.get("same_baseline_fragments") or []:
-                try:
-                    rect = fitz.Rect(fragment.get("bbox"))
-                except (TypeError, ValueError):
-                    continue
-                if not rect.is_empty:
-                    fragment_rects.append(rect)
+            fragment_rects = [
+                rect
+                for fragment in line.get("same_baseline_fragments") or []
+                if (rect := _safe_bbox_rect(fragment.get("bbox"))) is not None
+            ]
             if fragment_rects:
                 paragraph_rects.extend(fragment_rects)
                 continue
-            try:
-                rect = fitz.Rect(line.get("bbox"))
-            except (TypeError, ValueError):
-                continue
-            if not rect.is_empty:
-                paragraph_rects.append(rect)
+            line_rect = _safe_bbox_rect(line.get("bbox"))
+            if line_rect is not None:
+                paragraph_rects.append(line_rect)
 
         if not paragraph_rects:
-            for bbox in paragraph.get("source_line_bboxes") or []:
-                try:
-                    rect = fitz.Rect(bbox)
-                except (TypeError, ValueError):
-                    continue
-                if not rect.is_empty:
-                    paragraph_rects.append(rect)
+            paragraph_rects = [
+                rect
+                for bbox in paragraph.get("source_line_bboxes") or []
+                if (rect := _safe_bbox_rect(bbox)) is not None
+            ]
 
         if not paragraph_rects:
-            try:
-                rect = fitz.Rect(paragraph.get("source_bbox"))
-            except (TypeError, ValueError):
-                rect = fitz.Rect()
-            if not rect.is_empty:
-                paragraph_rects.append(rect)
+            source_rect = _safe_bbox_rect(paragraph.get("source_bbox"))
+            if source_rect is not None:
+                paragraph_rects.append(source_rect)
         source_rects.extend(paragraph_rects)
 
     return source_rects or [_get_pdf_elem_rect(elem)]
@@ -174,11 +180,7 @@ def _pdf_elem_last_source_line_rect(elem: dict) -> fitz.Rect | None:
     ]
     if not lines:
         return None
-    try:
-        rect = fitz.Rect(lines[-1]["bbox"])
-    except (TypeError, ValueError):
-        return None
-    return None if rect.is_empty else rect
+    return _safe_bbox_rect(lines[-1]["bbox"])
 
 
 def _cluster_pdf_line_spans(span_entries: list[dict], fontsize: float) -> list[list[dict]]:
