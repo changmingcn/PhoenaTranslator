@@ -11,29 +11,47 @@ DEFAULT_CHUNK_MAX_BYTES = 20_000
 SKIP_SECTION_PATTERNS = re.compile(
     r"(?i)\b(bibliography|references|index|endnotes?|glossary|acronyms|abbreviations)\b"
 )
+# Substring matching on file names silently skipped Calibre-style content files
+# (``index_split_000.xhtml``) and any chapter whose heading merely mentioned a
+# keyword ("Cross-references in law").  Mirror the PDF side's discipline
+# instead: the file-name stem or the whole normalized heading must BE the
+# section marker, not contain it.  A bare ``index`` stem stays translatable
+# because EPUB landing/content pages commonly use that name; a genuine
+# back-of-book index is still caught by its <title>/<h1> below.
+_SKIP_SECTION_FILENAME_STEM_RE = re.compile(
+    r"(?i)^(?:\d{1,4}[-_ .]*)?"
+    r"(?:bibliograph(?:y|ies)|references?|endnotes?|glossary|acronyms|abbreviations)"
+    r"(?:[-_ .]*\d{1,4})?$"
+)
+_SKIP_SECTION_HEADING_RE = re.compile(
+    r"(?i)^(?:section\s+)?(?:\d+(?:\.\d+)*[.):]?\s*)?"
+    r"(?:bibliography|references|index|endnotes?|glossary|acronyms|abbreviations)"
+    r"(?:\s*(?:&|and)\s*(?:further\s+reading|notes|references))?$"
+)
 _BODY_RE = re.compile(r"(<body[^>]*>)(.*?)(</body>)", re.DOTALL | re.IGNORECASE)
+
+
+def _is_skip_section_heading(raw_heading: str) -> bool:
+    heading = re.sub(r"<[^>]+>", "", raw_heading or "")
+    heading = re.sub(r"\s+", " ", heading).strip(" \t\r\n-–—:;.")
+    return bool(heading) and bool(_SKIP_SECTION_HEADING_RE.fullmatch(heading))
 
 
 def is_appendix_xhtml(filepath: str, content: str) -> bool:
     """Detect bibliography/reference/index material that should not be translated."""
-    filename = Path(filepath).name.lower()
-    if any(
-        pattern in filename
-        for pattern in ("bibliograph", "reference", "index", "endnote", "glossary")
-    ):
+    stem = Path(Path(filepath).name.lower()).stem
+    if _SKIP_SECTION_FILENAME_STEM_RE.fullmatch(stem):
         return True
     title_match = re.search(
         r"<title[^>]*>(.*?)</title>", content, re.IGNORECASE | re.DOTALL
     )
-    if title_match and SKIP_SECTION_PATTERNS.search(title_match.group(1)):
+    if title_match and _is_skip_section_heading(title_match.group(1)):
         return True
     heading_match = re.search(
         r"<h[12][^>]*>(.*?)</h[12]>", content, re.IGNORECASE | re.DOTALL
     )
-    if heading_match:
-        heading_text = re.sub(r"<[^>]+>", "", heading_match.group(1))
-        if SKIP_SECTION_PATTERNS.search(heading_text):
-            return True
+    if heading_match and _is_skip_section_heading(heading_match.group(1)):
+        return True
     return False
 
 

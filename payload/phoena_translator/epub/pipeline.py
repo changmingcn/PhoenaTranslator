@@ -60,6 +60,19 @@ class EPUBPipelineDependencies:
             raise ValueError("EPUB chunk and retry limits must be positive")
 
 
+_STRICT_MARKUP_RETRY_HINT = (
+    "\n\n上一次输出未原样保留全部 XHTML 标签或数学占位符。"
+    "必须逐字保留所有标签、属性和 PHOENA_MATH_ 形态的占位符"
+    "（数量与顺序不得改变），只翻译标签之间的可见文本。"
+)
+
+# Failure kinds returned by ``translate_single_chunk``: ``"api"`` failures use
+# the ordinary retry rounds; ``"integrity"`` failures get one strict-hint retry
+# before failing closed to the source chunk.
+CHUNK_FAILURE_API = "api"
+CHUNK_FAILURE_INTEGRITY = "integrity"
+
+
 def translate_single_chunk(
     task_id: str,
     relative_path: str,
@@ -70,44 +83,49 @@ def translate_single_chunk(
     *,
     translate_text: TranslateText,
     logger: logging.Logger,
-) -> tuple[str, int, str | None]:
-    """Translate one XHTML chunk and fail closed to source on math corruption."""
+    strict_retry: bool = False,
+) -> tuple[str, int, str | None, str | None]:
+    """Translate one XHTML chunk; integrity defects retry once, then fail closed."""
     try:
         protected_chunk, math_records = protect_xhtml_math_fragments(chunk_text)
         logger.info(
-            "[%s] %s chunk %s/%s (%s UTF-8 bytes) — sending to translation adapter",
+            "[%s] %s chunk %s/%s (%s UTF-8 bytes) — sending to translation adapter%s",
             task_id,
             relative_path,
             chunk_index + 1,
             total_chunks,
             len(chunk_text.encode("utf-8")),
+            " (strict markup retry)" if strict_retry else "",
+        )
+        prompt = (
+            xhtml_prompt + _STRICT_MARKUP_RETRY_HINT if strict_retry else xhtml_prompt
         )
         translated = translate_text(
             "请将以下XHTML文件内容翻译为中文，保留所有HTML标签结构不变，只翻译文本内容："
             f"\n\n{protected_chunk}",
-            system_prompt=xhtml_prompt,
+            system_prompt=prompt,
         )
         translated = fix_xhtml_entities(translated)
         translated = fix_xhtml_tags(translated)
         restored = restore_xhtml_math_fragments(translated, math_records)
         if restored is None:
             logger.error(
-                "[%s] %s chunk %s/%s — math placeholder integrity failed; using source",
+                "[%s] %s chunk %s/%s — math placeholder integrity failed",
                 task_id,
                 relative_path,
                 chunk_index + 1,
                 total_chunks,
             )
-            return relative_path, chunk_index, chunk_text
+            return relative_path, chunk_index, None, CHUNK_FAILURE_INTEGRITY
         if markup_tokens(restored) != markup_tokens(chunk_text):
             logger.error(
-                "[%s] %s chunk %s/%s — XHTML markup integrity failed; using source",
+                "[%s] %s chunk %s/%s — XHTML markup integrity failed",
                 task_id,
                 relative_path,
                 chunk_index + 1,
                 total_chunks,
             )
-            return relative_path, chunk_index, chunk_text
+            return relative_path, chunk_index, None, CHUNK_FAILURE_INTEGRITY
         chinese_count = len(re.findall(r"[\u4e00-\u9fff]", restored))
         logger.info(
             "[%s] %s chunk %s/%s — OK, %s Chinese chars",
@@ -117,7 +135,7 @@ def translate_single_chunk(
             total_chunks,
             chinese_count,
         )
-        return relative_path, chunk_index, restored
+        return relative_path, chunk_index, restored, None
     except Exception as exc:
         logger.error(
             "[%s] %s chunk %s/%s — failed: %s",
@@ -127,7 +145,7 @@ def translate_single_chunk(
             total_chunks,
             exc,
         )
-        return relative_path, chunk_index, None
+        return relative_path, chunk_index, None, CHUNK_FAILURE_API
 
 
 class EPUBPipeline:
@@ -193,7 +211,19 @@ class EPUBPipeline:
         source_text: list[str] = []
         for path in xhtml_files:
             relative = path.relative_to(root).as_posix()
-            content = path.read_text(encoding="utf-8")
+            try:
+                content = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError as decode_error:
+                # A non-UTF-8 member is kept as source instead of failing the
+                # whole book.
+                logger.warning(
+                    "[%s] Keeping non-UTF-8 XHTML as source: %s (%s)",
+                    task_id,
+                    relative,
+                    decode_error,
+                )
+                file_info[relative] = {"path": path, "chunks": [], "skip": True}
+                continue
             text_only = re.sub(r"<[^>]+>", "", content).strip()
             skip = is_appendix_xhtml(relative, content) or len(text_only) <= 20
             chunks = (
@@ -207,7 +237,6 @@ class EPUBPipeline:
             )
             file_info[relative] = {
                 "path": path,
-                "original": content,
                 "chunks": chunks,
                 "skip": skip,
             }
@@ -225,13 +254,14 @@ class EPUBPipeline:
         )
         chunk_results: dict[tuple[str, int], str] = {}
         chunk_attempts: dict[tuple[str, int], int] = {}
+        chunk_integrity_attempts: dict[tuple[str, int], int] = {}
         completed_files = {
             relative for relative, info in file_info.items() if info["skip"]
         }
-        work_queue: list[tuple[str, int, str]] = []
+        work_queue: list[tuple[str, int, str, bool]] = []
         for relative, info in file_info.items():
             for chunk_index, chunk in enumerate(info["chunks"]):
-                work_queue.append((relative, chunk_index, chunk))
+                work_queue.append((relative, chunk_index, chunk, False))
                 chunk_attempts[(relative, chunk_index)] = 0
         total_chunks = len(work_queue)
 
@@ -291,10 +321,10 @@ class EPUBPipeline:
                     delay,
                 )
                 dependencies.sleep(delay)
-            failed: list[tuple[str, int, str]] = []
+            failed: list[tuple[str, int, str, bool]] = []
             with ThreadPoolExecutor(max_workers=dependencies.workers) as executor:
                 future_to_item = {}
-                for relative, chunk_index, chunk_text in work_queue:
+                for relative, chunk_index, chunk_text, strict in work_queue:
                     total_for_file = len(file_info[relative]["chunks"])
                     key = (relative, chunk_index)
                     chunk_attempts[key] = chunk_attempts.get(key, 0) + 1
@@ -308,12 +338,14 @@ class EPUBPipeline:
                         xhtml_prompt,
                         translate_text=dependencies.translate_text,
                         logger=logger,
+                        strict_retry=strict,
                     )
-                    future_to_item[future] = (relative, chunk_index, chunk_text)
+                    future_to_item[future] = (relative, chunk_index, chunk_text, strict)
                 for future in as_completed(future_to_item):
-                    relative, chunk_index, chunk_text = future_to_item[future]
+                    relative, chunk_index, chunk_text, strict = future_to_item[future]
+                    key = (relative, chunk_index)
                     try:
-                        _relative, _index, translated = future.result()
+                        _relative, _index, translated, failure_kind = future.result()
                     except Exception as exc:
                         logger.error(
                             "[%s] %s chunk %s future failed: %s",
@@ -322,12 +354,28 @@ class EPUBPipeline:
                             chunk_index + 1,
                             exc,
                         )
-                        translated = None
-                    if translated is None:
-                        failed.append((relative, chunk_index, chunk_text))
-                    else:
-                        chunk_results[(relative, chunk_index)] = translated
+                        translated, failure_kind = None, CHUNK_FAILURE_API
+                    if translated is not None:
+                        chunk_results[key] = translated
                         try_merge_file(relative)
+                    elif failure_kind == CHUNK_FAILURE_INTEGRITY:
+                        chunk_integrity_attempts[key] = (
+                            chunk_integrity_attempts.get(key, 0) + 1
+                        )
+                        if chunk_integrity_attempts[key] <= 1:
+                            failed.append((relative, chunk_index, chunk_text, True))
+                        else:
+                            logger.error(
+                                "[%s] %s chunk %s — markup integrity failed after "
+                                "strict retry; using source",
+                                task_id,
+                                relative,
+                                chunk_index + 1,
+                            )
+                            chunk_results[key] = chunk_text
+                            try_merge_file(relative)
+                    else:
+                        failed.append((relative, chunk_index, chunk_text, strict))
                     update_progress()
             work_queue = [
                 item
@@ -335,7 +383,7 @@ class EPUBPipeline:
                 if chunk_attempts[(item[0], item[1])]
                 < dependencies.max_chunk_rounds
             ]
-            for relative, chunk_index, chunk_text in failed:
+            for relative, chunk_index, chunk_text, _strict in failed:
                 key = (relative, chunk_index)
                 if (
                     chunk_attempts[key] >= dependencies.max_chunk_rounds
