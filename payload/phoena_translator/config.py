@@ -68,6 +68,7 @@ class AppConfig:
     pdf_save_clean: bool = False
     pdf_use_htmlbox: bool = True
     pdf_fail_open_to_source_page: bool = True
+    pdf_preserve_tables: bool = True
     pdf_min_acceptable_htmlbox_scale: float = 0.60
     pdf_vector_ocr_dpi: int = 216
     pdf_vector_ocr_min_alpha_words: int = 60
@@ -197,6 +198,11 @@ class AppConfig:
             pdf_fail_open_to_source_page=_env_bool(
                 env,
                 "TRANSLATOR_PDF_FAIL_OPEN_TO_SOURCE_PAGE",
+                True,
+            ),
+            pdf_preserve_tables=_env_bool(
+                env,
+                "TRANSLATOR_PDF_PRESERVE_TABLES",
                 True,
             ),
             pdf_min_acceptable_htmlbox_scale=_env_float(
