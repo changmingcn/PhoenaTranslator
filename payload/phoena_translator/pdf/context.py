@@ -3,8 +3,15 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable
+
+
+@dataclass(frozen=True)
+class ImmutableElementPolicy:
+    """Task-local element handling policy fixed before extraction and caching."""
+
+    preserve_tables: bool
 
 
 @dataclass(frozen=True)
@@ -15,6 +22,12 @@ class PDFPipelineDependencies:
     assembly_max_concurrency: int
     extraction_max_concurrency: int
     fail_open_to_source_page: bool
+    preserve_tables: bool
+    element_policy: ImmutableElementPolicy = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
     minimum_htmlbox_scale: float
     save_clean: bool
     save_garbage: int
@@ -44,6 +57,13 @@ class PDFPipelineDependencies:
     # Optional configured font files; ``None`` falls back to system discovery.
     font_regular_override: str | None = None
     font_bold_override: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "element_policy",
+            ImmutableElementPolicy(preserve_tables=self.preserve_tables),
+        )
 
 
 @dataclass(frozen=True)
