@@ -38,9 +38,12 @@ from phoena_translator.pdf.cache import (
 )
 from phoena_translator.pdf.semantic_cross_page import (
     CROSS_PAGE_ABSORBED_TAIL_MAX_CHARS,
+    SourceContinuationEvidence,
+    _cross_page_continuation_decision,
     _cross_page_destination_start_evidence,
     _cross_page_destination_start_rejection,
     _cross_page_dominant_fontsize,
+    _cross_page_tail_start_acceptable,
     _first_cross_page_lexical_char,
     _strip_trailing_footnote_marker,
 )
@@ -656,11 +659,30 @@ def _validate_pdf_orphan_tail_decision(
     source sentence must now end with the tail, and the orphan element must be
     merged away so the tail can neither duplicate nor vanish."""
     tail = _normalized_audit_text(str(decision.get("carried_tail") or ""))
+    tail_unterminated = bool(decision.get("tail_unterminated"))
     if (
         not tail
         or len(tail) > CROSS_PAGE_ABSORBED_TAIL_MAX_CHARS
-        or not _ends_with_sentence_boundary(_strip_trailing_footnote_marker(tail))
-        or not _first_cross_page_lexical_char(tail).islower()
+        or (
+            not tail_unterminated
+            and not _ends_with_sentence_boundary(
+                _strip_trailing_footnote_marker(tail)
+            )
+        )
+        or (
+            tail_unterminated
+            and _ends_with_sentence_boundary(
+                _strip_trailing_footnote_marker(tail)
+            )
+        )
+        # Without merge evidence the dangling-source signal is unknown, so
+        # apply the permissive form of the shared two-signal policy here;
+        # the strict form runs below once the original source is known.
+        or not _cross_page_tail_start_acceptable(
+            tail,
+            source_dangling=True,
+            source_ends_capitalized=True,
+        )
     ):
         return "orphan-tail-malformed"
     if page_extractions is None:
@@ -684,6 +706,31 @@ def _validate_pdf_orphan_tail_decision(
     )
     if source_original.endswith(tail):
         return "orphan-tail-source-not-mid-sentence"
+    continuation_decision = _cross_page_continuation_decision(source_original)
+    reported_continuation_reason = decision.get(
+        "source_continuation_reason"
+    )
+    if (
+        continuation_decision.evidence is SourceContinuationEvidence.COMPLETE
+        or (
+            reported_continuation_reason is not None
+            and reported_continuation_reason != continuation_decision.audit_value
+        )
+    ):
+        return "orphan-tail-source-evidence"
+    source_dangling = continuation_decision.source_dangling
+    source_words = re.findall(r"[A-Za-z][A-Za-z'’-]*", source_original)
+    source_ends_capitalized = bool(
+        source_dangling and source_words and source_words[-1][:1].isupper()
+    )
+    if not _cross_page_tail_start_acceptable(
+        tail,
+        source_dangling=source_dangling,
+        source_ends_capitalized=source_ends_capitalized,
+    ):
+        return "orphan-tail-start-policy"
+    if tail_unterminated and not source_dangling:
+        return "orphan-tail-start-policy"
     destination_original = _normalized_audit_text(
         _pdf_merge_original_element_text(destination)
     )
