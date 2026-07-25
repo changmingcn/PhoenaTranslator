@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Callable
 from phoena_translator.config import get_app_config
 import hashlib
@@ -35,6 +36,19 @@ from phoena_translator.pdf.translation import (
 log = logging.getLogger("translator")
 
 _progress_dir_provider: Callable[[], str] | None = None
+
+
+@dataclass(frozen=True)
+class CacheIdentity:
+    """Typed in-memory cache key whose persisted form remains its digest."""
+
+    digest: str
+
+    def __post_init__(self) -> None:
+        if not re.fullmatch(r"[0-9a-f]{64}", self.digest):
+            raise ValueError(
+                "cache identity digest must be 64 lowercase hexadecimal characters"
+            )
 
 
 def configure_pdf_cache_progress_dir(provider: Callable[[], str]) -> None:
@@ -110,9 +124,10 @@ def _load_pdf_page_translation_cache(
     # corrected or when a task resumes after an interrupted layout pass. Map
     # cached translations by complete source/layout identity instead of
     # trusting a positional index from an older extraction.
-    cached_by_identity: dict[str, list[str]] = {}
+    cached_by_identity: dict[CacheIdentity, list[str]] = {}
     for key, translation in normalized_translations.items():
-        cached_by_identity.setdefault(element_identities[key], []).append(translation)
+        cached_identity = CacheIdentity(element_identities[key])
+        cached_by_identity.setdefault(cached_identity, []).append(translation)
 
     migrated: dict[str, str] = {}
     for current_index, elem in enumerate(elements or []):
@@ -128,12 +143,12 @@ def _load_pdf_page_translation_cache(
             continue
         identity_variants = []
         for identity in (
-            _pdf_cache_element_identity(elem),
+            _pdf_cache_identity(elem),
             # A short-lived v28 build wrote explicit false/empty vector-OCR
             # fields into every otherwise unchanged element identity.  Keep
             # those already-paid caches reusable while the canonical identity
             # below remains byte-compatible with v26/v27 for native text.
-            _pdf_cache_element_identity(
+            _pdf_cache_identity(
                 elem,
                 _include_empty_vector_fields=True,
             ),
@@ -161,11 +176,11 @@ def _load_pdf_page_translation_cache(
     return migrated
 
 
-def _pdf_cache_element_identity(
+def _pdf_cache_identity(
     elem: dict,
     *,
     _include_empty_vector_fields: bool = False,
-) -> str | None:
+) -> CacheIdentity | None:
     """Return a source-and-layout identity for explicit legacy cache migration.
 
     Page element indices are intentionally excluded: formula promotion and
@@ -183,7 +198,9 @@ def _pdf_cache_element_identity(
             _pdf_signature_number(value)
             for value in (bbox.x0, bbox.y0, bbox.x1, bbox.y1)
         ]
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, AssertionError):
+        # PyMuPDF raises AssertionError for Rect(None) in this build; see
+        # _safe_bbox_rect in geometry.py for the same guard rationale.
         return None
 
     paragraphs = [
@@ -254,7 +271,21 @@ def _pdf_cache_element_identity(
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
+    return CacheIdentity(hashlib.sha256(encoded).hexdigest())
+
+
+def _pdf_cache_element_identity(
+    elem: dict,
+    *,
+    _include_empty_vector_fields: bool = False,
+) -> str | None:
+    """Compatibility facade returning the historical 64-character digest."""
+
+    identity = _pdf_cache_identity(
+        elem,
+        _include_empty_vector_fields=_include_empty_vector_fields,
+    )
+    return identity.digest if identity is not None else None
 
 
 def _migrate_pdf_page_translation_cache_by_identity(
@@ -270,7 +301,7 @@ def _migrate_pdf_page_translation_cache_by_identity(
     Non-translatable text is reconstructed deterministically; formulas and
     other immutable objects never enter the migrated cache.
     """
-    legacy_by_identity: dict[str, list[tuple[int, str]]] = {}
+    legacy_by_identity: dict[CacheIdentity, list[tuple[int, str]]] = {}
     valid_legacy_entries = 0
     for raw_index, translation in (legacy_translations or {}).items():
         if not re.fullmatch(r"\d+", str(raw_index)) or not isinstance(translation, str):
@@ -281,17 +312,17 @@ def _migrate_pdf_page_translation_cache_by_identity(
         old_elem = legacy_elements[old_index]
         if not _pdf_element_requires_translation(old_elem):
             continue
-        identity = _pdf_cache_element_identity(old_elem)
+        identity = _pdf_cache_identity(old_elem)
         if identity is None:
             continue
         legacy_by_identity.setdefault(identity, []).append((old_index, translation))
         valid_legacy_entries += 1
 
-    current_identity_counts: dict[str, int] = {}
+    current_identity_counts: dict[CacheIdentity, int] = {}
     for elem in current_elements or []:
         if not _pdf_element_requires_translation(elem):
             continue
-        identity = _pdf_cache_element_identity(elem)
+        identity = _pdf_cache_identity(elem)
         if identity is not None:
             current_identity_counts[identity] = current_identity_counts.get(identity, 0) + 1
 
@@ -314,7 +345,7 @@ def _migrate_pdf_page_translation_cache_by_identity(
             continue
 
         required_count += 1
-        identity = _pdf_cache_element_identity(elem)
+        identity = _pdf_cache_identity(elem)
         candidates = legacy_by_identity.get(identity, []) if identity else []
         if identity and current_identity_counts.get(identity) == 1 and len(candidates) == 1:
             old_index, translation = candidates[0]
@@ -401,9 +432,9 @@ def _save_pdf_page_translation_cache(
             elem = (elements or [])[int(key)]
         except (IndexError, TypeError, ValueError):
             continue
-        identity = _pdf_cache_element_identity(elem)
+        identity = _pdf_cache_identity(elem)
         if identity:
-            element_identities[key] = identity
+            element_identities[key] = identity.digest
     payload = {
         "schema_version": PDF_PAGE_CACHE_SCHEMA_VERSION,
         "layout_semantics": PDF_LAYOUT_SEMANTICS_VERSION,
