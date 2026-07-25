@@ -433,16 +433,20 @@ def _prepare_page(
         removal_seed_indices,
     )
     for i in sorted(redraw_source_indices):
-        if elements[i].get("skip_translate_reason") == "formula_risk_preserved":
-            # A math-dense preserved element cannot be redrawn from
-            # extracted glyph order without risking mangled notation.
-            # Its ink would be collateral of a neighbor's redaction,
-            # so this page must fall back to the exact source copy.
+        if elements[i].get("skip_translate_reason") in {
+            "formula_risk_preserved",
+            "table_preserved",
+        }:
+            # A math-dense or table-preserved element cannot be redrawn
+            # from extracted glyph order without risking mangled notation
+            # or broken row/column alignment.  Its ink would be collateral
+            # of a neighbor's redaction, so this page must fall back to
+            # the exact source copy.
             raise PDFPageRenderError(
                 page_num + 1,
                 i,
-                "formula-risk preserved element would need a redraw "
-                "after neighboring redaction",
+                f"{elements[i].get('skip_translate_reason')} element would "
+                "need a redraw after neighboring redaction",
             )
     render_indices = set(translated_indices) | redraw_source_indices
     if redraw_source_indices:
@@ -513,11 +517,22 @@ def _redact_page(context: PDFAssemblyContext, plan: PDFPageAssemblyPlan) -> str:
             log.warning(
                 f"[{task_id}] Page {page_num + 1}: text redaction failed ({exc}); falling back to whiteout"
             )
+            # Pending redact annotations would otherwise be saved into the
+            # delivered file and render as marked boxes in viewers.
+            try:
+                for annot in list(
+                    out_page.annots(types=(fitz.PDF_ANNOT_REDACT,))
+                ):
+                    out_page.delete_annot(annot)
+            except Exception:
+                pass
         if not redacted:
+            # Paint exactly the recorded ink rects: an expanded margin would
+            # cover neighboring glyph edges and the line art the redaction
+            # path deliberately preserves, and nothing redraws that sliver.
             for rect in removal_rects:
-                expanded = fitz.Rect(rect.x0 - 2, rect.y0 - 2, rect.x1 + 2, rect.y1 + 2)
                 for safe_rect in _subtract_pdf_protected_rects(
-                    expanded, protected_formula_rects
+                    fitz.Rect(rect), protected_formula_rects
                 ):
                     shape = out_page.new_shape()
                     shape.draw_rect(safe_rect)
@@ -730,6 +745,28 @@ def _prepare_element_render(
         line_height,
     )
     if not paragraph_html:
+        # This element's source ink is already redacted; returning silently
+        # would leave a blank region with no record.  Restore the exact
+        # source text unless the source itself has no visible text.
+        source_plain = _plain_text(
+            element.get("rich_content") or element.get("content", "")
+        ).strip()
+        if source_plain:
+            reason = "translated payload rendered no visible text"
+            if not _try_restore_source_element(
+                context,
+                page_plan.out_page,
+                page_plan.page_num,
+                page_plan.protected_formula_rects,
+                index,
+                element,
+                source_rect,
+                fontsize,
+                color,
+                line_height,
+                reason,
+            ):
+                raise PDFPageRenderError(page_plan.page_num + 1, index, reason)
         return None
     table_cell = bool(element.get("table_hint") or element.get("glossary_cell_hint"))
     top_padding = max(
@@ -1068,6 +1105,28 @@ def _render_element(
     align_code = {"left": 0, "center": 1, "right": 2, "justify": 3}.get(align_name, 0)
     fallback_text = _plain_text(_normalize_pdf_translation(text_to_insert)).strip()
     if not fallback_text:
+        # The ink is already redacted; restore source instead of leaving a
+        # silent blank when the source itself had visible text.
+        source_plain = _plain_text(
+            elem.get("rich_content") or elem.get("content", "")
+        ).strip()
+        if source_plain:
+            reason = f"empty textbox fallback after htmlbox failure: {htmlbox_err}"
+            if not _try_restore_source_element(
+                context,
+                out_page,
+                page_num,
+                protected_formula_rects,
+                i,
+                elem,
+                fitz.Rect(elem.get("bbox", elem.get("rect"))),
+                fontsize,
+                (r_val / 255.0, g_val / 255.0, b_val / 255.0),
+                lh,
+                reason,
+            ):
+                raise PDFPageRenderError(page_num + 1, i, reason)
+            return
         log.warning(f"[{task_id}] Page {page_num + 1} elem {i}: empty textbox fallback")
         return
 
