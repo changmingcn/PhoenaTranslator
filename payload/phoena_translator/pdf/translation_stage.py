@@ -297,6 +297,39 @@ def _apply_page_source_fallbacks(
     )
 
 
+def _require_translated_page_progress(
+    context: PDFTranslationStageContext,
+) -> None:
+    """Refuse to deliver a document with zero translated pages as completed.
+
+    Fail-open exists to save a mostly-translated document.  When every page
+    that failed fell back to source at the translation stage and not a single
+    page holds a committed translation (dead API key, provider outage), the
+    "translated" output would be a byte-for-byte English copy delivered with
+    status completed.  Pages resumed from cache count as translated, so a
+    partially cached document still completes with fallbacks."""
+    translation_fallback_pages = sorted(
+        {
+            int(entry.get("page", 0) or 0)
+            for entry in context.pdf_audit.get("source_page_fallbacks", [])
+            if entry.get("stage") == "translation"
+        }
+    )
+    if not translation_fallback_pages:
+        return
+    if any("cached" in info for info in context.page_extractions.values()):
+        return
+    raise PDFPageTranslationError(
+        {
+            page_number: RuntimeError(
+                "every planned page fell back to the English source; "
+                "refusing to mark an untranslated copy as completed"
+            )
+            for page_number in translation_fallback_pages
+        }
+    )
+
+
 def translate_pages(
     context: PDFTranslationStageContext,
     page_context: PDFPageTranslationContext,
@@ -353,6 +386,7 @@ def translate_pages(
             "translation retry"
         )
     _apply_page_source_fallbacks(context, final_errors)
+    _require_translated_page_progress(context)
 
 
 __all__ = ["PDFTranslationStageContext", "translate_pages"]
