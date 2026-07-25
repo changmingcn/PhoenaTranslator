@@ -176,6 +176,16 @@ def _pdf_number_anchor_plain_text(text: str) -> str:
     return re.sub(r"\s+", " ", _plain_text(separated)).strip()
 
 
+_PDF_REFUSAL_META_RE = re.compile(
+    r"^(?:好的|当然|明白了)[，,、]?\s*(?:以下|这)是"
+    r"|^以下是[^。]{0,12}(?:译文|翻译)"
+    r"|^译文[:：]"
+    r"|^(?:抱歉|对不起)[，,]?\s*(?:我)?(?:无法|不能)"
+    r"|^(?:我)?(?:无法|不能)(?:翻译|提供|处理|完成)"
+    r"|作为一?[个個]?(?:AI|人工智能|大?语言模型)"
+)
+
+
 def _short_translation_needs_retry(source_text: str, translated_text: str) -> bool:
     """Detect short blocks that came back untranslated."""
     if not _looks_like_translatable_english(source_text):
@@ -205,6 +215,12 @@ def _short_translation_needs_retry(source_text: str, translated_text: str) -> bo
     if not translated_plain or not translated_language:
         return True
     if _has_chinese(translated_language):
+        # A Chinese refusal or meta-preamble ("抱歉，我无法翻译此内容",
+        # "以下是译文：…") contains Chinese and, for short digit-free
+        # sources, violates none of the length/anchor checks below — yet it
+        # is not a translation.  Force the retry ladder instead.
+        if _PDF_REFUSAL_META_RE.search(translated_plain):
+            return True
         input_len = len(source_language)
         output_len = len(translated_language)
         source_alpha_chars = len(re.findall(r"[A-Za-z]", source_language))
