@@ -170,6 +170,7 @@ def _run_pdf_attempt(
         progress_dir=dependencies.progress_dir,
         extraction_concurrency=dependencies.extraction_max_concurrency,
         fail_open_to_source_page=dependencies.fail_open_to_source_page,
+        element_policy=dependencies.element_policy,
         extraction_semaphore=dependencies.extraction_semaphore,
         logger=dependencies.logger,
         pdf_audit=pdf_audit,
