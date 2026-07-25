@@ -93,10 +93,15 @@ def _collect_pdf_font_chars(page_extractions, translated_texts) -> str:
 
 
 def _pdf_font_is_cff(source_path: str) -> bool:
-    """Return whether the font file is CFF-flavored OpenType (``OTTO``)."""
+    """Return whether the font is CFF-flavored OpenType or a collection.
+
+    ``ttcf`` collections (e.g. NotoSansCJK ``.ttc``) are grouped with CFF:
+    fontTools subsetting needs a font number for them, and the common CJK
+    collections are CFF-flavored anyway, so treating them as unsubsettable
+    routes them to the same complete-embed/size-gate policy."""
     try:
         with open(source_path, "rb") as handle:
-            return handle.read(4) == b"OTTO"
+            return handle.read(4) in (b"OTTO", b"ttcf")
     except OSError:
         return False
 
