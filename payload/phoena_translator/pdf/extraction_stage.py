@@ -31,6 +31,7 @@ from phoena_translator.pdf.cache import (
     _save_pdf_audit,
     _save_pdf_page_translation_cache,
 )
+from phoena_translator.pdf.context import ImmutableElementPolicy
 from phoena_translator.pdf.extraction import _is_skip_page
 from phoena_translator.pdf.semantics import (
     _derive_pdf_page_layout_styles,
@@ -56,6 +57,7 @@ class PDFExtractionStageContext:
     progress_dir: str
     extraction_concurrency: int
     fail_open_to_source_page: bool
+    element_policy: ImmutableElementPolicy
     extraction_semaphore: Any
     logger: logging.Logger
     pdf_audit: dict
@@ -63,6 +65,12 @@ class PDFExtractionStageContext:
     save_translation_progress: Callable[..., None]
     extract_page_elements: Callable[..., list[dict]]
     summarize_formula_protection: Callable[..., dict]
+
+    @property
+    def preserve_tables(self) -> bool:
+        """Compatibility view; policy ownership stays with ``element_policy``."""
+
+        return self.element_policy.preserve_tables
 
 
 @dataclass
@@ -153,7 +161,13 @@ def _extract_pages(
                 f"source page after {forced_fallbacks[page_num].get('stage')} failure"
             )
             continue
-        page_text = page.get_text("text").strip()
+        try:
+            page_text = page.get_text("text").strip()
+        except Exception as error:
+            context.logger.error(
+                f"[{context.task_id}] Page {page_num + 1} text probe failed: {error}"
+            )
+            raise PDFPageExtractionError(page_num + 1, str(error)) from error
         if _is_skip_page(page_text):
             if not skip_remaining:
                 context.logger.info(
@@ -409,8 +423,28 @@ def reconcile_extraction(
             "mid-sentence stub(s) coupled to protected formula lines as "
             "exact source"
         )
+    _preserve_formula_risk_before_cache_binding(context, result)
+    enforce_table_preservation(context, result)
     _bind_and_reconcile_caches(context, result)
     result.completed_indices.update(result.forced_fallbacks_by_index)
+
+
+def _preserve_formula_risk_before_cache_binding(
+    context: PDFExtractionStageContext,
+    result: PDFExtractionResult,
+) -> list[dict]:
+    """Freeze formula-risk source ownership before identity-based cache reuse."""
+
+    preserved = _preserve_pdf_formula_risk_text_elements(
+        result.page_extractions
+    )
+    if preserved:
+        context.pdf_audit["formula_risk_preserved_elements"] = preserved
+        context.logger.warning(
+            f"[{context.task_id}] Formula-risk preflight kept {len(preserved)} "
+            "math-dense text element(s) as exact source"
+        )
+    return preserved
 
 
 def enforce_formula_protection(
@@ -419,13 +453,9 @@ def enforce_formula_protection(
 ) -> None:
     """Fail closed or preserve exact source pages until formula audit is clean."""
 
-    preserved = _preserve_pdf_formula_risk_text_elements(result.page_extractions)
-    if preserved:
-        context.pdf_audit["formula_risk_preserved_elements"] = preserved
-        context.logger.warning(
-            f"[{context.task_id}] Formula-risk preflight kept {len(preserved)} "
-            "math-dense text element(s) as exact source"
-        )
+    # ``reconcile_extraction`` normally performs this identity-bearing mark
+    # before cache binding. Keep the idempotent call for direct stage users.
+    _preserve_formula_risk_before_cache_binding(context, result)
     context.pdf_audit["superscript_expectations"] = (
         _collect_pdf_superscript_expectations(result.page_extractions)
     )
@@ -538,6 +568,159 @@ def enforce_formula_protection(
     context.pdf_audit["total_pages"] = result.total_pages
     context.pdf_audit["phase1_checkpointed_at"] = time.time()
     _save_pdf_audit(context.task_id, context.pdf_audit)
+
+
+def _mark_pdf_table_preserved_elements(page_extractions: dict) -> list[dict]:
+    """Mark table elements to keep their original ink, like formula risks.
+
+    Tables rarely survive translation with row/column alignment intact
+    (2026-07-24 policy: preserve them verbatim, exactly like dense math).
+    Region-detected cells (``table_hint``) are always preserved; classifier
+    ``layout_class == "table"`` elements are preserved only on
+    table-dominated pages, because the layout classifier also stamps a few
+    stray short fragments per ordinary prose page and those must keep
+    translating."""
+    preserved = []
+    for page_num, info in page_extractions.items():
+        elements = info.get("elements") or []
+        text_indices = [
+            index
+            for index, elem in enumerate(elements)
+            if elem.get("type") == "text"
+        ]
+        table_like = [
+            index
+            for index in text_indices
+            if elements[index].get("table_hint")
+            or elements[index].get("layout_class") == "table"
+        ]
+        count = len(table_like)
+        # Real data tables carry numbers; a title page's centered
+        # author/date block also gets classified "table" but is mostly
+        # digit-free prose and must keep translating.
+        digit_bearing = sum(
+            1
+            for index in table_like
+            if any(
+                char.isdigit()
+                for char in str(elements[index].get("content", ""))
+            )
+        )
+        numeric_enough = digit_bearing * 5 >= count * 2
+        page_is_tabular = numeric_enough and (
+            count >= 10 or (count >= 4 and count * 2 >= len(text_indices))
+        )
+        marked_rects = []
+        for index in table_like:
+            elem = elements[index]
+            if elem.get("skip_translate_reason"):
+                continue
+            if not (elem.get("table_hint") or page_is_tabular):
+                continue
+            elem["skip_translate_reason"] = "table_preserved"
+            preserved.append(
+                {
+                    "page": int(page_num) + 1,
+                    "element": index,
+                    "trigger": (
+                        "region" if elem.get("table_hint") else "page-density"
+                    ),
+                }
+            )
+            try:
+                rect = fitz.Rect(elem.get("bbox", elem.get("rect")))
+            except Exception:
+                continue
+            if not rect.is_empty:
+                marked_rects.append(rect)
+        # Grid-union sweep: the classifier occasionally stamps individual
+        # cells (a column header, a first data row) as scattered/body.
+        # Build the grid box from the LARGEST vertical cluster of preserved
+        # cells (a stray table-classified page number must not stretch it
+        # across the whole page), then grow it row by row over adjacent
+        # column-aligned elements.  Captions and notes sit a paragraph gap
+        # away and outside the growth limit, so they keep translating.
+        if len(marked_rects) >= 4:
+            marked_rects.sort(key=lambda rect: rect.y0)
+            clusters = [[marked_rects[0]]]
+            for rect in marked_rects[1:]:
+                if rect.y0 - clusters[-1][-1].y1 > 30.0:
+                    clusters.append([rect])
+                else:
+                    clusters[-1].append(rect)
+            cluster = max(clusters, key=len)
+            if len(cluster) >= 4:
+                union = fitz.Rect(cluster[0])
+                for rect in cluster[1:]:
+                    union |= rect
+                changed = True
+                while changed:
+                    changed = False
+                    for index in text_indices:
+                        elem = elements[index]
+                        if elem.get("skip_translate_reason"):
+                            continue
+                        try:
+                            rect = fitz.Rect(elem.get("bbox", elem.get("rect")))
+                        except Exception:
+                            continue
+                        if rect.is_empty:
+                            continue
+                        intersection = fitz.Rect(rect) & union
+                        contained = (
+                            not intersection.is_empty
+                            and intersection.get_area()
+                            >= rect.get_area() * 0.6
+                        )
+                        x_aligned = (
+                            rect.x0 >= union.x0 - 4.0
+                            and rect.x1 <= union.x1 + 4.0
+                        )
+                        gap = max(union.y0 - rect.y1, rect.y0 - union.y1)
+                        # Intra-table row gaps run a few points; paragraph
+                        # spacing (an abstract under an author block) starts
+                        # around 9pt and must stay outside the grid.
+                        gap_limit = max(
+                            4.0, 0.45 * float(elem.get("fontsize", 12.0))
+                        )
+                        adjacent = x_aligned and (
+                            not intersection.is_empty or gap <= gap_limit
+                        )
+                        if not (contained or adjacent):
+                            continue
+                        elem["skip_translate_reason"] = "table_preserved"
+                        union |= rect
+                        changed = True
+                        preserved.append(
+                            {
+                                "page": int(page_num) + 1,
+                                "element": index,
+                                "trigger": "grid-union",
+                            }
+                        )
+    return preserved
+
+
+def enforce_table_preservation(
+    context: PDFExtractionStageContext,
+    extraction_result: PDFExtractionResult,
+) -> None:
+    """Apply the preserve-tables policy and record it in the audit."""
+
+    if not context.element_policy.preserve_tables:
+        context.pdf_audit["table_preserved_elements"] = []
+        return
+    preserved = _mark_pdf_table_preserved_elements(
+        extraction_result.page_extractions
+    )
+    if preserved or "table_preserved_elements" not in context.pdf_audit:
+        context.pdf_audit["table_preserved_elements"] = preserved
+    if preserved:
+        pages = sorted({entry["page"] for entry in preserved})
+        context.logger.info(
+            f"[{context.task_id}] Preserving {len(preserved)} table "
+            f"element(s) verbatim on page(s) {pages}"
+        )
 
 
 def build_translation_plan(
