@@ -585,6 +585,7 @@ def translate_pdf(
         assembly_max_concurrency=PDF_ASSEMBLY_MAX_CONCURRENCY,
         extraction_max_concurrency=PDF_EXTRACTION_MAX_CONCURRENCY,
         fail_open_to_source_page=PDF_FAIL_OPEN_TO_SOURCE_PAGE,
+        preserve_tables=APP_CONFIG.pdf_preserve_tables,
         minimum_htmlbox_scale=APP_CONFIG.pdf_min_acceptable_htmlbox_scale,
         save_clean=PDF_SAVE_CLEAN,
         save_garbage=PDF_SAVE_GARBAGE,
