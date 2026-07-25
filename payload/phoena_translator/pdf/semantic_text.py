@@ -586,7 +586,7 @@ def _build_pdf_paragraphs(
     line_infos: list[dict], block_rect, fontsize: float
 ) -> tuple[list[dict], float]:
     if not line_infos:
-        return []
+        return [], 0.0
 
     baseline_x0 = min(line["x0"] for line in line_infos)
     avg_height = sum(max(1.0, line["y1"] - line["y0"]) for line in line_infos) / len(
@@ -1667,8 +1667,21 @@ def _mark_watermark_elements(page_extractions, page_rects, total_pages: int):
             if record["bucket"] != best_bucket:
                 continue
 
+            # A keyword alone is not proof: repeated compliance footers such
+            # as "For internal use only. Do not distribute." are printed in
+            # normal black body type and are document content, not watermark
+            # stamps.  The keyword arm therefore needs one visual watermark
+            # trait; plain repeated keyword lines fall through to normal
+            # translation instead of being erased.
             looks_like_watermark = (
-                record["keyword"]
+                (
+                    record["keyword"]
+                    and (
+                        record["light_gray"]
+                        or record["non_horizontal"]
+                        or record["large"]
+                    )
+                )
                 or record["non_horizontal"]
                 or (
                     record["light_gray"]
