@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
+from enum import StrEnum
 
 import fitz
 
@@ -133,6 +135,7 @@ def _is_cross_page_body_elem(
     dominant_fontsize: float,
     *,
     allow_superscript_markers: bool = False,
+    allowed_layout_classes: tuple[str, ...] = ("body",),
 ) -> bool:
     """Cross-page merge candidates must be real body prose. Headers, footers,
     footnotes and page numbers never participate: they sit in the page's edge
@@ -142,10 +145,17 @@ def _is_cross_page_body_elem(
     Marker-bearing paragraphs are excluded by default because the forward
     carry rewrites ``rich_content`` wholesale and would flatten superscripts.
     The orphan-tail absorber only APPENDS at the end, which cannot damage
-    markers, so it opts in via ``allow_superscript_markers``."""
+    markers, so it opts in via ``allow_superscript_markers``.
+
+    A page-top continuation paragraph is often classified ``scattered``
+    rather than ``body`` (it sits alone above the page's first heading), so
+    merge destinations opt in via ``allowed_layout_classes`` — the same
+    policy `_cross_page_whole_fragment_tail` already applies; the column
+    geometry, font-size and lowercase-start gates still exclude captions
+    and labels."""
     if elem.get("type") != "text" or elem.get("skip_translate_reason"):
         return False
-    if elem.get("layout_class") != "body":
+    if elem.get("layout_class") not in allowed_layout_classes:
         return False
     if (
         elem.get("table_hint")
@@ -202,6 +212,116 @@ def _carry_fragment_is_prose(carry_text: str) -> bool:
 def _first_cross_page_lexical_char(text: str) -> str:
     match = re.search(r"[A-Za-z0-9\u4e00-\u9fff]", _plain_text(text or ""))
     return match.group(0) if match else ""
+
+
+_CROSS_PAGE_CAPTION_LEAD_RE = re.compile(
+    r"^(?:Table|Figure|Panel|Appendix|Exhibit|Chart|Box|Note|Notes|Source|"
+    r"Sources|Section|Chapter)\b"
+    r"|^[IVXLCDM]+[.\uff0e]"
+)
+
+_CROSS_PAGE_AMBIGUOUS_TERMINAL_ABBREVIATION_RE = re.compile(
+    r"\bet\s+al\.\s*[\)\]\}\"'’”]*$",
+    re.IGNORECASE,
+)
+
+
+class SourceContinuationEvidence(StrEnum):
+    """Stable values written to cross-page audit records."""
+
+    DANGLING = "dangling"
+    AMBIGUOUS_TERMINAL_ABBREVIATION = "ambiguous-terminal-abbreviation"
+    COMPLETE = "complete"
+
+
+@dataclass(frozen=True)
+class ContinuationDecision:
+    """Typed immutable source evidence for one page-edge decision."""
+
+    evidence: SourceContinuationEvidence
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.evidence, SourceContinuationEvidence):
+            raise TypeError("continuation evidence must be SourceContinuationEvidence")
+
+    @property
+    def source_dangling(self) -> bool:
+        return self.evidence is SourceContinuationEvidence.DANGLING
+
+    @property
+    def audit_value(self) -> str:
+        return self.evidence.value
+
+
+def _cross_page_continuation_decision(text: str) -> ContinuationDecision:
+    """Classify immutable page-end evidence before considering the next page.
+
+    A lowercase next-page opener is useful shape evidence, but it cannot
+    reopen an ordinary completed sentence.  The only bounded terminal
+    abbreviation exception is the already verified ``et al.`` fixture; other
+    apparent boundaries fail closed until evidence justifies another case.
+    """
+    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    if not _ends_with_sentence_boundary(plain):
+        return ContinuationDecision(SourceContinuationEvidence.DANGLING)
+    if _CROSS_PAGE_AMBIGUOUS_TERMINAL_ABBREVIATION_RE.search(plain):
+        return ContinuationDecision(
+            SourceContinuationEvidence.AMBIGUOUS_TERMINAL_ABBREVIATION
+        )
+    return ContinuationDecision(SourceContinuationEvidence.COMPLETE)
+
+
+def _cross_page_source_continuation_reason(text: str) -> str:
+    """Compatibility facade returning the historical serialized value."""
+
+    return _cross_page_continuation_decision(text).audit_value
+
+
+def _cross_page_tail_start_acceptable(
+    text: str,
+    *,
+    source_dangling: bool,
+    source_ends_capitalized: bool = False,
+) -> bool:
+    """Judge destination shape after the source was classified as continuable.
+
+    Signal 1 is the previous page ending mid-sentence (``source_dangling``,
+    no sentence-final punctuation; commas do not end a sentence); signal 2
+    is this text opening without a capital.  The caller first rejects a
+    definitively complete source; this helper then arbitrates the opener:
+
+    - a lowercase opener is shape-compatible with a dangling source or a
+      separately verified ambiguous terminal abbreviation;
+    - a digit run (``1-3, respectively.``) needs the dangling source and a
+      lowercase first letter after the digits \u2014 numbered headings and list
+      items (``4.2 Results``, ``1. Introduction``) capitalize and stay out;
+    - an uppercase opener (a proper noun continuing the sentence: ``sold
+      by | High Frequency Traders``) needs the dangling source, must not
+      look like a caption/heading lead, and needs either a lowercase word
+      inside its first sentence or a capitalized dangling source word
+      (``... of High Frequency | Traders.`` \u2014 a name broken by the page
+      turn, where the tail is the name's single remaining word)."""
+    plain = _plain_text(text or "")
+    first = _first_cross_page_lexical_char(plain)
+    if first.islower():
+        return True
+    if first.isdigit():
+        if not source_dangling:
+            return False
+        match = re.search(r"[A-Za-z\u4e00-\u9fff]", plain)
+        return bool(match) and match.group(0).islower()
+    if first.isupper():
+        if not source_dangling:
+            return False
+        stripped = plain.strip()
+        if _CROSS_PAGE_CAPTION_LEAD_RE.match(stripped):
+            return False
+        if source_ends_capitalized:
+            return True
+        boundary = _SENTENCE_SPLIT_BOUNDARY_RE.search(stripped)
+        first_sentence = stripped[: boundary.end()] if boundary else stripped
+        return bool(re.search(r"\b[a-z]{2,}\b", first_sentence))
+    return False
 
 
 _TRUSTED_PAGE_END_RUN_IN_START_EXCEPTION = "trusted-page-end-run-in"
@@ -391,6 +511,7 @@ def _cross_page_element_rejection(
 CROSS_PAGE_ORPHAN_TAIL_MAX_CHARS = 80
 CROSS_PAGE_ORPHAN_TAIL_MAX_WORDS = 10
 CROSS_PAGE_ABSORBED_TAIL_MAX_CHARS = 300
+CROSS_PAGE_UNTERMINATED_TAIL_MAX_CHARS = 200
 _TRAILING_FOOTNOTE_MARKER_RE = re.compile(
     r"(?:\d{1,3}|[*†‡§¶]{1,3})$"
 )
@@ -436,13 +557,19 @@ def _find_leading_sentence_tail(
     return None
 
 
-def _cross_page_whole_fragment_tail(elem: dict) -> tuple[str, str] | None:
+def _cross_page_whole_fragment_tail(
+    elem: dict,
+    *,
+    source_dangling: bool = False,
+    source_ends_capitalized: bool = False,
+) -> tuple[str, str] | None:
     """Return (plain, rich) when an element is exactly one stranded tail.
 
     A stranded tail is the end of a sentence broken by a page turn: short,
-    lowercase-starting, reaching a sentence boundary.  A trailing footnote
-    marker (``exchange.4``) is tolerated and carried along inside the rich
-    text so the reference survives next to its sentence."""
+    reaching a sentence boundary, and opening per the two-signal policy of
+    `_cross_page_tail_start_acceptable`.  A trailing footnote marker
+    (``exchange.4``, ``respectively.10``) is tolerated and carried along
+    inside the rich text so the reference survives next to its sentence."""
     if elem.get("type") != "text" or elem.get("skip_translate_reason"):
         return None
     if (
@@ -463,12 +590,86 @@ def _cross_page_whole_fragment_tail(elem: dict) -> tuple[str, str] | None:
     plain = re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
     if not plain or len(plain) > CROSS_PAGE_ORPHAN_TAIL_MAX_CHARS:
         return None
-    if not _first_cross_page_lexical_char(plain).islower():
+    if not _cross_page_tail_start_acceptable(
+        plain,
+        source_dangling=source_dangling,
+        source_ends_capitalized=source_ends_capitalized,
+    ):
         return None
     if not _ends_with_sentence_boundary(_strip_trailing_footnote_marker(plain)):
         return None
     words = re.findall(r"[A-Za-z]{2,}", plain)
     if not 1 <= len(words) <= CROSS_PAGE_ORPHAN_TAIL_MAX_WORDS:
+        return None
+    rich = elem.get("rich_content") or elem.get("content", "")
+    return plain, " ".join(str(rich).split())
+
+
+def _cross_page_unterminated_fragment_tail(
+    elem: dict,
+    next_ordered: list,
+    elem_idx: int,
+    *,
+    source_dangling: bool,
+    source_last_word: str,
+) -> tuple[str, str] | None:
+    """Whole-fragment absorption for a tail whose final period is missing.
+
+    Some sources omit the sentence-final punctuation (a typo in the
+    original document).  The page-top fragment is still recognizably the
+    previous page's sentence rest when the previous page dangles on a
+    lowercase word, the fragment itself opens lowercase (never uppercase —
+    an unterminated capitalized line could be a run-in title), and the
+    element directly below it begins a new sentence."""
+    if not source_dangling or not source_last_word[:1].islower():
+        return None
+    if elem.get("type") != "text" or elem.get("skip_translate_reason"):
+        return None
+    if (
+        elem.get("table_hint")
+        or elem.get("preserve_source_style")
+        or elem.get("non_horizontal")
+    ):
+        return None
+    if elem.get("layout_class") not in {"body", "scattered"}:
+        return None
+    paragraphs = [
+        paragraph
+        for paragraph in (elem.get("paragraphs") or [])
+        if (paragraph.get("plain") or "").strip()
+    ]
+    if len(paragraphs) > 1:
+        return None
+    plain = re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+    if not plain or len(plain) > CROSS_PAGE_UNTERMINATED_TAIL_MAX_CHARS:
+        return None
+    if _ends_with_sentence_boundary(_strip_trailing_footnote_marker(plain)):
+        return None  # terminated fragments take the standard paths
+    first = _first_cross_page_lexical_char(plain)
+    if first.isupper():
+        return None
+    if not _cross_page_tail_start_acceptable(plain, source_dangling=True):
+        return None
+    if len(re.findall(r"[A-Za-z]{2,}", plain)) < 2:
+        return None
+    followers = [
+        other
+        for index, other in next_ordered
+        if index != elem_idx
+        and other.get("type") == "text"
+        and _plain_text(other.get("content", "")).strip()
+        and float(other.get("y", 0.0)) > float(elem.get("y", 0.0))
+    ]
+    if not followers:
+        return None
+    follower_char = _first_cross_page_lexical_char(
+        _plain_text(followers[0].get("content", ""))
+    )
+    if not follower_char or not (
+        follower_char.isupper()
+        or follower_char.isdigit()
+        or ord(follower_char) > 0x2E7F
+    ):
         return None
     rich = elem.get("rich_content") or elem.get("content", "")
     return plain, " ".join(str(rich).split())
@@ -493,23 +694,35 @@ def _merge_cross_page_sentences(
     dominant_fontsize = _cross_page_dominant_fontsize(page_extractions)
     absorbed = 0
 
-    def _record(source_page, source_idx, source_elem, dest_idx, dest_elem, tail):
+    def _record(
+        source_page,
+        source_idx,
+        source_elem,
+        dest_idx,
+        dest_elem,
+        tail,
+        *,
+        source_continuation_reason,
+        unterminated=False,
+    ):
         if audit_log is None:
             return
-        audit_log.append(
-            {
-                "kind": "cross-page-orphan-tail",
-                "source_page": source_page + 1,
-                "destination_page": source_page + 2,
-                "source_element": source_idx,
-                "destination_element": dest_idx,
-                "decision": "accepted",
-                "reason": "accepted",
-                "carried_tail": tail,
-                "source_layout": source_elem.get("layout_class"),
-                "destination_layout": dest_elem.get("layout_class"),
-            }
-        )
+        entry = {
+            "kind": "cross-page-orphan-tail",
+            "source_page": source_page + 1,
+            "destination_page": source_page + 2,
+            "source_element": source_idx,
+            "destination_element": dest_idx,
+            "decision": "accepted",
+            "reason": "accepted",
+            "source_continuation_reason": source_continuation_reason,
+            "carried_tail": tail,
+            "source_layout": source_elem.get("layout_class"),
+            "destination_layout": dest_elem.get("layout_class"),
+        }
+        if unterminated:
+            entry["tail_unterminated"] = True
+        audit_log.append(entry)
 
     for page_num in range(total_pages - 1):
         info = page_extractions.get(page_num, {})
@@ -541,8 +754,20 @@ def _merge_cross_page_sentences(
         source_plain = re.sub(
             r"\s+", " ", _plain_text(last_elem.get("content", ""))
         ).strip()
-        if not source_plain or _ends_with_sentence_boundary(source_plain):
+        if not source_plain:
             continue
+        # Classify immutable source evidence first.  Destination shape cannot
+        # reopen an ordinary complete sentence; the only bounded apparent
+        # boundary exception is the verified terminal-abbreviation case.
+        continuation_decision = _cross_page_continuation_decision(source_plain)
+        if continuation_decision.evidence is SourceContinuationEvidence.COMPLETE:
+            continue
+        source_dangling = continuation_decision.source_dangling
+        source_words = re.findall(r"[A-Za-z][A-Za-z'’-]*", source_plain)
+        source_last_word = source_words[-1] if source_words else ""
+        source_ends_capitalized = bool(
+            source_dangling and source_last_word[:1].isupper()
+        )
         if _looks_like_right_aligned_signoff(last_elem, page_rect):
             continue
         if page_rect is not None:
@@ -578,7 +803,34 @@ def _merge_cross_page_sentences(
         ):
             continue
 
-        fragment = _cross_page_whole_fragment_tail(first_elem)
+        if first_elem.get("inline_math_fragments"):
+            # Inline-math protection records are element-scoped.  Moving text
+            # out of this element would leave records pointing at content the
+            # residual no longer holds (deterministic validation failure →
+            # source fallback) while the moved tail travels unprotected.
+            continue
+
+        fragment = _cross_page_whole_fragment_tail(
+            first_elem,
+            source_dangling=source_dangling,
+            source_ends_capitalized=source_ends_capitalized,
+        )
+        fragment_unterminated = False
+        if fragment is None:
+            fragment = _cross_page_unterminated_fragment_tail(
+                first_elem,
+                next_ordered,
+                first_idx,
+                source_dangling=source_dangling,
+                source_last_word=source_last_word,
+            )
+            fragment_unterminated = fragment is not None
+        if fragment is not None and source_plain.endswith(fragment[0]):
+            # The audit invariant "source original must not already end
+            # with the tail" guards against double absorption; enforcing
+            # it here keeps producer and auditor aligned instead of
+            # failing the task later.
+            fragment = None
         if fragment is not None:
             tail_plain, tail_rich = fragment
             if page_rect is not None and next_page_rect is not None:
@@ -622,21 +874,36 @@ def _merge_cross_page_sentences(
                 page_num + 2,
             )
             _record(
-                page_num, last_idx, last_elem, first_idx, first_elem, tail_plain
+                page_num,
+                last_idx,
+                last_elem,
+                first_idx,
+                first_elem,
+                tail_plain,
+                source_continuation_reason=continuation_decision.audit_value,
+                unterminated=fragment_unterminated,
             )
             continue
 
-        # Split the leading tail out of the first body paragraph.
+        # Split the leading tail out of the first body paragraph.  Like the
+        # whole-fragment path above, accept a ``scattered`` destination: the
+        # continuation paragraph at the top of a page is regularly classified
+        # scattered when it stands alone above the page's first heading.
         if not _is_cross_page_body_elem(
             first_elem,
             next_page_rect,
             dominant_fontsize,
+            allowed_layout_classes=("body", "scattered"),
         ):
             continue
         first_plain = re.sub(
             r"\s+", " ", _plain_text(first_elem.get("content", ""))
         ).strip()
-        if not _first_cross_page_lexical_char(first_plain).islower():
+        if not _cross_page_tail_start_acceptable(
+            first_plain,
+            source_dangling=source_dangling,
+            source_ends_capitalized=source_ends_capitalized,
+        ):
             continue
         rich = first_elem.get("rich_content")
         if rich is not None and str(rich).strip() != str(
@@ -658,6 +925,15 @@ def _merge_cross_page_sentences(
         if split is None:
             continue
         tail_plain, rest = split
+        if source_plain.endswith(tail_plain):
+            # Same double-absorption guard as the whole-fragment path.
+            continue
+        if rest and not _carry_fragment_is_prose(rest):
+            # The residual is only redacted when it re-renders as a
+            # translation; a non-prose remainder keeps its source ink —
+            # including the moved tail's leading line — visible on the next
+            # page while the tail also renders translated on this page.
+            continue
         last_elem["content"] = last_elem["content"].rstrip() + " " + tail_plain
         if last_elem.get("rich_content"):
             last_elem["rich_content"] = (
@@ -675,7 +951,15 @@ def _merge_cross_page_sentences(
             tail_plain[:60],
             page_num + 2,
         )
-        _record(page_num, last_idx, last_elem, first_idx, first_elem, tail_plain)
+        _record(
+            page_num,
+            last_idx,
+            last_elem,
+            first_idx,
+            first_elem,
+            tail_plain,
+            source_continuation_reason=continuation_decision.audit_value,
+        )
     return absorbed
 
 
