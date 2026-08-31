@@ -25,6 +25,18 @@ PDF_FORMULA_GUARD_PADDING = 0.5
 
 PDF_SIGNATURE_GEOMETRY_QUANTUM = 0.25
 
+# Some generators (observed: Apache FOP 2.7) stroke every line of body text
+# twice at the same coordinates.  The two copies are never bit-identical --
+# measured drift is under a twentieth of a point -- so duplicate detection
+# needs a tolerance rather than an equality test on the bbox.
+PDF_DUPLICATE_GLYPH_POSITION_TOLERANCE = 0.25
+
+# A citation's work title is the quoted run inside a bibliography entry.  Its
+# presence separates "this entry has something to translate" from "this entry
+# is only authors, initials and a year", where returning the source unchanged
+# is the correct translation rather than a failure.
+_PDF_QUOTED_TITLE_RE = re.compile(r"[“\"]([^”\"]{2,})[”\"]?")
+
 _PDF_WRAPPED_MATH_DANGLING_TAIL_RE = re.compile(r"[(\[][A-Za-z]{0,3}$")
 
 _PDF_WRAPPED_MATH_HYPHEN_TAIL_RE = re.compile(r"[A-Za-z]-$")
@@ -254,7 +266,7 @@ PDF_IDENTIFIER_PLACEHOLDER_RE = re.compile(
 )
 
 PDF_PAGE_CACHE_SCHEMA_VERSION = 3
-PDF_LAYOUT_SEMANTICS_VERSION = "2026-07-semantic-paragraphs-v30"
+PDF_LAYOUT_SEMANTICS_VERSION = "2026-07-semantic-paragraphs-v37"
 # These older geometry identities remain safe to rebind. The identity
 # migration rejects split/merged cells, and active validation retranslates
 # semantically incomplete survivors.

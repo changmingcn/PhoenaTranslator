@@ -38,13 +38,13 @@ from phoena_translator.pdf.cache import (
 )
 from phoena_translator.pdf.semantic_cross_page import (
     CROSS_PAGE_ABSORBED_TAIL_MAX_CHARS,
-    SourceContinuationEvidence,
     _cross_page_continuation_decision,
     _cross_page_destination_start_evidence,
     _cross_page_destination_start_rejection,
     _cross_page_dominant_fontsize,
     _cross_page_tail_start_acceptable,
     _first_cross_page_lexical_char,
+    _is_cross_page_non_body_context,
     _strip_trailing_footnote_marker,
 )
 from phoena_translator.pdf.semantic_text import (
@@ -53,6 +53,7 @@ from phoena_translator.pdf.semantic_text import (
 )
 from phoena_translator.pdf.geometry import (
     _get_pdf_elem_rect,
+    _pdf_extraction_rect_to_display,
 )
 
 log = logging.getLogger("translator")
@@ -85,6 +86,29 @@ def _collect_pdf_superscript_expectations(page_extractions: dict) -> list[dict]:
                 "plain": elem.get("content", ""),
                 "rich": elem.get("rich_content") or elem.get("content", ""),
             }]
+            original_plain = re.sub(
+                r"\s+",
+                " ",
+                " ".join(
+                    str(paragraph.get("plain") or "")
+                    for paragraph in paragraphs
+                    if isinstance(paragraph, dict)
+                ),
+            ).strip()
+            live_plain = re.sub(
+                r"\s+",
+                " ",
+                _plain_text(elem.get("content") or ""),
+            ).strip()
+            if original_plain != live_plain:
+                # Cross-page absorption deliberately keeps ``paragraphs`` as
+                # immutable pre-merge evidence for the merge auditor. Marker
+                # expectations must instead follow the live source currently
+                # owned and rendered by this element.
+                paragraphs = [{
+                    "plain": elem.get("content", ""),
+                    "rich": elem.get("rich_content") or elem.get("content", ""),
+                }]
             for paragraph in paragraphs:
                 plain = paragraph.get("plain") or ""
                 rich = paragraph.get("rich") or plain
@@ -270,6 +294,12 @@ def _preserve_pdf_formula_risk_text_elements(page_extractions: dict) -> list[dic
     symbols, keep only that element's source ink and translate the rest of
     the page. Elements within the prose tolerance keep translating — one or
     two inline symbols ride through translation as literal characters.
+
+    Runs BEFORE cross-page merging so that both operands of the decision come
+    from the same text: the symbol count reads the immutable ``paragraphs``
+    while the tolerance reads live ``content``, and a merge that shrinks
+    ``content`` would otherwise drop the tolerance while the count still
+    reflected the pre-merge block.
     """
     preserved = []
     for page_num in sorted(page_extractions or {}):
@@ -296,6 +326,11 @@ def _preserve_pdf_formula_risk_text_elements(page_extractions: dict) -> list[dic
     return preserved
 
 
+# A stub is the leftover head of a sentence: one or two lines.  The two
+# fixtures this rule exists for are 106 and 44 characters.
+PDF_FORMULA_MID_SENTENCE_STUB_MAX_CHARS = 150
+
+
 def _preserve_pdf_formula_mid_sentence_neighbors(
     page_extractions: dict,
 ) -> list[dict]:
@@ -307,16 +342,30 @@ def _preserve_pdf_formula_mid_sentence_neighbors(
     phase").  Translating that stub alone truncates the sentence, so keep the
     stub as exact source: the whole paragraph then reads coherently in the
     original language, matching the conservative delivery policy.
+
+    Runs BEFORE cross-page merging so the stub is seen with its pristine text
+    and, once stamped, is refused as a merge endpoint by
+    ``_is_cross_page_body_elem``.  Skipping the stamp for an already-merged
+    endpoint would be unsafe here: a mid-sentence stub carries no math
+    symbols, so nothing downstream would escalate and the truncated stub this
+    function exists to protect would ship translated in isolation.
     """
     preserved = []
     dominant_fontsize = _cross_page_dominant_fontsize(page_extractions or {})
     for page_num in sorted(page_extractions or {}):
         info = page_extractions.get(page_num) or {}
         elements = info.get("elements") or []
+        # Only a real display region can swallow the end of a sentence.  A
+        # ``mixed`` region is an ordinary prose line that math detection
+        # promoted because of one inline variable (``mixed = bool(reasons and
+        # prose_words)``); the words after the variable ship as English ink
+        # either way, so freezing the head in front of it cannot restore the
+        # sentence — it only doubles the untranslated area.
         formula_rects = [
             _get_pdf_elem_rect(elem)
             for elem in elements
             if elem.get("type") == "formula_image"
+            and not elem.get("math_mixed")
         ]
         if not formula_rects:
             continue
@@ -340,7 +389,19 @@ def _preserve_pdf_formula_mid_sentence_neighbors(
             plain = re.sub(
                 r"\s+", " ", _plain_text(elem.get("content") or "")
             ).strip()
-            if not plain or _ends_with_sentence_boundary(plain):
+            # A footnote marker rides on the last character, so a finished
+            # sentence ("... the USD/JPY spot market.18") reads as a stub to a
+            # test that looks at the final glyph.  Strip the marker for the
+            # boundary question only; ``_ends_with_sentence_boundary`` itself
+            # is shared with cross-page merging and must not move.
+            terminated = re.sub(r"(?<=[.!?])\s*\d{1,3}\s*$", "", plain)
+            if not plain or _ends_with_sentence_boundary(terminated):
+                continue
+            # The function exists for a stub — a line or two left in front of
+            # a display equation.  A whole paragraph that happens to run into
+            # one is better translated: freezing it leaves the reader more
+            # English than the truncation the stub rule was avoiding.
+            if len(plain) > PDF_FORMULA_MID_SENTENCE_STUB_MAX_CHARS:
                 continue
             rect = _get_pdf_elem_rect(elem)
             if rect.is_empty:
@@ -359,6 +420,26 @@ def _preserve_pdf_formula_mid_sentence_neighbors(
                     rect.x0, formula_rect.x0
                 )
                 if overlap < min(rect.width, formula_rect.width) * 0.5:
+                    continue
+                # The sentence only runs INTO the formula when nothing
+                # translatable stands between them.  An inline math variable
+                # splits its own visual line into separate spans, so the tail
+                # after the variable is extracted as its own element nested
+                # inside the parent's bbox; the parent then looks like it ends
+                # mid-sentence while its continuation is ordinary prose two
+                # lines above the formula.  Preserving it there is wrong twice
+                # over: the prose stays English, and the preserved ink overlaps
+                # its own tail, which drags it into the redraw closure and
+                # fails the whole page.
+                if any(
+                    other is not elem
+                    and other.get("type") == "text"
+                    and not other.get("skip_translate_reason")
+                    and _pdf_element_requires_translation(other)
+                    and _get_pdf_elem_rect(other).y0 >= rect.y1 - line_height * 0.5
+                    and _get_pdf_elem_rect(other).y1 <= formula_rect.y0 + 0.5
+                    for other in elements
+                ):
                     continue
                 coupled = True
                 break
@@ -530,6 +611,31 @@ def _pdf_formula_protection_fallback_pages(
     return sorted(pages)
 
 
+def _is_accepted_merge_endpoint(
+    merge_decisions: list[dict] | None,
+    page_number: int,
+    element_index: int,
+) -> bool:
+    """Return whether an element was mutated by an accepted cross-page merge."""
+    for decision in merge_decisions or []:
+        if not isinstance(decision, dict) or decision.get("decision") != "accepted":
+            continue
+        for page_key, element_key in (
+            ("source_page", "source_element"),
+            ("destination_page", "destination_element"),
+        ):
+            try:
+                endpoint = (
+                    int(decision.get(page_key, 0) or 0),
+                    int(decision.get(element_key, -1)),
+                )
+            except (TypeError, ValueError):
+                continue
+            if endpoint == (page_number, element_index):
+                return True
+    return False
+
+
 def _expand_pdf_fallback_pages_for_accepted_merges(
     page_numbers: list[int] | set[int],
     merge_decisions: list[dict],
@@ -649,9 +755,51 @@ def _normalized_audit_text(text: str) -> str:
     return re.sub(r"\s+", " ", _plain_text(text or "")).strip()
 
 
+def _pdf_tails_absorbed_as_merge_source(
+    decision: dict,
+    merge_decisions: list[dict] | None,
+) -> list[str]:
+    """Tails this decision's destination went on to absorb as a merge source.
+
+    Cross-page merges chain.  The element that receives one page's orphan tail
+    is usually the first body block of its page, which is also frequently the
+    last body block -- and therefore the *source* of the next page's merge.
+    Its live content is then ``original-minus-tail`` plus whatever it later
+    absorbed, so comparing it against ``original-minus-tail`` alone reported a
+    false ``orphan-tail-destination-mismatch`` on every such chain.
+    """
+    try:
+        endpoint = (
+            int(decision.get("destination_page", 0) or 0),
+            int(decision.get("destination_element", -1)),
+        )
+    except (TypeError, ValueError):
+        return []
+    absorbed = []
+    for other in merge_decisions or []:
+        if not isinstance(other, dict) or other.get("decision") != "accepted":
+            continue
+        if other is decision:
+            continue
+        try:
+            source_endpoint = (
+                int(other.get("source_page", 0) or 0),
+                int(other.get("source_element", -1)),
+            )
+        except (TypeError, ValueError):
+            continue
+        if source_endpoint != endpoint:
+            continue
+        tail = _normalized_audit_text(str(other.get("carried_tail") or ""))
+        if tail:
+            absorbed.append(tail)
+    return absorbed
+
+
 def _validate_pdf_orphan_tail_decision(
     decision: dict,
     page_extractions: dict | None,
+    merge_decisions: list[dict] | None = None,
 ) -> str | None:
     """Verify one accepted orphan-tail absorption end to end.
 
@@ -699,6 +847,55 @@ def _validate_pdf_orphan_tail_decision(
     )
     if source is None or destination is None:
         return "merge-evidence-missing"
+    if (
+        source.get("layout_class") != "body"
+        or destination.get("layout_class") not in {"body", "scattered"}
+        or source.get("footnote_hint")
+        or destination.get("footnote_hint")
+        or source.get("table_hint")
+        or destination.get("table_hint")
+        or source.get("skip_translate_reason")
+        or destination.get("skip_translate_reason")
+    ):
+        return "orphan-tail-non-body"
+    try:
+        destination_page_index = int(decision.get("destination_page")) - 1
+        source_page_index = int(decision.get("source_page")) - 1
+    except (TypeError, ValueError):
+        return "merge-evidence-missing"
+    destination_info = page_extractions.get(destination_page_index)
+    if destination_info is None:
+        destination_info = page_extractions.get(str(destination_page_index), {})
+    source_info = page_extractions.get(source_page_index)
+    if source_info is None:
+        source_info = page_extractions.get(str(source_page_index), {})
+    if _is_cross_page_non_body_context(
+        _pdf_merge_audit_element(
+            page_extractions,
+            decision.get("destination_page"),
+            decision.get("destination_element"),
+        )
+        or destination,
+        (
+            destination_info.get("elements", [])
+            if isinstance(destination_info, dict)
+            else []
+        ),
+        _cross_page_dominant_fontsize(page_extractions),
+        previous_page_elements=(
+            [
+                {
+                    **element,
+                    "content": _pdf_merge_original_element_text(element),
+                }
+                for element in source_info.get("elements", [])
+                if isinstance(element, dict)
+            ]
+            if isinstance(source_info, dict)
+            else []
+        ),
+    ):
+        return "orphan-tail-non-body"
     if not _normalized_audit_text(source.get("content", "")).endswith(tail):
         return "orphan-tail-not-absorbed"
     source_original = _normalized_audit_text(
@@ -711,11 +908,8 @@ def _validate_pdf_orphan_tail_decision(
         "source_continuation_reason"
     )
     if (
-        continuation_decision.evidence is SourceContinuationEvidence.COMPLETE
-        or (
-            reported_continuation_reason is not None
-            and reported_continuation_reason != continuation_decision.audit_value
-        )
+        reported_continuation_reason is not None
+        and reported_continuation_reason != continuation_decision.audit_value
     ):
         return "orphan-tail-source-evidence"
     source_dangling = continuation_decision.source_dangling
@@ -729,8 +923,6 @@ def _validate_pdf_orphan_tail_decision(
         source_ends_capitalized=source_ends_capitalized,
     ):
         return "orphan-tail-start-policy"
-    if tail_unterminated and not source_dangling:
-        return "orphan-tail-start-policy"
     destination_original = _normalized_audit_text(
         _pdf_merge_original_element_text(destination)
     )
@@ -743,7 +935,16 @@ def _validate_pdf_orphan_tail_decision(
         return None
     if not remainder:
         return "orphan-element-not-merged-away"
-    if _normalized_audit_text(destination.get("content", "")) != remainder:
+    live_destination = _normalized_audit_text(destination.get("content", ""))
+    for absorbed_tail in _pdf_tails_absorbed_as_merge_source(
+        decision,
+        merge_decisions,
+    ):
+        if live_destination.endswith(absorbed_tail):
+            live_destination = live_destination[
+                : -len(absorbed_tail)
+            ].strip()
+    if live_destination != remainder:
         return "orphan-tail-destination-mismatch"
     return None
 
@@ -761,6 +962,7 @@ def _validate_pdf_merge_audit(
             orphan_invariant = _validate_pdf_orphan_tail_decision(
                 decision,
                 page_extractions,
+                merge_decisions,
             )
             if decision.get("reason") != "accepted":
                 orphan_invariant = orphan_invariant or "accepted-reason"
@@ -1303,17 +1505,30 @@ def _audit_pdf_formula_regions(
             rect = fitz.Rect(
                 expectation.get("bbox", (0, 0, 0, 0))
             )
-            source_pix = source_doc[page_number - 1].get_pixmap(
+            source_page = source_doc[page_number - 1]
+            # ``bbox`` is extraction geometry.  Clipping a rotated page with it
+            # unmapped yields two degenerate pixmaps that compare equal, so a
+            # genuinely overpainted formula would be tolerated as drift.
+            source_clip = _pdf_extraction_rect_to_display(source_page, rect)
+            observed_clip = _pdf_extraction_rect_to_display(page, rect)
+            if source_clip.is_empty or observed_clip.is_empty:
+                warnings.append({
+                    "type": "formula-raster-clip-degenerate",
+                    "page": page_number,
+                    "element": element_number,
+                })
+                continue
+            source_pix = source_page.get_pixmap(
                 matrix=fitz.Matrix(2.0, 2.0),
                 colorspace=fitz.csGRAY,
                 alpha=False,
-                clip=rect,
+                clip=source_clip,
             )
             observed_pix = page.get_pixmap(
                 matrix=fitz.Matrix(2.0, 2.0),
                 colorspace=fitz.csGRAY,
                 alpha=False,
-                clip=rect,
+                clip=observed_clip,
             )
             raster_summary = _pdf_formula_raster_difference_summary(
                 source_pix,

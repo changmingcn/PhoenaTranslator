@@ -14,6 +14,7 @@ from pathlib import Path
 import fitz
 from phoena_translator.pdf.geometry import (
     _get_pdf_elem_rect,
+    _pdf_page_extraction_rect,
     _get_pdf_source_ink_rects,
     _pdf_rect_intersects_protected,
     _subtract_pdf_protected_rects,
@@ -224,7 +225,12 @@ def _insert_pdf_textbox_with_fit(
     if not fallback_text:
         return False, "empty text", None
 
-    page_rect = fitz.Rect(page.rect)
+    # ``rect`` is extraction geometry and ``insert_textbox`` writes in the
+    # same space, so the clamp bound must be the extraction box.  Clamping
+    # against the rotated display box collapsed any element below
+    # ``page.rect.y1`` into a 2pt sliver ~90pt from its own glyphs, so every
+    # scale failed and the page fell back to untranslated source.
+    page_rect = _pdf_page_extraction_rect(page)
     requested_rect = _sanitize_pdf_text_rect(fitz.Rect(rect), page_rect)
     if requested_rect is None:
         return False, "invalid text rect", None
@@ -433,7 +439,7 @@ def _restore_pdf_source_text_element(
     # unfiltered walk over modest scales is safe: it cannot cover more page
     # area than the original ink did.
     base_rect = _sanitize_pdf_text_rect(
-        fitz.Rect(rect), fitz.Rect(page.rect)
+        fitz.Rect(rect), _pdf_page_extraction_rect(page)
     )
     if base_rect is None:
         return False, f"{fit_msg}; invalid source rect"
@@ -562,7 +568,7 @@ def _insert_pdf_rotated_textbox_with_fit(
 
     candidates = _build_pdf_rotated_text_rects(
         fitz.Rect(rect),
-        fitz.Rect(page.rect),
+        _pdf_page_extraction_rect(page),
         fontsize,
         rotation,
         protected_rects,
@@ -827,6 +833,13 @@ class _PDFInlineHTMLParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         tag = tag.lower()
         if tag not in {"b", "sup"}:
+            # Unknown angle-bracketed material is source text, not markup.
+            # Preserve it visibly and escape it before insert_htmlbox; this
+            # covers domain notation such as ``<JPY short position>`` without
+            # allowing an arbitrary provider-emitted tag into the HTML.
+            self.parts.append(html.escape(
+                self.get_starttag_text() or f"<{tag}>"
+            ))
             return
         if tag == "b":
             self.parts.append("<b>")
@@ -840,6 +853,9 @@ class _PDFInlineHTMLParser(HTMLParser):
 
     def handle_endtag(self, tag):
         tag = tag.lower()
+        if tag not in {"b", "sup"}:
+            self.parts.append(html.escape(f"</{tag}>"))
+            return
         if tag not in self.stack:
             return
         while self.stack:
@@ -847,6 +863,16 @@ class _PDFInlineHTMLParser(HTMLParser):
             self.parts.append(f"</{open_tag}>")
             if open_tag == tag:
                 break
+
+    def handle_startendtag(self, tag, attrs):
+        tag = tag.lower()
+        if tag not in {"b", "sup"}:
+            self.parts.append(html.escape(
+                self.get_starttag_text() or f"<{tag}/>"
+            ))
+            return
+        self.handle_starttag(tag, attrs)
+        self.handle_endtag(tag)
 
     def handle_data(self, data):
         escaped = html.escape(re.sub(r'\s*\n\s*', ' ', data))

@@ -160,6 +160,31 @@ def _load_pdf_page_translation_cache(
             for identity in identity_variants
             for candidate in cached_by_identity.get(identity, [])
         ]
+        # Element-granular fail-open caches deliberately contain the exact
+        # English source and were written with this explicit reason in their
+        # identity.  On a fresh extraction that in-memory marker is absent;
+        # probe the exact fallback identity separately so an intentional
+        # fallback is not mistaken for a poisoned source-echo cache and sent
+        # through the provider again on every render-recovery round.
+        fallback_element = dict(elem)
+        fallback_element["skip_translate_reason"] = (
+            "translation_integrity_fallback"
+        )
+        fallback_identities = []
+        for identity in (
+            _pdf_cache_identity(fallback_element),
+            _pdf_cache_identity(
+                fallback_element,
+                _include_empty_vector_fields=True,
+            ),
+        ):
+            if identity and identity not in fallback_identities:
+                fallback_identities.append(identity)
+        fallback_candidates = [
+            candidate
+            for identity in fallback_identities
+            for candidate in cached_by_identity.get(identity, [])
+        ]
         if len(candidates) == 1:
             candidate = candidates[0]
             source = elem.get("rich_content") or elem.get("content", "")
@@ -172,6 +197,14 @@ def _load_pdf_page_translation_cache(
                 and _pdf_inline_markup_preserved(source, candidate)
                 and _pdf_inline_math_fragments_preserved(elem, candidate)
             ):
+                migrated[key] = candidate
+        if key not in migrated and len(fallback_candidates) == 1:
+            candidate = fallback_candidates[0]
+            source = elem.get("content", "")
+            if candidate == source:
+                elem["skip_translate_reason"] = (
+                    "translation_integrity_fallback"
+                )
                 migrated[key] = candidate
     return migrated
 

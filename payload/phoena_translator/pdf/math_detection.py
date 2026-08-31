@@ -9,6 +9,11 @@ import re
 from collections import Counter
 
 import fitz
+
+from phoena_translator.pdf.geometry import (
+    _pdf_extraction_rect_to_display,
+    _pdf_page_extraction_rect,
+)
 from phoena_translator.math_text import (
     MATH_FUNCTION_WORDS,
     is_math_block as _is_math_block,
@@ -81,6 +86,16 @@ def _looks_like_pdf_identifier_line(text: str) -> bool:
     ):
         return True
     if _looks_like_pdf_wrapped_identifier_query_tail(plain):
+        return True
+    # A bare DOI such as ``doi=10.1257/jep.27.2.51`` carries no scheme, no TLD
+    # and no script extension, so none of the shapes above fire -- yet its
+    # single ``=`` was enough to promote the whole line into protected formula
+    # geometry.  The raster expectation that created then failed on sub-pixel
+    # font-subsetting drift (42 of 2907 pixels, visually identical), and the
+    # accepted-merge closure reverted seven translated pages to source.
+    # ``_PRESERVED_IDENTIFIER_RE`` already carries DOIs through translation
+    # byte-for-byte, so they need no formula protection.
+    if re.search(r"(?i)(?:\bdoi\s*[:=]\s*)?(?<!\d)10\.\d{4,9}/\S+", plain):
         return True
     return False
 
@@ -441,7 +456,7 @@ def _pdf_signature_number(
 
 def _pdf_formula_region_signature(page, bbox, page_dict: dict | None = None) -> dict:
     """Hash source text/font/geometry and raster pixels without exposing content."""
-    rect = fitz.Rect(bbox) & page.rect
+    rect = fitz.Rect(bbox) & _pdf_page_extraction_rect(page)
     if rect.is_empty or rect.width <= 0 or rect.height <= 0:
         raise ValueError("empty formula region")
     if page_dict is None:
@@ -493,7 +508,7 @@ def _pdf_formula_region_signature(page, bbox, page_dict: dict | None = None) -> 
         matrix=fitz.Matrix(2.0, 2.0),
         colorspace=fitz.csGRAY,
         alpha=False,
-        clip=rect,
+        clip=_pdf_extraction_rect_to_display(page, rect),
     )
     return {
         "signature_sha256": hashlib.sha256(combined_material.encode("utf-8")).hexdigest(),
@@ -536,14 +551,21 @@ def _pdf_nearby_superscript_reference(
     marker_span: dict,
     reference_spans: list[dict],
 ) -> dict | None:
-    """Find the adjacent normal-size span that anchors a raised marker.
+    """Find the adjacent inline span that geometrically anchors a marker.
 
     MuPDF's HTML renderer may expose a visually inline ``sup`` as a separate
     line object. Coordinate proximity is therefore more reliable than line
-    membership when validating the rendered marker.
+    membership when validating the rendered marker. Some source PDFs retain
+    the base font size for a raised glyph, so scale is supporting evidence,
+    while local horizontal/vertical geometry is mandatory.
     """
     marker_size = max(float(marker_span.get("size", 0.0)), 0.01)
-    marker_rect = fitz.Rect(marker_span.get("bbox", (0.0, 0.0, 0.0, 0.0)))
+    marker_rect = fitz.Rect(marker_span.get("bbox") or (
+        marker_span.get("x0", 0.0),
+        marker_span.get("y0", 0.0),
+        marker_span.get("x1", 0.0),
+        marker_span.get("y1", 0.0),
+    ))
     candidates = []
 
     for reference in reference_spans:
@@ -551,14 +573,22 @@ def _pdf_nearby_superscript_reference(
             continue
         reference_size = max(float(reference.get("size", 0.0)), 0.01)
         scale = marker_size / reference_size
-        if not 0.45 <= scale <= 0.80:
+        if scale < 0.45 - 1e-6 or scale > 1.10 + 1e-6:
             continue
 
         raised_by = _pdf_span_origin_y(reference) - _pdf_span_origin_y(marker_span)
-        if not reference_size * 0.12 <= raised_by <= reference_size * 0.80:
+        if (
+            raised_by < reference_size * 0.12 - 1e-6
+            or raised_by > reference_size * 0.80 + 1e-6
+        ):
             continue
 
-        reference_rect = fitz.Rect(reference.get("bbox", (0.0, 0.0, 0.0, 0.0)))
+        reference_rect = fitz.Rect(reference.get("bbox") or (
+            reference.get("x0", 0.0),
+            reference.get("y0", 0.0),
+            reference.get("x1", 0.0),
+            reference.get("y1", 0.0),
+        ))
         vertical_overlap = min(marker_rect.y1, reference_rect.y1) - max(marker_rect.y0, reference_rect.y0)
         if vertical_overlap <= 0:
             continue
@@ -648,12 +678,7 @@ def _mark_pdf_superscript_spans(span_entries: list[dict]) -> list[dict]:
         return span_entries
 
     native_flag = int(getattr(fitz, "TEXT_FONT_SUPERSCRIPT", 1))
-    non_empty_indices = [
-        idx for idx, span in enumerate(span_entries)
-        if span.get("text", "").strip()
-    ]
-
-    for idx, span in enumerate(span_entries):
+    for span in span_entries:
         span["superscript"] = False
         span["superscript_source"] = None
         span["superscript_scale"] = None
@@ -661,57 +686,59 @@ def _mark_pdf_superscript_spans(span_entries: list[dict]) -> list[dict]:
         text = span.get("text", "")
         compact = re.sub(r"\s+", "", text)
         semantic_marker = _pdf_is_semantic_superscript_marker(compact)
-        native = bool(int(span.get("flags", 0)) & native_flag) and semantic_marker
+        native_flagged = (
+            bool(int(span.get("flags", 0)) & native_flag) and semantic_marker
+        )
+        native = False
         inferred = False
         reference_size = None
 
-        if not native and semantic_marker and re.fullmatch(r"[\[\(]?[A-Za-z0-9*\u2020\u2021]{1,4}[\]\)]?", compact):
-            lexical_neighbors = []
-            for neighbor_idx in reversed(non_empty_indices):
-                if neighbor_idx >= idx:
-                    continue
-                neighbor = span_entries[neighbor_idx]
-                if _pdf_span_has_lexical_text(neighbor):
-                    lexical_neighbors.append(neighbor)
-                    break
-            for neighbor_idx in non_empty_indices:
-                if neighbor_idx <= idx:
-                    continue
-                neighbor = span_entries[neighbor_idx]
-                if _pdf_span_has_lexical_text(neighbor):
-                    lexical_neighbors.append(neighbor)
-                    break
+        short_marker = bool(re.fullmatch(
+            r"[\[\(]?[A-Za-z0-9*\u2020\u2021]{1,4}[\]\)]?",
+            compact,
+        ))
+        local_reference = _pdf_nearby_superscript_reference(
+            span,
+            span_entries,
+        )
 
-            size = max(float(span.get("size", 0.0)), 0.01)
-            for neighbor in lexical_neighbors:
-                neighbor_size = max(float(neighbor.get("size", 0.0)), 0.01)
-                scale = size / neighbor_size
-                raised_by = _pdf_span_origin_y(neighbor) - _pdf_span_origin_y(span)
-                if neighbor.get("x1", 0.0) <= span.get("x0", 0.0):
-                    horizontal_gap = float(span.get("x0", 0.0)) - float(neighbor.get("x1", 0.0))
-                elif span.get("x1", 0.0) <= neighbor.get("x0", 0.0):
-                    horizontal_gap = float(neighbor.get("x0", 0.0)) - float(span.get("x1", 0.0))
-                else:
-                    horizontal_gap = 0.0
-
-                if (
-                    0.45 <= scale <= 0.80
-                    and raised_by >= neighbor_size * 0.15
-                    and horizontal_gap <= max(neighbor_size * 1.2, 8.0)
-                ):
-                    inferred = True
-                    reference_size = neighbor_size
-                    break
-
-        if native:
-            normal_sizes = [
-                float(other.get("size", 0.0))
+        if native_flagged and local_reference is not None:
+            native = True
+            reference_size = max(
+                float(local_reference.get("size", 0.0)),
+                0.01,
+            )
+        elif native_flagged and short_marker:
+            # A genuine footnote/exponent may be emitted as a marker-only line.
+            # Preserve that explicit native signal only when there is no same-
+            # line lexical peer that should have supplied geometric proof. This
+            # prevents a corrupt flag on ordinary multi-span prose from winning.
+            lexical_peers = [
+                other
                 for other in span_entries
-                if other is not span
-                and _pdf_span_has_lexical_text(other)
-                and float(other.get("size", 0.0)) > float(span.get("size", 0.0)) * 1.15
+                if other is not span and _pdf_span_has_lexical_text(other)
             ]
-            reference_size = max(normal_sizes, default=None)
+            if not lexical_peers:
+                native = True
+                reference_size = max(
+                    float(span.get("size", 0.0)) / 0.60,
+                    0.01,
+                )
+
+        if (
+            not native
+            and semantic_marker
+            and short_marker
+            and local_reference is not None
+        ):
+            size = max(float(span.get("size", 0.0)), 0.01)
+            neighbor_size = max(
+                float(local_reference.get("size", 0.0)),
+                0.01,
+            )
+            if 0.45 <= size / neighbor_size <= 0.80:
+                inferred = True
+                reference_size = neighbor_size
 
         if native or inferred:
             size = max(float(span.get("size", 0.0)), 0.01)
@@ -863,7 +890,22 @@ def _normalize_pdf_translation(text: str) -> str:
     for pattern, repl in replacements:
         normalized = re.sub(pattern, repl, normalized)
 
-    normalized = re.sub(r'(?is)</?(?!b\b|sup\b|br\b)[a-z][^>]*>', '', normalized)
+    # Strip known presentation/wrapper tags, but keep unknown angle-bracketed
+    # source text literal.  Financial prose uses notation such as
+    # ``<JPY short position>``; the former generic ``<[a-z]...>`` sanitizer
+    # mistook that complete phrase for HTML and silently removed it before
+    # translation.  Rendering escapes unknown tags, so preserving them here is
+    # both lossless and safe.
+    normalized = re.sub(
+        r"(?is)<\s*/?\s*(?:"
+        r"a|abbr|address|article|aside|blockquote|body|caption|code|dd|div|dl|dt|"
+        r"em|figcaption|figure|font|footer|form|h[1-6]|head|header|html|i|label|"
+        r"li|main|nav|ol|p|pre|section|small|span|sub|table|tbody|td|tfoot|th|"
+        r"thead|title|tr|u|ul|translation|answer"
+        r")\b[^>]*>",
+        "",
+        normalized,
+    )
     normalized = re.sub(r'(?is)</?br\b[^>]*>', '\n', normalized)
     normalized = normalized.replace('\r\n', '\n').replace('\r', '\n')
     normalized = re.sub(r'[ \t]+\n', '\n', normalized)
@@ -904,7 +946,13 @@ def _find_pdf_fragment_outside_control_tokens(
                 PDF_SUPERSCRIPT_PLACEHOLDER_RE,
                 PDF_INLINE_MATH_PLACEHOLDER_RE,
                 PDF_IDENTIFIER_PLACEHOLDER_RE,
-                re.compile(r"<[^>]*>"),
+                # Only supported rich-text tags are control markup.  A broad
+                # ``<...>`` range also blocks the angle delimiters in lexical
+                # source notation such as ``<JPY short position>``, leaving
+                # them unprotected while the validator still requires them.
+                re.compile(
+                    r"(?is)<\s*/?\s*(?:b|strong|sup|br)\b[^>]*>"
+                ),
             )
             for match in pattern.finditer(text)
         ]

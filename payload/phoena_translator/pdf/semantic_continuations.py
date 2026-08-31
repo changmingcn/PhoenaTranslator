@@ -1078,6 +1078,13 @@ def _pdf_internal_paragraph_lead_residuals(
                     ).strip()
                     residuals.append((element_index, line_index, plain[:80]))
                 superscript_footnote_seen = bool(superscript_footnote_seen or marker)
+        # Multiple bullets or numbered instructions are legitimate inside one
+        # detector-proven native table cell.  The exact cell boundary already
+        # prevents the unsafe cross-row merge this invariant guards against,
+        # while splitting those items into overlapping render boxes would
+        # damage the table layout.
+        if elem.get("semantic_native_table_cell"):
+            continue
         if reference_context and reference_lead_counts.get(element_index) == 1:
             continue
         for paragraph in elem.get("paragraphs") or []:

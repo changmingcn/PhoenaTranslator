@@ -10,6 +10,7 @@ from typing import Callable
 
 from phoena_translator.pdf.audit import (
     _expand_pdf_fallback_pages_for_accepted_merges,
+    _is_accepted_merge_endpoint,
 )
 from phoena_translator.pdf.cache import (
     _append_pdf_source_page_fallback,
@@ -42,32 +43,6 @@ class PDFTranslationStageContext:
     pdf_audit: dict
     completed_indices: set[int]
     save_translation_progress: Callable[..., None]
-
-
-def _is_accepted_merge_endpoint(
-    pdf_audit: dict,
-    page_number: int,
-    element_index: int,
-) -> bool:
-    """Return whether an element was mutated by an accepted cross-page merge."""
-
-    for decision in pdf_audit.get("merge_decisions") or []:
-        if not isinstance(decision, dict) or decision.get("decision") != "accepted":
-            continue
-        for page_key, element_key in (
-            ("source_page", "source_element"),
-            ("destination_page", "destination_element"),
-        ):
-            try:
-                endpoint = (
-                    int(decision.get(page_key, 0) or 0),
-                    int(decision.get(element_key, -1)),
-                )
-            except (TypeError, ValueError):
-                continue
-            if endpoint == (page_number, element_index):
-                return True
-    return False
 
 
 def _commit_translated_page(
@@ -140,7 +115,7 @@ def _commit_page_with_element_fallbacks(
         element_index
         for element_index, _reason in element_entries
         if _is_accepted_merge_endpoint(
-            context.pdf_audit,
+            context.pdf_audit.get("merge_decisions"),
             page_num + 1,
             element_index,
         )
@@ -205,6 +180,12 @@ def _run_first_pass(
             scheduled_page_num = futures[future]
             try:
                 page_num, translations = future.result()
+                if page_num != scheduled_page_num:
+                    raise RuntimeError(
+                        "translation worker returned page "
+                        f"{page_num + 1} for scheduled page "
+                        f"{scheduled_page_num + 1}"
+                    )
                 _validate_pdf_page_translations(
                     page_num + 1,
                     context.page_extractions[page_num]["elements"],
@@ -345,46 +326,60 @@ def translate_pages(
         progress_lock,
     )
     final_errors = {}
-    for page_num in sorted(first_pass_errors):
-        try:
-            retry_page_num, retry_translations = translate_page(
+    with ThreadPoolExecutor(max_workers=context.workers) as executor:
+        retry_futures = {
+            executor.submit(
+                translate_page,
                 page_context,
                 page_num,
                 context.page_extractions[page_num],
-            )
-            _validate_pdf_page_translations(
-                retry_page_num + 1,
-                context.page_extractions[retry_page_num]["elements"],
-                retry_translations,
-            )
-        except Exception as retry_error:
-            if isinstance(retry_error, PDFTranslationIntegrityError) and (
-                _commit_page_with_element_fallbacks(
-                    context,
-                    page_num,
-                    retry_error,
-                    progress_lock,
+            ): page_num
+            for page_num in sorted(first_pass_errors)
+        }
+        for future in as_completed(retry_futures):
+            scheduled_page_num = retry_futures[future]
+            try:
+                retry_page_num, retry_translations = future.result()
+                if retry_page_num != scheduled_page_num:
+                    raise RuntimeError(
+                        "clean retry worker returned page "
+                        f"{retry_page_num + 1} for scheduled page "
+                        f"{scheduled_page_num + 1}"
+                    )
+                _validate_pdf_page_translations(
+                    retry_page_num + 1,
+                    context.page_extractions[retry_page_num]["elements"],
+                    retry_translations,
                 )
-            ):
+            except Exception as retry_error:
+                if isinstance(retry_error, PDFTranslationIntegrityError) and (
+                    _commit_page_with_element_fallbacks(
+                        context,
+                        scheduled_page_num,
+                        retry_error,
+                        progress_lock,
+                    )
+                ):
+                    continue
+                final_errors[scheduled_page_num + 1] = retry_error
+                context.logger.error(
+                    f"[{context.task_id}] Page {scheduled_page_num + 1} failed clean "
+                    f"translation retry: {retry_error}"
+                )
                 continue
-            final_errors[page_num + 1] = retry_error
-            context.logger.error(
-                f"[{context.task_id}] Page {page_num + 1} failed clean "
-                f"translation retry: {retry_error}"
+            # As above, persistence is a deterministic local boundary and
+            # stays outside the provider/integrity retry branch. Provider work
+            # remains concurrent, while commits occur in this owning thread.
+            _commit_translated_page(
+                context,
+                retry_page_num,
+                retry_translations,
+                progress_lock,
             )
-            continue
-        # As above, persistence is a deterministic local boundary and stays
-        # outside the provider/integrity retry branch.
-        _commit_translated_page(
-            context,
-            retry_page_num,
-            retry_translations,
-            progress_lock,
-        )
-        context.logger.info(
-            f"[{context.task_id}] Page {page_num + 1} recovered on clean "
-            "translation retry"
-        )
+            context.logger.info(
+                f"[{context.task_id}] Page {scheduled_page_num + 1} recovered on clean "
+                "translation retry"
+            )
     _apply_page_source_fallbacks(context, final_errors)
     _require_translated_page_progress(context)
 

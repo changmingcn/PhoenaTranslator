@@ -15,9 +15,9 @@
 从 [Releases](https://github.com/changmingcn/PhoenaTranslator/releases/latest) 下载安装包和 SHA-256 校验文件，然后在服务器执行：
 
 ```bash
-sha256sum -c PhoenaTranslator-20260723-clean-installer.tar.gz.sha256
-tar -xzf PhoenaTranslator-20260723-clean-installer.tar.gz
-cd PhoenaTranslator-20260723-clean-installer
+sha256sum -c PhoenaTranslator-20260803-inline-render-fallback-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20260803-inline-render-fallback-reinstall.tar.gz
+cd PhoenaTranslator-20260803-inline-render-fallback-reinstall
 ./install.sh --verify-only   # 可选预检
 sudo ./install.sh
 ```
@@ -48,5 +48,7 @@ http://服务器IP/
 - 翻译结果由所选模型和原文复杂度共同决定，建议对重要文档人工复核
 - 默认部署只提供 HTTP，且网页没有内置登录限制；如暴露到公网，请自行配置 TLS、防火墙或外部身份验证
 - 安装包不包含旧任务、原始文档、翻译结果、日志、缓存或 API Key
+- 重装前后的主机级恢复项目见 `HOST_RESTORE_CHECKLIST.md`
+- `SOURCE_IDENTITY.json` 记录本包对应的生产发布、文件数和内容清单摘要
 
-当前版本：`2026.07.23-r1`
+当前版本：`2026.08.03-inline-render-fallback`

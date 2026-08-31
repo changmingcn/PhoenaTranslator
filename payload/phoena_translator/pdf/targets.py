@@ -12,6 +12,7 @@ from phoena_translator.math_text import (
 )
 
 from phoena_translator.pdf.types import (
+    PDF_DUPLICATE_GLYPH_POSITION_TOLERANCE,
     PDF_FIXED_SHORT_LABEL_TRANSLATIONS,
     _PDF_DISPLAY_IDENTITY_END_WORDS,
     _PDF_PERSON_HONORIFICS,
@@ -867,6 +868,11 @@ def _mark_pdf_entity_directory_elements(elements: list[dict]) -> int:
     has_directory_context = bool(
         re.search(rf"\b(?:list|directory)\s+of\s+(?:the\s+)?{entity_noun}\b", page_folded)
         or re.search(
+            r"\bmembers?\s+of\s+(?:the\s+)?(?:study|working|advisory|"
+            r"steering)\s+group\b",
+            page_folded,
+        )
+        or re.search(
             rf"\b{entity_noun}\b[^.!?]{{0,100}}\b(?:presented|listed|ordered)\s+"
             r"in\s+alphabetical\s+order\b",
             page_folded,
@@ -883,32 +889,63 @@ def _mark_pdf_entity_directory_elements(elements: list[dict]) -> int:
             and _looks_like_pdf_entity_directory_row(element.get("content", ""))
         )
 
-    runs: list[list[dict]] = []
-    current: list[dict] = []
-    for element in elements or []:
-        if not row_candidate(element):
-            if current:
-                runs.append(current)
-                current = []
-            continue
+    candidates = [
+        element for element in (elements or []) if row_candidate(element)
+    ]
+    columns: list[list[dict]] = []
+    for element in sorted(
+        candidates,
+        key=lambda candidate: (
+            _get_pdf_source_ink_rect(candidate).x0,
+            _get_pdf_source_ink_rect(candidate).y0,
+        ),
+    ):
         rect = _get_pdf_source_ink_rect(element)
+        fontsize = max(float(element.get("fontsize", 9.0)), 1.0)
+        compatible_columns = [
+            column
+            for column in columns
+            if abs(
+                rect.x0 - _get_pdf_source_ink_rect(column[0]).x0
+            ) <= max(12.0, fontsize * 1.5)
+        ]
+        if compatible_columns:
+            min(
+                compatible_columns,
+                key=lambda column: abs(
+                    rect.x0 - _get_pdf_source_ink_rect(column[0]).x0
+                ),
+            ).append(element)
+        else:
+            columns.append([element])
+
+    runs: list[list[dict]] = []
+    for column in columns:
+        current: list[dict] = []
+        for element in sorted(
+            column,
+            key=lambda candidate: _get_pdf_source_ink_rect(candidate).y0,
+        ):
+            rect = _get_pdf_source_ink_rect(element)
+            if current:
+                previous = current[-1]
+                previous_rect = _get_pdf_source_ink_rect(previous)
+                fontsize = max(
+                    float(element.get("fontsize", 9.0)),
+                    float(previous.get("fontsize", 9.0)),
+                    1.0,
+                )
+                compact_gap = (
+                    rect.y0 - previous_rect.y1
+                    <= max(42.0, fontsize * 5.0)
+                )
+                forward = rect.y0 >= previous_rect.y0 - 0.5
+                if not (compact_gap and forward):
+                    runs.append(current)
+                    current = []
+            current.append(element)
         if current:
-            previous = current[-1]
-            previous_rect = _get_pdf_source_ink_rect(previous)
-            fontsize = max(
-                float(element.get("fontsize", 9.0)),
-                float(previous.get("fontsize", 9.0)),
-                1.0,
-            )
-            same_column = abs(rect.x0 - previous_rect.x0) <= max(12.0, fontsize * 1.5)
-            compact_gap = rect.y0 - previous_rect.y1 <= max(24.0, fontsize * 3.0)
-            forward = rect.y0 >= previous_rect.y0 - 0.5
-            if not (same_column and compact_gap and forward):
-                runs.append(current)
-                current = []
-        current.append(element)
-    if current:
-        runs.append(current)
+            runs.append(current)
 
     marked = 0
     for run in runs:
@@ -1517,6 +1554,95 @@ def _append_pdf_text_block_elements(
         )
 
 
+def _drop_pdf_duplicate_glyph_spans(page_dict: dict) -> tuple[dict, int]:
+    """Keep one copy of text that the generator stroked twice in place.
+
+    Apache FOP 2.7 emits every body line as two identical spans at the same
+    coordinates.  Extraction then produced two overlapping elements per line
+    plus stray half-line fragments, and because redaction erases a glyph whose
+    box is merely clipped, the overlap-redraw closure in ``rendering`` grew
+    until it reached a ``formula_risk_preserved`` element and failed the whole
+    page.  One such page then dragged its entire accepted cross-page merge
+    component back to untranslated source copies -- 19 pages from a single
+    duplicated line.
+
+    Only redundant ink is removed: same text, same font, same size, and the
+    same position within ``PDF_DUPLICATE_GLYPH_POSITION_TOLERANCE``.  Text
+    repeated elsewhere on the page -- table cells, running heads, a column of
+    ``0.00%`` -- sits at a different bbox and survives.
+
+    Colour is deliberately NOT part of the identity, because the observed
+    duplication is a white knockout copy at ``0xffffff`` followed by the real
+    ``0x231f20`` copy.  The survivor must therefore be the LAST occurrence:
+    PDF paints in stream order, so the final copy is the one a reader sees.
+    Keeping the first copy instead inherited the white colour and redrew every
+    translated paragraph in white on white -- a fully blank page that still
+    extracted perfect Chinese text.
+    """
+    spans_in_order: list[dict] = []
+    for block in page_dict.get("blocks", []):
+        if block.get("type") != 0:
+            continue
+        for line in block.get("lines", []):
+            for span in line.get("spans", []):
+                spans_in_order.append(span)
+
+    winner_by_key: dict[tuple, list[list]] = {}
+    for position, span in enumerate(spans_in_order):
+        text = span.get("text", "")
+        if not text.strip():
+            continue
+        try:
+            bbox = tuple(float(value) for value in span.get("bbox", ()))
+        except (TypeError, ValueError):
+            continue
+        if len(bbox) != 4:
+            continue
+        key = (
+            text,
+            span.get("font", ""),
+            round(float(span.get("size", 0.0)), 2),
+        )
+        for entry in winner_by_key.setdefault(key, []):
+            if all(
+                abs(bbox[axis] - entry[0][axis])
+                <= PDF_DUPLICATE_GLYPH_POSITION_TOLERANCE
+                for axis in range(4)
+            ):
+                entry[1].append(position)
+                break
+        else:
+            winner_by_key[key].append([bbox, [position]])
+
+    discarded: set[int] = set()
+    for entries in winner_by_key.values():
+        for _bbox, positions in entries:
+            discarded.update(positions[:-1])
+    if not discarded:
+        return page_dict, 0
+
+    # Rebuild with a counter that mirrors the walk above, so a span is matched
+    # by its position in stream order rather than by identity or value.
+    position = 0
+    blocks = []
+    for block in page_dict.get("blocks", []):
+        if block.get("type") != 0:
+            blocks.append(block)
+            continue
+        lines = []
+        for line in block.get("lines", []):
+            spans = []
+            for span in line.get("spans", []):
+                if position not in discarded:
+                    spans.append(span)
+                position += 1
+            if spans:
+                lines.append({**line, "spans": spans})
+        if lines:
+            blocks.append({**block, "lines": lines})
+    return {**page_dict, "blocks": blocks}, len(discarded)
+
+
 def _extract_pdf_text_elements(
     page,
     table_rects: list[fitz.Rect],
@@ -1533,6 +1659,13 @@ def _extract_pdf_text_elements(
         "dict",
         flags=fitz.TEXT_PRESERVE_WHITESPACE,
     )
+    page_dict, duplicate_spans = _drop_pdf_duplicate_glyph_spans(page_dict)
+    if duplicate_spans:
+        log.info(
+            "Page %s: dropped %s duplicate glyph span(s) stroked in place",
+            page.number + 1,
+            duplicate_spans,
+        )
     dropped_blocks = 0
     for block in page_dict.get("blocks", []):
         if block.get("type") != 0:
@@ -1755,19 +1888,33 @@ def _enrich_pdf_page_elements(
             "dict",
             flags=fitz.TEXT_PRESERVE_WHITESPACE,
         )
-        for element in elements:
-            if element.get("type") != "formula_image":
-                continue
+    except Exception as page_dict_exc:
+        log.warning(
+            f"Page {page.number + 1}: formula signature extraction failed: "
+            f"{type(page_dict_exc).__name__}"
+        )
+        return elements
+
+    # Signatures are per-element evidence, so they must fail per element.  A
+    # shared ``try`` around the loop let one unsignable region silently strip
+    # the signature from every later formula on the page, and the audit then
+    # rejected the finished document with one
+    # ``source-formula-signature-missing`` warning per stripped element.
+    for index, element in enumerate(elements):
+        if element.get("type") != "formula_image":
+            continue
+        try:
             element["math_signature"] = _pdf_formula_region_signature(
                 page,
                 element.get("bbox", element.get("rect")),
                 page_dict=page_dict,
             )
-    except Exception as signature_exc:
-        log.warning(
-            f"Page {page.number + 1}: formula signature extraction failed: "
-            f"{type(signature_exc).__name__}"
-        )
+        except Exception as signature_exc:
+            log.warning(
+                f"Page {page.number + 1} elem {index}: formula signature "
+                f"extraction failed: {type(signature_exc).__name__}: "
+                f"{signature_exc}"
+            )
     return elements
 
 

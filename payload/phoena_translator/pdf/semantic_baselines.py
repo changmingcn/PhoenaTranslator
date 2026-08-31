@@ -49,10 +49,15 @@ def _pdf_same_baseline_candidate_group(
     line_infos: list[dict],
     index: int,
 ) -> tuple[list[dict], int]:
-    """Collect at most three adjacent records on one visual baseline."""
+    """Collect adjacent records on one visual baseline.
+
+    Fully justified prose can be emitted as five or more separate PDF line
+    records (one per word).  The former three-record cap split those rows into
+    partial groups that could never satisfy the full-width prose gate.
+    """
     group = [dict(line_infos[index])]
     cursor = index + 1
-    while cursor < len(line_infos) and len(group) < 3:
+    while cursor < len(line_infos) and len(group) < 12:
         previous = group[-1]
         current = line_infos[cursor]
         previous_height = max(
@@ -78,7 +83,11 @@ def _pdf_same_baseline_candidate_group(
         if (
             overlap_ratio < 0.80
             or gap < 0.0
-            or gap > max(fontsize * 1.25, 12.0)
+            # Full justification in some official reports distributes a
+            # five-word line as separate records with gaps slightly above
+            # 1.25 em.  The later full-width/prose/repeated-column gates own
+            # the semantic decision, so keep the baseline candidate intact.
+            or gap > max(fontsize * 1.60, 16.0)
             or not _pdf_same_baseline_geometry_compatible(previous, current)
         ):
             break
@@ -298,12 +307,20 @@ def _normalize_pdf_same_baseline_prose_fragments(
         left_gap = float(group[0]["x0"]) - float(block_rect.x0)
         right_gap = float(block_rect.x1) - float(group[-1]["x1"])
         fontsize = max(float(line.get("fontsize", 11.0)) for line in group)
+        enough_prose = (
+            len(alpha_words) >= 6
+            or (
+                len(group) >= 4
+                and len(alpha_words) >= 5
+                and coverage >= 0.96
+            )
+        )
         structural_prose_row = (
             index not in repeated_column_starts
             and coverage >= 0.88
             and left_gap <= max(fontsize * 1.5, block_width * 0.05)
             and right_gap <= max(fontsize * 1.5, block_width * 0.05)
-            and len(alpha_words) >= 6
+            and enough_prose
             and bool(right_words)
             and not _pdf_has_terminal_sentence_boundary(group[-1].get("plain", ""))
             and not _looks_like_pdf_reference_run_in_group(group)
@@ -326,6 +343,16 @@ def _normalize_pdf_same_baseline_prose_fragments(
             sentence_boundary = _pdf_has_terminal_sentence_boundary(
                 current.get("plain", "")
             )
+            following_plain = re.sub(
+                r"\s+",
+                " ",
+                following.get("plain", ""),
+            ).strip()
+            discourse_continuation = bool(re.fullmatch(
+                r"(?i)(?:thus|however|therefore|hence|consequently|"
+                r"moreover|furthermore|nevertheless|accordingly),?",
+                following_plain,
+            ))
             bold_to_regular_boundary = bool(current.get("bold")) and not bool(
                 following.get("bold")
             )
@@ -335,7 +362,11 @@ def _normalize_pdf_same_baseline_prose_fragments(
                 and not following.get("math_protected")
             )
             if (
-                (sentence_boundary and not group_is_final)
+                (
+                    sentence_boundary
+                    and not group_is_final
+                    and not discourse_continuation
+                )
                 or bold_to_regular_boundary
             ):
                 normalized.append(current)

@@ -50,6 +50,7 @@ class PDFOutputStageContext:
     total_pages: int
     assembly_concurrency: int
     use_htmlbox: bool
+    fail_open_to_source_page: bool
     minimum_htmlbox_scale: float
     save_clean: bool
     save_garbage: int
@@ -199,47 +200,58 @@ def _prepare_fonts(
     used_chars = _collect_pdf_font_chars(page_extractions, {})
     if context.font_subsetting_available and used_chars:
         subset_font_dir = tempfile.mkdtemp(prefix="pdf_font_subset_")
-        try:
-            subset_path = _subset_pdf_font(
-                font_path,
-                used_chars,
-                subset_font_dir,
-                "regular",
-            )
-            if subset_path == font_path:
+        subset_created = False
+
+        def prepare_one_font(source_path: str, role: str) -> tuple[str, bool]:
+            try:
+                subset_path = _subset_pdf_font(
+                    source_path,
+                    used_chars,
+                    subset_font_dir,
+                    role,
+                )
+                if subset_path == source_path:
+                    context.logger.info(
+                        f"[{context.task_id}] {role.capitalize()} font "
+                        "subsetting skipped (CFF-flavored font); embedding "
+                        "the complete font"
+                    )
+                    return source_path, False
+                if not _subset_font_renders_like_original(
+                    subset_path,
+                    source_path,
+                    used_chars,
+                ):
+                    context.logger.warning(
+                        f"[{context.task_id}] Subset {role} font failed the "
+                        "render self-check; embedding the complete font instead"
+                    )
+                    return source_path, False
                 context.logger.info(
-                    f"[{context.task_id}] Font subsetting skipped "
-                    "(CFF-flavored font); embedding the complete font"
+                    f"[{context.task_id}] Created subset {role} font for "
+                    f"{len(used_chars)} chars"
                 )
-                shutil.rmtree(subset_font_dir, ignore_errors=True)
-                subset_font_dir = None
-            elif not _subset_font_renders_like_original(
-                subset_path,
-                font_path,
-                used_chars,
-            ):
+                return subset_path, True
+            except Exception as error:
                 context.logger.warning(
-                    f"[{context.task_id}] Subset font failed the render "
-                    "self-check; embedding the complete font instead"
+                    f"[{context.task_id}] {role.capitalize()} font subsetting "
+                    f"failed, using full font: {error}"
                 )
-                shutil.rmtree(subset_font_dir, ignore_errors=True)
-                subset_font_dir = None
-            else:
-                font_path = subset_path
-                if has_distinct_bold:
-                    context.logger.info(
-                        f"[{context.task_id}] Created subset regular font for "
-                        f"{len(used_chars)} chars; keeping full bold font"
-                    )
-                else:
-                    context.logger.info(
-                        f"[{context.task_id}] Created subset fonts for "
-                        f"{len(used_chars)} chars"
-                    )
-        except Exception as error:
-            context.logger.warning(
-                f"[{context.task_id}] Font subsetting failed, using full font: {error}"
+                return source_path, False
+
+        font_path, regular_subset_created = prepare_one_font(
+            font_path,
+            "regular",
+        )
+        subset_created = subset_created or regular_subset_created
+        if has_distinct_bold:
+            bold_font_path, bold_subset_created = prepare_one_font(
+                bold_font_path,
+                "bold",
             )
+            subset_created = subset_created or bold_subset_created
+
+        if not subset_created:
             shutil.rmtree(subset_font_dir, ignore_errors=True)
             subset_font_dir = None
     if not has_distinct_bold:
@@ -356,8 +368,10 @@ def assemble_output(context: PDFOutputStageContext) -> None:
             total_pages=context.total_pages,
             pdf_password=context.pdf_password,
             use_htmlbox=context.use_htmlbox,
+            fail_open_to_source_page=context.fail_open_to_source_page,
             minimum_htmlbox_scale=context.minimum_htmlbox_scale,
             assembly_work_path=assembly_work_path,
+            src_path=context.src_path,
             out_doc=document,
             page_extractions=page_extractions,
             pdf_audit=context.pdf_audit,
@@ -562,6 +576,12 @@ def finalize_output(
             ),
             "untranslated_english_leaks": completed_audit.get(
                 "untranslated_english_leaks", []
+            ),
+            "untranslated_delivered_pages": completed_audit.get(
+                "untranslated_delivered_pages", []
+            ),
+            "table_preservation_rollbacks": completed_audit.get(
+                "table_preservation_rollbacks", []
             ),
         },
     )

@@ -150,6 +150,76 @@ def _looks_like_pdf_body_text_false_table(table) -> bool:
     )
 
 
+def _looks_like_sparse_pdf_table_wrapper(outer, inner) -> bool:
+    """Detect a sparse layout wrapper around a denser real table.
+
+    Two-column reports can fool PyMuPDF into treating the page-bottom rule,
+    column divider, body prose, and a neighboring chart as one giant 1x2
+    table.  The genuine chart table is also returned as a denser nested
+    candidate.  Keeping the wrapper marks ordinary prose as table content and
+    suppresses the nested table, so prefer the structurally specific child.
+    """
+    if outer is inner:
+        return False
+    outer_rows = int(getattr(outer, "row_count", 0) or 0)
+    outer_cols = int(getattr(outer, "col_count", 0) or 0)
+    inner_rows = int(getattr(inner, "row_count", 0) or 0)
+    inner_cols = int(getattr(inner, "col_count", 0) or 0)
+    if (
+        outer_rows > 2
+        or outer_cols > 2
+        or inner_rows < 2
+        or inner_cols < 2
+        or inner_rows * inner_cols < 6
+    ):
+        return False
+
+    outer_rect = fitz.Rect(outer.bbox)
+    inner_rect = fitz.Rect(inner.bbox)
+    if outer_rect.is_empty or inner_rect.is_empty:
+        return False
+    intersection = outer_rect & inner_rect
+    if (
+        intersection.is_empty
+        or intersection.get_area() / max(inner_rect.get_area(), 1.0) < 0.98
+        or outer_rect.get_area() < inner_rect.get_area() * 1.15
+    ):
+        return False
+
+    try:
+        outer_rows_text = list(outer.extract() or [])
+    except Exception:
+        return False
+    cell_texts = [
+        re.sub(r"\s+", " ", str(cell or "")).strip()
+        for row in outer_rows_text
+        for cell in (row or [])
+        if re.sub(r"\s+", " ", str(cell or "")).strip()
+    ]
+    word_counts = [
+        len(re.findall(r"[A-Za-z][A-Za-z'’-]*", text))
+        for text in cell_texts
+    ]
+    return bool(
+        len(word_counts) >= 2
+        and max(word_counts) >= 20
+        and sum(word_counts) >= 40
+    )
+
+
+def _prune_sparse_pdf_table_wrappers(tables: list) -> list:
+    """Keep nested real tables while dropping sparse page-layout wrappers."""
+    return [
+        table
+        for table in tables
+        if not any(
+            _looks_like_sparse_pdf_table_wrapper(table, nested)
+            for nested in tables
+            if nested is not table
+        )
+    ]
+
+
 def _has_compact_open_pdf_table_rules(page) -> bool:
     """Cheaply gate the slower text/line table finder by horizontal rules."""
     page_rect = fitz.Rect(page.rect)
@@ -238,11 +308,19 @@ def _pdf_table_cell_rects(table) -> list[fitz.Rect]:
 
 def _find_pdf_table_regions(page) -> list[dict]:
     """Detect tables while retaining their cell geometry for text recovery."""
-    standard_tables = [
+    standard_candidates = [
         table
         for table in _pdf_table_list(page.find_tables())
         if not _looks_like_pdf_body_text_false_table(table)
     ]
+    standard_tables = _prune_sparse_pdf_table_wrappers(standard_candidates)
+    if len(standard_tables) < len(standard_candidates):
+        log.info(
+            "Page %s: ignored %s sparse table wrapper(s) around denser "
+            "nested table geometry",
+            page.number + 1,
+            len(standard_candidates) - len(standard_tables),
+        )
     tables = [(table, False) for table in standard_tables]
 
     if not standard_tables and _has_compact_open_pdf_table_rules(page):

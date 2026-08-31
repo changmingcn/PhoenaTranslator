@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "package_name": "PhoenaTranslator-20260803-inline-render-fallback-reinstall",
+  "version": "2026.08.03-inline-render-fallback",
+  "built_at_utc": "2026-08-04T09:45:09Z",
+  "source_policy": "exact-active-app-only",
+  "active_release": "/opt/phoena-translator/releases/release-2026.08.03-inline-render-fallback-20260803T0626Z",
+  "payload_file_count": 53,
+  "payload_total_bytes": 1161632,
+  "payload_manifest_sha256": "095400ec3ac64fd41a17e09247070072bdefe179e4a21813986f047879bd2640",
+  "prior_deployment_content_aggregate_sha256": "3eaa00cf4228eff6899f830abbd0f6f63acc95537b45be086b6c8f978ae5965e",
+  "manifest_binding": "MANIFEST.sha256 contains every payload path and content hash; SOURCE_ALLOWLIST.txt contains the exact 53 payload paths; payload_manifest_sha256 is sha256 of the newline-terminated '<sha256>  <path>' lines of the payload sorted by path, and prior_deployment_content_aggregate_sha256 is that same value for the package named in 'supersedes'",
+  "installer_blueprint": {
+    "path": "/root/deploy/PhoenaTranslator-20260723-clean-installer",
+    "install_sh_sha256": "0d275ccd45ea6f974de04e0bb989a1a3a5f4075048a0d4962722431336d474f9",
+    "verify_release_py_sha256_before_count_adaptation": "f7b8ae8b6e5bfc0aa6210341332415d1f75248040f9c192f6db9b399dd50aac5"
+  },
+  "packaging_templates": {
+    "phoena-translator.service_sha256": "f390cb92cbe4633f21e28ce9c0cb5425365adde427f5264363f89267140502ca",
+    "phoena-translator.nginx.conf_sha256": "5978e99ba703491c4a0fdee54d68db8bf9ecc247a4fdaf582c068af9172d17bb"
+  },
+  "excluded_classes": [
+    "credentials and environment files",
+    "TLS certificates and private keys",
+    "production uploads, outputs, progress, tasks, caches, logs and installer state",
+    "virtual environments and bytecode",
+    "fonts, audit evidence, backups and Git metadata"
+  ],
+  "supersedes": "PhoenaTranslator-20260727-untranslated-page-reinstall (2026.07.27-untranslated-page)"
+}

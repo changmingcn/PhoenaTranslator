@@ -58,6 +58,7 @@ def _new_pdf_audit(
         "rejected_render_scale_events": [],
         "textbox_fallback_events": [],
         "untranslated_english_leaks": [],
+        "untranslated_delivered_pages": [],
         "source_page_fallbacks": [
             dict(entry) for entry in source_page_fallbacks
         ],
@@ -245,6 +246,7 @@ def _run_pdf_attempt(
         total_pages=total_pages,
         assembly_concurrency=dependencies.assembly_max_concurrency,
         use_htmlbox=dependencies.use_htmlbox,
+        fail_open_to_source_page=dependencies.fail_open_to_source_page,
         minimum_htmlbox_scale=dependencies.minimum_htmlbox_scale,
         save_clean=dependencies.save_clean,
         save_garbage=dependencies.save_garbage,

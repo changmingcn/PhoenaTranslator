@@ -14,11 +14,16 @@ from phoena_translator.pdf.audit import (
     _expand_pdf_fallback_pages_for_accepted_merges,
 )
 from phoena_translator.pdf.cache import (
+    _append_pdf_source_page_fallback,
     _exclude_pdf_audit_expectations_for_element,
+    _exclude_pdf_audit_expectations_for_source_pages,
+    _pdf_source_page_fallback_entry,
     _record_pdf_element_source_fallback,
+    _replace_pdf_pages_with_source,
 )
 from phoena_translator.pdf.geometry import (
     _get_pdf_source_ink_rects,
+    _pdf_page_extraction_rect,
     _subtract_pdf_protected_rects,
 )
 from phoena_translator.pdf.math_detection import (
@@ -65,8 +70,10 @@ class PDFAssemblyContext:
     total_pages: int
     pdf_password: str
     use_htmlbox: bool
+    fail_open_to_source_page: bool
     minimum_htmlbox_scale: float
     assembly_work_path: str | None
+    src_path: str
     out_doc: Any
     page_extractions: dict[int, dict]
     pdf_audit: dict
@@ -293,7 +300,7 @@ def _prepare_page(
         return
 
     layout_styles = info.get("layout_styles") or _derive_pdf_page_layout_styles(
-        elements, out_page.rect
+        elements, _pdf_page_extraction_rect(out_page)
     )
     watermark_indices = {
         i
@@ -332,7 +339,7 @@ def _prepare_page(
         if elem.get("non_horizontal"):
             if not _build_pdf_rotated_text_rects(
                 render_rect,
-                out_page.rect,
+                _pdf_page_extraction_rect(out_page),
                 fontsize,
                 int(elem.get("rotation", 90) or 90),
                 protected_formula_rects,
@@ -348,7 +355,7 @@ def _prepare_page(
                 if is_table_cell
                 else _build_htmlbox_rect_ladder(
                     render_rect,
-                    out_page.rect,
+                    _pdf_page_extraction_rect(out_page),
                     fontsize,
                     prefer_widen=bool(elem.get("single_line_heading")),
                 )
@@ -841,7 +848,7 @@ def _try_htmlbox(
             if is_table_cell
             else _build_htmlbox_rect_ladder(
                 render_rect,
-                out_page.rect,
+                _pdf_page_extraction_rect(out_page),
                 fontsize,
                 prefer_widen=bool(elem.get("single_line_heading")),
             )
@@ -1069,7 +1076,7 @@ def _render_element(
         if not is_table_cell and not render_style.get("preserve_source_style"):
             expanded_render_rect = _expand_pdf_htmlbox_rect(
                 render_rect,
-                out_page.rect,
+                _pdf_page_extraction_rect(out_page),
                 text_to_insert,
                 fontsize,
                 source_paragraphs,
@@ -1261,11 +1268,121 @@ def _assemble_page(context: PDFAssemblyContext, page_num: int) -> None:
     context.out_doc = out_doc
 
 
+def _continue_assembly_with_source_pages(
+    context: PDFAssemblyContext,
+    page_num: int,
+    error: PDFPageRenderError,
+) -> bool:
+    """Discard the failed page mutation and continue in the same assembly pass.
+
+    HTML-box assembly checkpoints each completed page with ``saveIncr``. A
+    render exception therefore leaves only the current page dirty in memory.
+    Closing without another save restores that page from the last checkpoint;
+    any earlier page pulled into the fallback through an accepted cross-page
+    merge is atomically replaced from the source PDF before reopening.
+    """
+    if not (
+        context.fail_open_to_source_page
+        and context.assembly_work_path
+        and context.src_path
+    ):
+        return False
+
+    current_page = page_num + 1
+    if int(getattr(error, "page", 0) or 0) != current_page:
+        return False
+    fallback_pages = sorted({
+        int(page)
+        for page in _expand_pdf_fallback_pages_for_accepted_merges(
+            list(getattr(error, "fallback_pages", []) or []),
+            context.pdf_audit.get("merge_decisions", []),
+        )
+        if 1 <= int(page) <= context.total_pages
+    })
+    existing_pages = {
+        int(entry.get("page", 0) or 0)
+        for entry in context.pdf_audit.get("source_page_fallbacks", [])
+    }
+    new_pages = [page for page in fallback_pages if page not in existing_pages]
+    if not new_pages:
+        return False
+
+    document = context.out_doc
+    context.out_doc = None
+    if document is not None:
+        document.close()
+
+    # The current and future pages were never checkpointed after this failure,
+    # so reopening is sufficient for them. Only already-committed pages need
+    # an explicit source replacement.
+    previous_pages = [page for page in new_pages if page < current_page]
+    if previous_pages:
+        _replace_pdf_pages_with_source(
+            context.assembly_work_path,
+            context.src_path,
+            previous_pages,
+            source_password=context.pdf_password,
+            task_id=context.task_id,
+        )
+
+    reopened_document = fitz.open(context.assembly_work_path)
+    try:
+        if reopened_document.is_encrypted and not reopened_document.authenticate(
+            context.pdf_password
+        ):
+            raise RuntimeError("PDF密码错误或未提供密码，无法恢复源页组装")
+    except BaseException:
+        reopened_document.close()
+        raise
+
+    for fallback_page in new_pages:
+        entry = _append_pdf_source_page_fallback(
+            context.pdf_audit.setdefault("source_page_fallbacks", []),
+            _pdf_source_page_fallback_entry(
+                fallback_page,
+                "render",
+                str(error),
+                error_type=type(error).__name__,
+            ),
+        )
+        context.page_extractions.setdefault(
+            fallback_page - 1,
+            {},
+        )["source_page_fallback"] = entry
+    _exclude_pdf_audit_expectations_for_source_pages(
+        context.pdf_audit,
+        new_pages,
+    )
+    context.pdf_audit.setdefault(
+        "inline_render_source_page_fallbacks",
+        [],
+    ).append({
+        "failed_page": current_page,
+        "pages": new_pages,
+        "reason": str(error),
+    })
+    context.out_doc = reopened_document
+    context.logger.warning(
+        f"[{context.task_id}] Page {current_page} render failed; restored exact "
+        f"source page(s) {new_pages} and continuing the current assembly pass"
+    )
+    return True
+
+
 def assemble_document_pages(context: PDFAssemblyContext) -> None:
     """Render every translated page and retain the current output document."""
 
     for page_num in range(context.total_pages):
-        _assemble_page(context, page_num)
+        try:
+            _assemble_page(context, page_num)
+        except PDFPageRenderError as error:
+            if _continue_assembly_with_source_pages(
+                context,
+                page_num,
+                error,
+            ):
+                continue
+            raise
 
 
 __all__ = ["PDFAssemblyContext", "assemble_document_pages"]

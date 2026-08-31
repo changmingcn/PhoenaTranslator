@@ -48,5 +48,6 @@ phoena_translator/task_runtime.py
 phoena_translator/task_store.py
 phoena_translator/web.py
 phoena_translator/workers.py
+requirements-test.txt
 requirements.txt
 tests/test_review_fixes.py

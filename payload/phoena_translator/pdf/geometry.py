@@ -10,6 +10,44 @@ from phoena_translator.pdf.types import (
     PDF_FORMULA_GUARD_PADDING,
 )
 
+def _pdf_page_rotation(page) -> int:
+    """Return the page's own ``/Rotate`` value, normalized to [0, 360)."""
+    try:
+        return int(getattr(page, "rotation", 0) or 0) % 360
+    except (TypeError, ValueError):
+        return 0
+
+
+def _pdf_page_extraction_rect(page) -> fitz.Rect:
+    """Return the page box in the coordinate space of extracted geometry.
+
+    PyMuPDF reports text spans and vector drawings in the *unrotated* page
+    space, but ``page.rect`` is the rotated display box.  The two disagree
+    exactly when the page carries ``/Rotate``: a landscape table page with
+    mediabox 612x792 and ``page.rect`` 792x612 extracts ink down to y=726,
+    so clipping an extracted bbox against ``page.rect`` silently truncates it
+    and a formula below y=612 collapses to zero height.  Callers that clip or
+    validate *extraction* geometry must use this box instead.
+    """
+    rect = fitz.Rect(page.rect)
+    if _pdf_page_rotation(page):
+        rect = fitz.Rect(rect * page.derotation_matrix)
+    return rect
+
+
+def _pdf_extraction_rect_to_display(page, rect) -> fitz.Rect:
+    """Map an extraction-space rectangle into the rendered display space.
+
+    ``page.get_pixmap(clip=...)`` rasterizes the rotated view, so a clip taken
+    straight from extraction coordinates samples the wrong region, or nothing
+    at all, on a rotated page.
+    """
+    display = fitz.Rect(rect)
+    if _pdf_page_rotation(page):
+        display = fitz.Rect(display * page.rotation_matrix)
+    return display
+
+
 def _pdf_rotation_from_direction(direction) -> int:
     """Map a native PDF text direction to PyMuPDF's textbox rotation.
 

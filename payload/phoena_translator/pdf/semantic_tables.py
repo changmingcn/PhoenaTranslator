@@ -29,6 +29,7 @@ def _merge_pdf_table_cell_group(
     *,
     cell_rect: fitz.Rect | None = None,
     glossary_cell_hint: bool = False,
+    semantic_native_table_cell: bool = False,
 ) -> dict:
     """Coalesce visual fragments belonging to one semantic table cell."""
     ordered = sorted(
@@ -130,6 +131,7 @@ def _merge_pdf_table_cell_group(
             "preserve_source_style": True,
             "table_hint": all(bool(elem.get("table_hint")) for elem in ordered),
             "glossary_cell_hint": bool(glossary_cell_hint),
+            "semantic_native_table_cell": bool(semantic_native_table_cell),
             "semantic_table_cell": len(ordered) > 1,
             "merged_visual_line_count": sum(
                 max(int(elem.get("merged_visual_line_count", 1)), 1) for elem in ordered
@@ -288,6 +290,7 @@ def _record_pdf_semantic_table_cell_merge(
     claimed: set[int],
     *,
     reject_claimed: bool,
+    semantic_native_table_cell: bool = False,
 ) -> bool:
     """Apply one non-overlapping semantic-cell merge to the result ledger."""
     if len(group_items) < 2:
@@ -312,6 +315,7 @@ def _record_pdf_semantic_table_cell_merge(
         group,
         page_rect,
         cell_rect=cell_rect,
+        semantic_native_table_cell=semantic_native_table_cell,
     )
     removed.update(group_indices[1:])
     claimed.update(group_indices)
@@ -327,12 +331,35 @@ def _merge_pdf_exact_table_cells(
     removed: set[int],
     claimed: set[int],
 ) -> int:
-    """Merge deterministic cells supplied by open-table fallback detection."""
-    if not region.get("fallback_open"):
-        return 0
+    """Merge fragments inside deterministic detected table-cell bounds.
+
+    Native table detection exposes exact row/cell rectangles too.  Ignoring
+    those rectangles and relying only on visual-line pitch can merge the last
+    row of one table section, the next ``(ii)`` section header, and the first
+    row of that section into one element.  The paragraph-boundary invariant
+    then fails and the recovery policy preserves the entire page in English.
+    Exact native cells are authoritative, so keep all of their wrapped lines
+    together; only coarse open-table fallback cells need pitch-based splitting.
+    """
+    fallback_open = bool(region.get("fallback_open"))
+    raw_cells = region.get("cells") or []
+    if not fallback_open:
+        row_count = int(region.get("row_count", 0) or 0)
+        col_count = int(region.get("col_count", 0) or 0)
+        # Sparse native grids commonly come from charts or merged-cell
+        # layouts.  Their detector rectangles are not authoritative enough
+        # to replace the established pitch-based inference.  A complete
+        # rectangular grid is the narrow case where every row boundary is
+        # deterministic and exact-cell grouping prevents cross-row merges.
+        if (
+            row_count < 1
+            or col_count < 1
+            or len(raw_cells) != row_count * col_count
+        ):
+            return 0
 
     merge_count = 0
-    for raw_cell_rect in region.get("cells") or []:
+    for raw_cell_rect in raw_cells:
         cell_rect = fitz.Rect(raw_cell_rect)
         if cell_rect.is_empty:
             continue
@@ -345,14 +372,16 @@ def _merge_pdf_exact_table_cells(
             continue
 
         is_open_header_cell = bool(
-            int(region.get("row_count", 0) or 0) >= 2
+            fallback_open
+            and int(region.get("row_count", 0) or 0) >= 2
             and abs(cell_rect.y0 - table_rect.y0) <= 2.5
             and cell_rect.y1 < table_rect.y1 - 2.5
         )
-        if is_open_header_cell:
+        if not fallback_open or is_open_header_cell:
             # A detected top row is a real header cell.  Its lines may be
             # vertically staggered relative to neighbouring columns, so keep
-            # the whole cell even when one pitch is slightly larger.
+            # the whole cell even when one pitch is slightly larger.  Native
+            # detector cells have exact row bounds and are equally safe.
             cell_groups = [cell_candidates]
         else:
             cell_groups = _pdf_compact_open_table_cell_groups(cell_candidates)
@@ -386,6 +415,7 @@ def _merge_pdf_exact_table_cells(
                     removed,
                     claimed,
                     reject_claimed=True,
+                    semantic_native_table_cell=not fallback_open,
                 )
             )
     return merge_count

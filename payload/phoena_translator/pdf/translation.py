@@ -15,6 +15,7 @@ from phoena_translator.pdf.types import (
     PDF_BATCH_SEGMENT_RE,
     PDF_TRANSLATABLE_CITATION_LABELS,
     _PDF_PROPER_NAME_CONNECTORS,
+    _PDF_QUOTED_TITLE_RE,
     _PRESERVED_IDENTIFIER_RE,
 )
 from phoena_translator.pdf.math_detection import (
@@ -186,6 +187,34 @@ _PDF_REFUSAL_META_RE = re.compile(
 )
 
 
+def _pdf_quoted_title_word_count(text: str) -> int:
+    """Count the words inside a citation's quoted work title."""
+    match = _PDF_QUOTED_TITLE_RE.search(text or "")
+    if not match:
+        return 0
+    return len(re.findall(r"[A-Za-z][A-Za-z’'-]*", match.group(1)))
+
+
+def _pdf_citation_apparatus_only(source_language: str) -> bool:
+    """Return whether a fragment carries no translatable prose at all.
+
+    A bibliography wraps onto several native PDF lines, so a line is often
+    just authors, initials and a year -- ``Khandani, Amir E., and Andrew W.
+    Lo. 2007.``  Prompt rule 6 keeps exactly those verbatim, so an identical
+    response is the CORRECT translation, yet the word-overlap verdict below
+    read it as an untranslated echo.  Measured on one bibliography, that
+    rejected 5 of 14 correct translations and spent four retries plus backoff
+    on each; the two reference pages dominated an 85-minute run.
+
+    A quoted title of two or more words IS translatable, so entries carrying
+    one keep going through the normal ladder -- including the real catch in
+    that sample, whose title came back untranslated.
+    """
+    if not _pdf_english_run_looks_like_proper_name(source_language):
+        return False
+    return _pdf_quoted_title_word_count(source_language) < 2
+
+
 def _short_translation_needs_retry(source_text: str, translated_text: str) -> bool:
     """Detect short blocks that came back untranslated."""
     if not _looks_like_translatable_english(source_text):
@@ -263,6 +292,9 @@ def _short_translation_needs_retry(source_text: str, translated_text: str) -> bo
         ):
             return True
         return False
+    if _pdf_citation_apparatus_only(source_language):
+        return False
+
     if translated_language.casefold() == source_language.casefold():
         return True
 

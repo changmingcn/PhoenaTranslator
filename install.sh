@@ -1033,6 +1033,13 @@ ensure_unit_stopped "$SERVICE_NAME" || die "could not confirm $SERVICE_NAME is s
 
 mv -- "$STAGING_ROOT" "$NEW_RELEASE"
 sync_path "$RELEASES_ROOT"
+# venv console scripts (gunicorn, pip, ...) embed the staging interpreter
+# path in their shebang; repoint them at the final release path after the
+# atomic rename, or systemd fails at EXEC with "No such file or directory".
+while IFS= read -r -d "" venv_script; do
+    sed -i "1s|^#!${STAGING_ROOT}/venv/bin/|#!${NEW_RELEASE}/venv/bin/|" "$venv_script"
+done < <(find "$NEW_RELEASE/venv/bin" -maxdepth 1 -type f -print0)
+sync_path "$NEW_RELEASE/venv/bin"
 atomic_symlink "$NEW_RELEASE" "$CURRENT_LINK"
 atomic_install_file "$ENV_NEW" "$ENV_FILE" 0600
 atomic_install_file "$RELEASE_DIR/packaging/phoena-translator.nginx.conf" "$NGINX_AVAILABLE" 0644
