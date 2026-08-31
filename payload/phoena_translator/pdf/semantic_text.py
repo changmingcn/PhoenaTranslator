@@ -1070,7 +1070,17 @@ def _make_pdf_text_element_from_lines(
         if (fragment.get("text") or "").strip()
     ]
     has_inline_bold = bool(
-        rich_text and rich_text != plain_text and 0 < bold_chars < plain_chars * 0.9
+        rich_text
+        and rich_text != plain_text
+        and 0
+        < sum(
+            len(_plain_text(match).strip())
+            for match in re.findall(
+                r"(?is)<b\b[^>]*>(.*?)</b>",
+                rich_text,
+            )
+        )
+        < plain_chars * 0.9
     )
     has_inline_markup = has_inline_bold or bool(superscript_runs)
     superscript_scale = _pick_pdf_dominant_value(

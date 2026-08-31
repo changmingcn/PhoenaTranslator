@@ -56,6 +56,7 @@ from phoena_translator.pdf.semantics import (
     _bucket_pdf_fontsize,
     _complete_pdf_citation_separator_inline_math_fragments,
     _detect_pdf_drop_cap_span,
+    _ends_with_sentence_boundary,
     _is_disclaimer_block,
     _looks_like_heading_text,
     _looks_like_split_layout_line,
@@ -1423,6 +1424,80 @@ def _group_pdf_block_lines(
     return line_groups
 
 
+def _pdf_bold_run_in_wraps_into_mixed_line(
+    heading_lines: list[dict],
+    transition_line: dict,
+) -> bool:
+    """Return whether a bold run-in sentence crosses a visual line boundary.
+
+    A common report layout bolds the opening sentence of a paragraph.  When
+    that sentence wraps, the first visual line is entirely bold while the next
+    line starts bold and changes to regular text after the sentence-ending
+    punctuation.  The generic heading splitter used to treat the fully bold
+    first line as a standalone heading, so the two halves of one sentence were
+    translated independently.
+
+    Require the mixed line to contain both a leading bold run and a regular
+    suffix, and require that the leading bold run completes a sentence.  Those
+    signals distinguish a wrapped run-in sentence from an ordinary standalone
+    heading followed by body prose.
+    """
+    if not heading_lines or not transition_line:
+        return False
+    previous = heading_lines[-1]
+    if (
+        not previous.get("bold")
+        or _ends_with_sentence_boundary(previous.get("plain", ""))
+    ):
+        return False
+
+    rich_remainder = str(transition_line.get("rich") or "").lstrip()
+    bold_fragments: list[str] = []
+    while rich_remainder:
+        match = re.match(r"(?is)^<b\b[^>]*>(.*?)</b>", rich_remainder)
+        if match is None:
+            break
+        fragment = re.sub(r"\s+", " ", _plain_text(match.group(1))).strip()
+        if fragment:
+            bold_fragments.append(fragment)
+        rich_remainder = rich_remainder[match.end():].lstrip()
+
+    bold_prefix = " ".join(bold_fragments).strip()
+    regular_suffix = re.sub(r"\s+", " ", _plain_text(rich_remainder)).strip()
+    if (
+        not bold_prefix
+        or not regular_suffix
+        or not _ends_with_sentence_boundary(bold_prefix)
+    ):
+        return False
+
+    previous_size = max(float(previous.get("fontsize", 11.0)), 1.0)
+    transition_size = max(float(transition_line.get("fontsize", 11.0)), 1.0)
+    if abs(previous_size - transition_size) > max(previous_size * 0.08, 0.7):
+        return False
+
+    previous_height = max(
+        float(previous.get("y1", 0.0)) - float(previous.get("y0", 0.0)),
+        1.0,
+    )
+    transition_height = max(
+        float(transition_line.get("y1", 0.0))
+        - float(transition_line.get("y0", 0.0)),
+        1.0,
+    )
+    vertical_gap = float(transition_line.get("y0", 0.0)) - float(
+        previous.get("y1", 0.0)
+    )
+    if vertical_gap < -max(previous_height, transition_height) * 0.35:
+        return False
+    if vertical_gap > max(previous_size * 0.95, previous_height, transition_height):
+        return False
+
+    return abs(
+        float(transition_line.get("x0", 0.0)) - float(previous.get("x0", 0.0))
+    ) <= max(previous_size * 0.60, 6.0)
+
+
 def _split_pdf_heading_segments(group_lines: list[dict]) -> list[list[dict]]:
     """Separate a short bold heading glued to following body text."""
     dominant_size = float(_pick_pdf_dominant_value(
@@ -1463,6 +1538,11 @@ def _split_pdf_heading_segments(group_lines: list[dict]) -> list[list[dict]]:
                 )
             )
         )
+        if next_line_is_body and _pdf_bold_run_in_wraps_into_mixed_line(
+            candidate_lines[:heading_count],
+            candidate_lines[heading_count],
+        ):
+            next_line_is_body = False
         if next_line_is_body:
             split_segments.extend([
                 candidate_lines[:heading_count],

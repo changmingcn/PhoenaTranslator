@@ -2557,6 +2557,105 @@ def test_cross_page_merge_keeps_regular_wrap_after_bold_page_top_line():
     assert audit_log == []
 
 
+def test_pdf_bold_run_in_sentence_wrapping_into_mixed_line_stays_one_segment():
+    from phoena_translator.pdf.targets import _split_pdf_heading_segments
+
+    lines = [
+        {
+            "plain": (
+                "The continued growth in China's surplus and how it is recycled "
+                "matters for competing export"
+            ),
+            "rich": (
+                "<b>The continued growth in China's surplus and how it is recycled "
+                "matters for competing export</b>"
+            ),
+            "bold": True,
+            "fontsize": 9.96,
+            "x0": 72.0,
+            "x1": 542.1,
+            "y0": 71.85,
+            "y1": 84.74,
+        },
+        {
+            "plain": (
+                "economies and the assets China saves in. Market-share gains "
+                "continue to pressure trading partners."
+            ),
+            "rich": (
+                "<b>economies and the assets China saves in.</b> Market-share "
+                "gains continue to pressure trading partners."
+            ),
+            "bold": False,
+            "fontsize": 9.96,
+            "x0": 72.0,
+            "x1": 542.2,
+            "y0": 83.86,
+            "y1": 96.75,
+        },
+    ]
+
+    assert _split_pdf_heading_segments(lines) == [lines]
+
+
+def test_pdf_standalone_bold_heading_still_splits_from_regular_body():
+    from phoena_translator.pdf.targets import _split_pdf_heading_segments
+
+    heading = {
+        "plain": "Economic Outlook",
+        "rich": "<b>Economic Outlook</b>",
+        "bold": True,
+        "fontsize": 10.0,
+        "x0": 72.0,
+        "x1": 190.0,
+        "y0": 72.0,
+        "y1": 84.0,
+    }
+    body = {
+        "plain": "Growth is expected to remain resilient over the coming year.",
+        "rich": "Growth is expected to remain resilient over the coming year.",
+        "bold": False,
+        "fontsize": 10.0,
+        "x0": 72.0,
+        "x1": 490.0,
+        "y0": 84.0,
+        "y1": 96.0,
+    }
+
+    assert _split_pdf_heading_segments([heading, body]) == [[heading], [body]]
+
+
+def test_pdf_mixed_visual_line_keeps_inline_bold_markup():
+    import fitz
+
+    from phoena_translator.pdf.semantic_text import _make_pdf_text_element_from_lines
+
+    line = {
+        "plain": "Bold opening sentence. Regular body follows.",
+        "rich": "<b>Bold opening sentence.</b> Regular body follows.",
+        "x0": 72.0,
+        "x1": 330.0,
+        "y0": 72.0,
+        "y1": 84.0,
+        "fontsize": 10.0,
+        "line_height": 12.0,
+        "color": 0,
+        "bold": False,
+        "non_horizontal": False,
+        "rotation": 0,
+        "superscript_runs": [],
+        "inline_math_fragments": [],
+    }
+
+    element = _make_pdf_text_element_from_lines(
+        [line],
+        fitz.Rect(0.0, 0.0, 612.0, 792.0),
+    )
+
+    assert element is not None
+    assert element["rich_content"] == line["rich"]
+
+
 def test_cross_page_merge_rejects_complete_source_midpage_lowercase_opener():
     from phoena_translator.pdf.semantic_cross_page import (
         _merge_cross_page_sentences,
