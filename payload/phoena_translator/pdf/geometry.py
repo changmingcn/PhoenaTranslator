@@ -366,7 +366,19 @@ def _line_overlaps_pdf_table_rects(line_bbox, table_rects: list[fitz.Rect]) -> b
     center_y = (probe_rect.y0 + probe_rect.y1) / 2.0
 
     for rect in table_rects:
-        expanded = fitz.Rect(rect.x0 - 12.0, rect.y0 - 12.0, rect.x1 + 12.0, rect.y1 + 12.0)
+        # Table detectors often stop a few points inside a cell horizontally,
+        # so retain the generous left/right tolerance.  Applying that same
+        # 12-point allowance vertically captures the first prose line below a
+        # chart/table, however: its font box can overlap the expanded table by
+        # the 12% gate even though the source ink is visibly outside.  Keep a
+        # small glyph-edge tolerance vertically and never let a table claim a
+        # neighboring paragraph merely because it starts on the next line.
+        expanded = fitz.Rect(
+            rect.x0 - 12.0,
+            rect.y0 - 3.0,
+            rect.x1 + 12.0,
+            rect.y1 + 3.0,
+        )
         inter = probe_rect & expanded
         if not inter.is_empty and (inter.width * inter.height) / probe_area >= 0.12:
             return True

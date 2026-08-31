@@ -266,7 +266,7 @@ PDF_IDENTIFIER_PLACEHOLDER_RE = re.compile(
 )
 
 PDF_PAGE_CACHE_SCHEMA_VERSION = 3
-PDF_LAYOUT_SEMANTICS_VERSION = "2026-07-semantic-paragraphs-v37"
+PDF_LAYOUT_SEMANTICS_VERSION = "2026-08-semantic-paragraphs-v38"
 # These older geometry identities remain safe to rebind. The identity
 # migration rejects split/merged cells, and active validation retranslates
 # semantically incomplete survivors.

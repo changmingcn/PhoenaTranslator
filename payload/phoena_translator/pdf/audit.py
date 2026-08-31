@@ -39,6 +39,7 @@ from phoena_translator.pdf.cache import (
 from phoena_translator.pdf.semantic_cross_page import (
     CROSS_PAGE_ABSORBED_TAIL_MAX_CHARS,
     _cross_page_continuation_decision,
+    _cross_page_destination_has_local_predecessor,
     _cross_page_destination_start_evidence,
     _cross_page_destination_start_rejection,
     _cross_page_dominant_fontsize,
@@ -896,6 +897,30 @@ def _validate_pdf_orphan_tail_decision(
         ),
     ):
         return "orphan-tail-non-body"
+    destination_elements = (
+        destination_info.get("elements", [])
+        if isinstance(destination_info, dict)
+        else []
+    )
+    original_destination_elements = [
+        {
+            **element,
+            "content": _pdf_merge_original_element_text(element),
+            "rich_content": _pdf_merge_original_element_text(element),
+        }
+        for element in destination_elements
+        if isinstance(element, dict)
+    ]
+    try:
+        destination_element_index = int(decision.get("destination_element"))
+    except (TypeError, ValueError):
+        return "merge-evidence-missing"
+    if _cross_page_destination_has_local_predecessor(
+        destination_element_index,
+        original_destination_elements,
+        _cross_page_dominant_fontsize(page_extractions),
+    ):
+        return "orphan-tail-local-predecessor"
     if not _normalized_audit_text(source.get("content", "")).endswith(tail):
         return "orphan-tail-not-absorbed"
     source_original = _normalized_audit_text(

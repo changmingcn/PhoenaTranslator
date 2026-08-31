@@ -15,9 +15,9 @@
 从 [Releases](https://github.com/changmingcn/PhoenaTranslator/releases/latest) 下载安装包和 SHA-256 校验文件，然后在服务器执行：
 
 ```bash
-sha256sum -c PhoenaTranslator-20260803-inline-render-fallback-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20260803-inline-render-fallback-reinstall.tar.gz
-cd PhoenaTranslator-20260803-inline-render-fallback-reinstall
+sha256sum -c PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall.tar.gz
+cd PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall
 ./install.sh --verify-only   # 可选预检
 sudo ./install.sh
 ```
@@ -51,4 +51,4 @@ http://服务器IP/
 - 重装前后的主机级恢复项目见 `HOST_RESTORE_CHECKLIST.md`
 - `SOURCE_IDENTITY.json` 记录本包对应的生产发布、文件数和内容清单摘要
 
-当前版本：`2026.08.03-inline-render-fallback`
+当前版本：`2026.08.13-cross-page-boundary-guard`

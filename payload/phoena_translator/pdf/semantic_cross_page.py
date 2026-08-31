@@ -662,6 +662,7 @@ CROSS_PAGE_ORPHAN_TAIL_MAX_CHARS = 80
 CROSS_PAGE_ORPHAN_TAIL_MAX_WORDS = 10
 CROSS_PAGE_ABSORBED_TAIL_MAX_CHARS = 4000
 CROSS_PAGE_UNTERMINATED_TAIL_MAX_CHARS = 4000
+CROSS_PAGE_WEAK_DESTINATION_TOP_RATIO = 0.32
 _TRAILING_FOOTNOTE_MARKER_RE = re.compile(
     r"(?:\d{1,3}|[*†‡§¶]{1,3}|[\ue000-\uf8ff])$"
 )
@@ -684,6 +685,118 @@ def _strip_trailing_footnote_marker(text: str) -> str:
     stripped = (text or "").rstrip()
     without = _TRAILING_FOOTNOTE_MARKER_RE.sub("", stripped).rstrip()
     return without or stripped
+
+
+def _cross_page_weak_destination_is_near_page_start(
+    elem: dict,
+    page_rect: fitz.Rect | None,
+) -> bool:
+    """Constrain lowercase-only continuation evidence to the page top.
+
+    A dangling source sentence is strong evidence and may legitimately resume
+    below a page-opening chart.  A *complete* source sentence is different:
+    its only evidence is a lowercase destination opener, which can also be a
+    wrapped line inside the destination page.  In that weak-evidence case,
+    accepting a mid-page element moves an unrelated local sentence backward
+    by one page.
+
+    ``page_rect`` is always available in the production extraction pipeline.
+    The ``None`` compatibility path preserves direct legacy callers that do
+    not supply page geometry.
+    """
+    if page_rect is None:
+        return True
+    try:
+        rect = _get_pdf_elem_rect(elem)
+    except (TypeError, ValueError, AssertionError):
+        return False
+    page_height = max(float(page_rect.height), 1.0)
+    top_ratio = (float(rect.y0) - float(page_rect.y0)) / page_height
+    return top_ratio <= CROSS_PAGE_WEAK_DESTINATION_TOP_RATIO
+
+
+def _cross_page_destination_has_local_predecessor(
+    destination_index: int,
+    page_elements: list[dict],
+    dominant_fontsize: float,
+) -> bool:
+    """Return whether a nearby page-local line owns the destination text.
+
+    This is the final guard against a page-local paragraph split.  A prose
+    line immediately below an incomplete, same-size, same-column text line
+    belongs to that local paragraph even if the upper line was separated by
+    a bold-to-regular style boundary or accidentally labelled as a table
+    cell.  It must never be consumed as the previous page's orphan tail.
+    """
+    if isinstance(destination_index, bool):
+        return False
+    try:
+        resolved_index = int(destination_index)
+        destination = page_elements[resolved_index]
+        destination_rect = _get_pdf_elem_rect(destination)
+    except (IndexError, TypeError, ValueError, AssertionError):
+        return False
+    if destination.get("type") != "text":
+        return False
+
+    destination_size = max(
+        float(destination.get("fontsize", dominant_fontsize)),
+        1.0,
+    )
+    for index, previous in enumerate(page_elements):
+        if index == resolved_index or previous.get("type") != "text":
+            continue
+        previous_text = re.sub(
+            r"\s+",
+            " ",
+            _plain_text(previous.get("content", "")),
+        ).strip()
+        if (
+            len(previous_text) < 20
+            or _ends_with_sentence_boundary(
+                _strip_trailing_footnote_marker(previous_text)
+            )
+            or previous.get("non_horizontal")
+            or previous.get("footnote_hint")
+            or previous.get("skip_translate_reason") == "watermark"
+        ):
+            continue
+        try:
+            previous_rect = _get_pdf_elem_rect(previous)
+        except (TypeError, ValueError, AssertionError):
+            continue
+        previous_size = max(
+            float(previous.get("fontsize", dominant_fontsize)),
+            1.0,
+        )
+        if abs(previous_size - destination_size) > max(
+            previous_size * 0.10,
+            0.8,
+        ):
+            continue
+
+        vertical_gap = float(destination_rect.y0) - float(previous_rect.y1)
+        if vertical_gap < -min(previous_rect.height, destination_rect.height) * 0.45:
+            continue
+        if vertical_gap > max(previous_size * 0.85, 8.0):
+            continue
+        if float(previous_rect.y0) >= float(destination_rect.y0):
+            continue
+
+        overlap = max(
+            0.0,
+            min(previous_rect.x1, destination_rect.x1)
+            - max(previous_rect.x0, destination_rect.x0),
+        )
+        if overlap / max(min(previous_rect.width, destination_rect.width), 1.0) < 0.55:
+            continue
+        if abs(float(previous_rect.x0) - float(destination_rect.x0)) > max(
+            previous_size * 1.2,
+            12.0,
+        ):
+            continue
+        return True
+    return False
 
 
 def _cross_page_source_already_ends_with_tail(
@@ -1053,8 +1166,10 @@ def _merge_cross_page_sentences(
         if not source_plain:
             continue
         # Preserve the previous page's signal, then apply it together with the
-        # destination opener as an OR. A complete source is still eligible
-        # when the next page's first body sentence opens without a capital.
+        # destination opener as an OR. A complete source remains eligible only
+        # for a genuine page-top opener; lowercase text may instead be a local
+        # wrapped line split off by a bold/style or table-classification
+        # boundary.
         continuation_decision = _cross_page_continuation_decision(source_plain)
         source_dangling = continuation_decision.source_dangling
         source_words = re.findall(r"[A-Za-z][A-Za-z'’-]*", source_plain)
@@ -1090,6 +1205,37 @@ def _merge_cross_page_sentences(
         if not next_body_elements:
             continue
         first_idx, first_elem = next_body_elements[0]
+
+        if _cross_page_destination_has_local_predecessor(
+            first_idx,
+            next_info["elements"],
+            dominant_fontsize,
+        ):
+            log.warning(
+                "Page %s: kept lowercase body fragment on page %s because "
+                "an adjacent local line owns the continuation",
+                page_num + 2,
+                page_num + 2,
+            )
+            continue
+        if (
+            not source_dangling
+            and _cross_page_tail_start_acceptable(
+                first_elem.get("content", ""),
+                source_dangling=False,
+            )
+            and not _cross_page_weak_destination_is_near_page_start(
+                first_elem,
+                next_page_rect,
+            )
+        ):
+            log.warning(
+                "Page %s: rejected mid-page lowercase orphan-tail candidate "
+                "after a complete source sentence on page %s",
+                page_num + 2,
+                page_num + 1,
+            )
+            continue
 
         if first_elem.get("inline_math_fragments"):
             # Inline-math protection records are element-scoped.  Moving text

@@ -2383,6 +2383,260 @@ def test_cross_page_both_or_signals_absent_keeps_pages_independent():
     assert destination["content"].startswith("The next section")
 
 
+def test_table_overlap_does_not_capture_first_body_line_below_chart():
+    import fitz
+
+    from phoena_translator.pdf.geometry import _line_overlaps_pdf_table_rects
+
+    table_rect = fitz.Rect(72.15, 98.55, 552.26, 368.06)
+    body_line = [72.00, 379.92, 542.25, 392.75]
+    edge_cell_line = [90.00, 367.00, 300.00, 378.00]
+
+    assert not _line_overlaps_pdf_table_rects(body_line, [table_rect])
+    assert _line_overlaps_pdf_table_rects(edge_cell_line, [table_rect])
+
+
+def test_cross_page_merge_keeps_midpage_fragment_with_local_predecessor():
+    import fitz
+
+    from phoena_translator.pdf.semantic_cross_page import (
+        _merge_cross_page_sentences,
+    )
+
+    source = {
+        "type": "text",
+        "layout_class": "body",
+        "content": "The prior page closes with a complete sentence.",
+        "paragraphs": [
+            {
+                "plain": "The prior page closes with a complete sentence.",
+                "text_align": "left",
+            }
+        ],
+        "bbox": [72.0, 645.0, 542.0, 670.0],
+        "y": 645.0,
+        "x": 72.0,
+        "fontsize": 10.02,
+    }
+    local_lead = {
+        "type": "text",
+        "layout_class": "table",
+        "table_hint": True,
+        "content": (
+            "When I inspect the state today, the picture is critical because "
+            "scaling laws"
+        ),
+        "paragraphs": [
+            {
+                "plain": (
+                    "When I inspect the state today, the picture is critical "
+                    "because scaling laws"
+                ),
+                "text_align": "left",
+            }
+        ],
+        "bbox": [72.0, 379.92, 542.25, 392.75],
+        "y": 379.92,
+        "x": 72.0,
+        "fontsize": 10.02,
+    }
+    local_continuation = {
+        "type": "text",
+        "layout_class": "body",
+        "content": (
+            "continue to hold and the models have become extremely capable. "
+            "Regulation is needed and will come."
+        ),
+        "paragraphs": [
+            {
+                "plain": (
+                    "continue to hold and the models have become extremely "
+                    "capable. Regulation is needed and will come."
+                ),
+                "text_align": "left",
+            }
+        ],
+        "bbox": [72.0, 391.93, 542.27, 428.76],
+        "y": 391.93,
+        "x": 72.0,
+        "fontsize": 10.02,
+    }
+    pages = {
+        0: {"elements": [source]},
+        1: {"elements": [local_lead, local_continuation]},
+    }
+    rect = fitz.Rect(0, 0, 612, 792)
+    audit_log = []
+
+    assert _merge_cross_page_sentences(
+        pages,
+        2,
+        {0: rect, 1: rect},
+        audit_log,
+    ) == 0
+    assert source["content"].endswith("complete sentence.")
+    assert local_continuation["content"].startswith("continue to hold")
+    assert audit_log == []
+
+
+def test_cross_page_merge_keeps_regular_wrap_after_bold_page_top_line():
+    import fitz
+
+    from phoena_translator.pdf.semantic_cross_page import (
+        _merge_cross_page_sentences,
+    )
+
+    source = {
+        "type": "text",
+        "layout_class": "body",
+        "content": "The prior page closes with a complete sentence.",
+        "bbox": [72.0, 620.0, 518.0, 715.0],
+        "y": 620.0,
+        "x": 72.0,
+        "fontsize": 9.96,
+    }
+    bold_lead = {
+        "type": "text",
+        "layout_class": "scattered",
+        "content": (
+            "Our view is that the economy will continue to grow robustly, "
+            "which will put upward"
+        ),
+        "paragraphs": [
+            {
+                "plain": (
+                    "Our view is that the economy will continue to grow "
+                    "robustly, which will put upward"
+                ),
+                "text_align": "left",
+            }
+        ],
+        "bbox": [72.0, 72.42, 542.25, 83.97],
+        "y": 72.42,
+        "x": 72.0,
+        "fontsize": 9.96,
+        "bold": True,
+    }
+    regular_wrap = {
+        "type": "text",
+        "layout_class": "scattered",
+        "content": (
+            "pressure on inflation and likely necessitate the hikes priced "
+            "into the market over the next year."
+        ),
+        "paragraphs": [
+            {
+                "plain": (
+                    "pressure on inflation and likely necessitate the hikes "
+                    "priced into the market over the next year."
+                ),
+                "text_align": "left",
+            }
+        ],
+        "bbox": [72.0, 84.42, 509.11, 95.97],
+        "y": 84.42,
+        "x": 72.0,
+        "fontsize": 9.96,
+        "bold": False,
+    }
+    pages = {
+        0: {"elements": [source]},
+        1: {"elements": [bold_lead, regular_wrap]},
+    }
+    rect = fitz.Rect(0, 0, 612, 792)
+    audit_log = []
+
+    assert _merge_cross_page_sentences(
+        pages,
+        2,
+        {0: rect, 1: rect},
+        audit_log,
+    ) == 0
+    assert source["content"].endswith("complete sentence.")
+    assert regular_wrap["content"].startswith("pressure on inflation")
+    assert audit_log == []
+
+
+def test_cross_page_merge_rejects_complete_source_midpage_lowercase_opener():
+    from phoena_translator.pdf.semantic_cross_page import (
+        _merge_cross_page_sentences,
+    )
+
+    pages, rects, source, destination = _two_page_fixture(
+        "Demand remained stable.",
+        (
+            "the next section begins independently. "
+            "Another sentence remains on page two."
+        ),
+        dest_bbox=[72.0, 390.0, 518.0, 430.0],
+    )
+    destination["y"] = 390.0
+
+    assert _merge_cross_page_sentences(pages, 2, rects, []) == 0
+    assert source["content"] == "Demand remained stable."
+    assert destination["content"].startswith("the next section")
+
+
+def test_orphan_audit_rejects_destination_owned_by_local_predecessor():
+    from phoena_translator.pdf.audit import _validate_pdf_orphan_tail_decision
+
+    tail = "continue to hold and the models have become extremely capable."
+    source = {
+        "type": "text",
+        "layout_class": "body",
+        "content": f"The prior page closes completely. {tail}",
+        "paragraphs": [
+            {"plain": "The prior page closes completely.", "text_align": "left"}
+        ],
+        "bbox": [72.0, 645.0, 542.0, 670.0],
+        "fontsize": 10.02,
+    }
+    local_lead = {
+        "type": "text",
+        "layout_class": "table",
+        "table_hint": True,
+        "content": "The page-local paragraph starts because scaling laws",
+        "paragraphs": [
+            {
+                "plain": "The page-local paragraph starts because scaling laws",
+                "text_align": "left",
+            }
+        ],
+        "bbox": [72.0, 379.92, 542.25, 392.75],
+        "fontsize": 10.02,
+    }
+    destination_original = f"{tail} Regulation is needed and will come."
+    destination = {
+        "type": "text",
+        "layout_class": "body",
+        "content": "Regulation is needed and will come.",
+        "paragraphs": [
+            {"plain": destination_original, "text_align": "left"}
+        ],
+        "bbox": [72.0, 391.93, 542.27, 428.76],
+        "fontsize": 10.02,
+    }
+    pages = {
+        0: {"elements": [source]},
+        1: {"elements": [local_lead, destination]},
+    }
+    decision = {
+        "kind": "cross-page-orphan-tail",
+        "decision": "accepted",
+        "reason": "accepted",
+        "source_continuation_reason": "complete",
+        "carried_tail": tail,
+        "source_page": 1,
+        "destination_page": 2,
+        "source_element": 0,
+        "destination_element": 1,
+    }
+
+    assert _validate_pdf_orphan_tail_decision(decision, pages) == (
+        "orphan-tail-local-predecessor"
+    )
+
+
 def _policy_test_elements():
     elements = [
         {

@@ -1,30 +1,27 @@
 # PhoenaTranslator 干净重装包
 
-版本：`2026.08.03-inline-render-fallback`
+版本：`2026.08.13-cross-page-boundary-guard`
 
 这是当前已修正翻译程序的恢复安装版。它只包含 53 个源码文件（51 个运行时文件 + 2 个测试及测试依赖文件）和安装元数据，不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
 
-## 相对上一版（2026.07.27-untranslated-page）的变化
+## 相对上一版（2026.08.03-inline-render-fallback）的变化
 
-本包的有效载荷取自生产发布 `release-2026.08.03-inline-render-fallback-20260803T0626Z`，
-其间共 2 次发布，全部为 PDF 链路的正确性修复；文件集合未变（仍是 53 个）。
+本包以生产发布
+`release-2026.08.03-inline-render-fallback-20260812T092040Z-16943`
+的有效载荷为基线，修正 PDF 同页段落被误当作跨页续句的问题；文件集合未变（仍是
+53 个）。
 
-- **单页渲染失败改为源页兜底、不再中止整趟组装**（本版）：HTML-box 组装每页
-  `saveIncr` 存盘，因此渲染异常只弄脏当前页；现在丢弃这一页的改动，把因已接受的跨页
-  合并而被牵连的、已存盘的早前页原子替换回源 PDF 原页，重开文档在同一趟里继续，并在
-  审计里记 `inline_render_source_page_fallbacks`。
-- **重试风暴的第二个来源**：元素级 fail-open 缓存在写入时把
-  `translation_integrity_fallback` 编进了缓存身份，新一轮抽取没有这个内存标记，于是
-  「与英文原文逐字相同」的缓存被当成被污染的回声缓存丢弃 —— 每一轮渲染恢复都把同一个
-  元素重新送给模型。现在单独探测 fail-open 身份，命中即认作有意的兜底。
-- **干净重试并行化 + 页号身份校验**：干净重试轮从串行改为线程池并发（与首轮同宽度）；
-  首轮与重试轮两处 future 收集都断言 worker 返回的页号等于调度页号，防止错页结果被
-  当作本页提交。
-- **上标判据改为几何为主**：局部几何（横向邻接 + 抬升）成为必要条件，字号比例降为辅证
-  （上限放宽到 1.10，容纳保留基准字号的抬升字形）；补上只有 x0/y0 没有 bbox 的 span；
-  正文多 span 行上可疑的 native 上标 flag 不再单凭 flag 生效。
+- **黑体首行不再把后续常规体误搬到上一页**：跨页吸收前新增同页归属检查；若小写开头
+  的候选行紧接在同字号、同栏且句意未完的本页行之后，则保留在本页。该检查不要求两行
+  的粗细相同，覆盖“首句/首行局部黑体、后续行常规体”的排版。
+- **表格边界不再吞掉邻近正文首行**：表格横向容差保持 12 pt，纵向容差从 12 pt 收紧为
+  3 pt，避免图表下方正文被错误标成表格元素并拆段。
+- **完整句后的弱跨页证据更保守**：只有位于下一页顶部区域的小写开头文本才可作为弱
+  续句候选；审计阶段也会拒绝存在同页前导行的错误搬移记录。
+- **旧错误缓存强制失效**：PDF 版面语义版本提升至 v38，重新翻译时不会复用 v37 中已经
+  被错误拆分和跨页搬移的页面缓存。
 
-测试从 135 增至 148。
+三个实际问题 PDF 的确定性抽取复核均已通过；自动化测试从 148 增至 153。
 
 ## 支持范围
 
@@ -39,9 +36,9 @@
 先在下载目录校验压缩包（校验文件与压缩包应在同一目录）：
 
 ```bash
-sha256sum -c PhoenaTranslator-20260803-inline-render-fallback-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20260803-inline-render-fallback-reinstall.tar.gz
-cd PhoenaTranslator-20260803-inline-render-fallback-reinstall
+sha256sum -c PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall.tar.gz
+cd PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall
 # 可选的完整预检（需要系统已装 python3）
 ./install.sh --verify-only
 sudo ./install.sh

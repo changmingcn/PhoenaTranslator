@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "package_name": "PhoenaTranslator-20260803-inline-render-fallback-reinstall",
-  "version": "2026.08.03-inline-render-fallback",
-  "built_at_utc": "2026-08-04T09:45:09Z",
+  "package_name": "PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall",
+  "version": "2026.08.13-cross-page-boundary-guard",
+  "built_at_utc": "2026-08-13T07:20:20Z",
   "source_policy": "exact-active-app-only",
-  "active_release": "/opt/phoena-translator/releases/release-2026.08.03-inline-render-fallback-20260803T0626Z",
+  "active_release": "/opt/phoena-translator/releases/release-2026.08.03-inline-render-fallback-20260812T092040Z-16943",
   "payload_file_count": 53,
-  "payload_total_bytes": 1161632,
-  "payload_manifest_sha256": "095400ec3ac64fd41a17e09247070072bdefe179e4a21813986f047879bd2640",
+  "payload_total_bytes": 1176072,
+  "payload_manifest_sha256": "100dc87055a9f1168fd5bd1ecfd175a27d0eb7042c82dd8050bfd680ddb8ae27",
   "prior_deployment_content_aggregate_sha256": "3eaa00cf4228eff6899f830abbd0f6f63acc95537b45be086b6c8f978ae5965e",
   "manifest_binding": "MANIFEST.sha256 contains every payload path and content hash; SOURCE_ALLOWLIST.txt contains the exact 53 payload paths; payload_manifest_sha256 is sha256 of the newline-terminated '<sha256>  <path>' lines of the payload sorted by path, and prior_deployment_content_aggregate_sha256 is that same value for the package named in 'supersedes'",
   "installer_blueprint": {
@@ -26,5 +26,5 @@
     "virtual environments and bytecode",
     "fonts, audit evidence, backups and Git metadata"
   ],
-  "supersedes": "PhoenaTranslator-20260727-untranslated-page-reinstall (2026.07.27-untranslated-page)"
+  "supersedes": "PhoenaTranslator-20260803-inline-render-fallback-reinstall (2026.08.03-inline-render-fallback)"
 }
