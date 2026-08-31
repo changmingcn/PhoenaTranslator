@@ -15,9 +15,9 @@
 从 [Releases](https://github.com/changmingcn/PhoenaTranslator/releases/latest) 下载安装包和 SHA-256 校验文件，然后在服务器执行：
 
 ```bash
-sha256sum -c PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall.tar.gz
-cd PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall
+sha256sum -c PhoenaTranslator-20260831-identifier-row-fastpath-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20260831-identifier-row-fastpath-reinstall.tar.gz
+cd PhoenaTranslator-20260831-identifier-row-fastpath-reinstall
 ./install.sh --verify-only   # 可选预检
 sudo ./install.sh
 ```

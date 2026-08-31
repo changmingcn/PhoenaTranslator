@@ -26,6 +26,8 @@ from phoena_translator.pdf.math_detection import (
 )
 from phoena_translator.pdf.semantics import _looks_like_pdf_reference_entry_lead
 from phoena_translator.pdf.targets import (
+    _looks_like_pdf_contact_line,
+    _looks_like_pdf_structured_identifier_row,
     _looks_like_pdf_translatable_short_label,
     _looks_like_translatable_english,
     _pdf_element_requires_translation,
@@ -227,6 +229,16 @@ def _short_translation_needs_retry(source_text: str, translated_text: str) -> bo
     if not identifiers_preserved:
         return True
     if not _looks_like_translatable_english(source_language):
+        return False
+    if _looks_like_pdf_structured_identifier_row(source_language):
+        # ``01/16/26 QTSII 2026-1A A2``-style data rows: the source text is
+        # the correct translation, so an exact echo must not start the retry
+        # ladder — batch segments containing one such row previously failed
+        # the whole batch into per-element ladders.
+        return False
+    if _looks_like_pdf_contact_line(source_text):
+        # Analyst bylines (name + phone + protected e-mail) repeat on every
+        # page of a research series and must stay verbatim.
         return False
 
     source_words = re.findall(
@@ -974,6 +986,12 @@ def translate_text(
     if system_prompt is None:
         system_prompt = SYSTEM_PROMPT_TEXT
 
+    # Backoff applies only to transport-level exceptions (the provider's rate
+    # limiting is owned by ``api_runtime``).  Semantic verification failures
+    # retry immediately: the same stateless request gains nothing from
+    # waiting, and the system prompt is already hardened on attempt > 0.
+    # Measured 2026-08-31, these sleeps alone added 60-120s per doomed
+    # element on deal-table pages.
     backoff = [10, 20, 30, 45, 60]
     last_err = None
     best_result = None      # Track best result across all attempts
@@ -1042,8 +1060,6 @@ def translate_text(
                 last_err = RuntimeError(
                     "Protected URL/e-mail/DOI identifier mismatch"
                 )
-                if attempt < retries - 1:
-                    time.sleep(backoff[attempt])
                 continue
 
             if PDF_BATCH_SEPARATOR not in text and _looks_like_pdf_toc_leader_block(text):
@@ -1052,8 +1068,6 @@ def translate_text(
                         f"Translation attempt {attempt+1}: dotted TOC labels or page references are incomplete, retrying"
                     )
                     last_err = RuntimeError("Dotted TOC translation is incomplete")
-                    if attempt < retries - 1:
-                        time.sleep(backoff[attempt])
                     continue
                 log.info(
                     f"Translation verified as dotted TOC ({len(_pdf_toc_entries(text))} entries)"
@@ -1067,8 +1081,6 @@ def translate_text(
                         f"Translation attempt {attempt+1}: short input appears untranslated, retrying"
                     )
                     last_err = RuntimeError("Short input appears untranslated")
-                    if attempt < retries - 1:
-                        time.sleep(backoff[attempt])
                     continue
                 log.info(f"Translation verified (small input, {input_len} chars): {cn_chars} CN chars")
                 return result
@@ -1076,20 +1088,14 @@ def translate_text(
             if cn_chars < 20:
                 log.warning(f"Translation attempt {attempt+1}: only {cn_chars} Chinese chars in {total_chars} total chars, retrying")
                 last_err = RuntimeError(f"Translation has only {cn_chars} Chinese chars")
-                if attempt < retries - 1:
-                    time.sleep(backoff[attempt])
                 continue
             if cn_ratio < 0.1:
                 log.warning(f"Translation attempt {attempt+1}: Chinese ratio too low ({cn_ratio:.1%}), retrying")
                 last_err = RuntimeError(f"Chinese ratio {cn_ratio:.1%} too low")
-                if attempt < retries - 1:
-                    time.sleep(backoff[attempt])
                 continue
             if len_ratio < 0.15:
                 log.warning(f"Translation attempt {attempt+1}: output too short ({total_chars} vs input {input_len}, ratio {len_ratio:.1%}), retrying")
                 last_err = RuntimeError(f"Output length ratio {len_ratio:.1%} too low")
-                if attempt < retries - 1:
-                    time.sleep(backoff[attempt])
                 continue
             log.info(f"Translation verified: {cn_chars} CN chars, ratio={cn_ratio:.0%}, len_ratio={len_ratio:.0%}")
             return result

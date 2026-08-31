@@ -36,9 +36,9 @@
 先在下载目录校验压缩包（校验文件与压缩包应在同一目录）：
 
 ```bash
-sha256sum -c PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall.tar.gz
-cd PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall
+sha256sum -c PhoenaTranslator-20260831-identifier-row-fastpath-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20260831-identifier-row-fastpath-reinstall.tar.gz
+cd PhoenaTranslator-20260831-identifier-row-fastpath-reinstall
 # 可选的完整预检（需要系统已装 python3）
 ./install.sh --verify-only
 sudo ./install.sh

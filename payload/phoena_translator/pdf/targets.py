@@ -589,6 +589,141 @@ def _looks_like_tiny_pdf_label(text: str) -> bool:
     return False
 
 
+_PDF_STRUCTURED_ROW_LABEL_WORDS = frozenset({
+    "annex", "annexure", "appendix", "box", "chapter", "chart", "exhibit",
+    "figure", "no", "note", "page", "panel", "part", "section", "see",
+    "table", "vol",
+})
+
+_PDF_STRUCTURED_ROW_TOKEN_RE = re.compile(r"[A-Z0-9][A-Z0-9./%$&+\-]*")
+
+
+def _looks_like_pdf_structured_identifier_row(text: str) -> bool:
+    """Detect a data-row fragment made only of dates, codes and numbers.
+
+    Deal tables in market research stack cells such as
+    ``01/16/26 QTSII 2026-1A A2`` into one visual line.  Every token is an
+    opaque identifier, so the exact source text IS the correct translation;
+    sending such a row to the model spends the full retry ladder twice (page
+    pass plus clean page retry) and still ends as a recorded source fallback.
+    One deal-table page measured 2026-08-31 held 28 of these rows and alone
+    dominated a two-hour run.
+
+    Any lower-case letter disqualifies the row, so prose — including
+    title-case headings and month names such as ``12 June 2026`` — keeps
+    translating.  A FIGURE/TABLE-style caption word also disqualifies it,
+    because those all-caps labels have deterministic translations and must
+    keep flowing to the short-label rules.  At least half of the tokens must
+    carry a digit so all-caps directive lines (``PLEASE SEE PAGE 37.``)
+    still fail closed.
+    """
+    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    if not plain or len(plain) > 80:
+        return False
+    if re.search(r"[a-z]", plain):
+        return False
+    tokens = []
+    for raw_token in plain.split(" "):
+        stripped = raw_token.strip(".,;:()[]")
+        if stripped:
+            tokens.append(stripped)
+    if len(tokens) < 2:
+        return False
+    alpha_tokens = 0
+    digit_tokens = 0
+    for token in tokens:
+        if token.casefold() in _PDF_STRUCTURED_ROW_LABEL_WORDS:
+            return False
+        if not _PDF_STRUCTURED_ROW_TOKEN_RE.fullmatch(token):
+            return False
+        if any(char.isalpha() for char in token):
+            alpha_tokens += 1
+        if any(char.isdigit() for char in token):
+            digit_tokens += 1
+    if not alpha_tokens:
+        return False
+    return digit_tokens * 2 >= len(tokens)
+
+
+# A telephone token needs structure — a parenthesized country/area group or
+# a hyphenated digit group.  A bare space-separated digit run must NOT match:
+# chart axis sequences (``90 94 98 02 06``) and year ranges in terse captions
+# (``Global Bond Supply 2010 2026``) would otherwise read as phone numbers.
+_PDF_CONTACT_PHONE_RE = re.compile(
+    r"\(\+?\d[\d\s/-]{0,14}\)[\s\d/-]*|\d[\d\s/]*-[\d\s/-]*\d"
+)
+
+_PDF_MONTH_NUMBERS = {
+    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5,
+    "june": 6, "july": 7, "august": 8, "september": 9, "october": 10,
+    "november": 11, "december": 12,
+}
+
+_PDF_DATE_DMY_RE = re.compile(r"(?i)(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})")
+_PDF_DATE_MDY_RE = re.compile(r"(?i)([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})")
+
+
+def _pdf_full_date_label_translation(text: str) -> str | None:
+    """Deterministically translate an element that is exactly one full date.
+
+    ``05 August 2026`` runs as a page header through entire research series,
+    so every page pays an API call — or, when the model echoes it, a full
+    retry ladder — for a closed, unambiguous transformation.  Only complete
+    ``day month year`` / ``month day, year`` elements qualify; partial dates
+    and dates inside prose keep going to the model.
+    """
+    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip().rstrip(".")
+    match = _PDF_DATE_DMY_RE.fullmatch(plain)
+    if match:
+        day, month_word, year = match.group(1), match.group(2), match.group(3)
+    else:
+        match = _PDF_DATE_MDY_RE.fullmatch(plain)
+        if not match:
+            return None
+        month_word, day, year = match.group(1), match.group(2), match.group(3)
+    month = _PDF_MONTH_NUMBERS.get(month_word.casefold())
+    if month is None or not 1 <= int(day) <= 31:
+        return None
+    return f"{year}年{month}月{int(day)}日"
+
+
+def _looks_like_pdf_contact_line(text: str) -> bool:
+    """Detect an analyst byline: proper-name words plus phone digits.
+
+    ``Nikolaos Panigirtzoglou AC (44-20) 7134-7815 <e-mail>`` repeats as a
+    running header on every page of a research series.  The e-mail is already
+    protected as an identifier; the residue is a person or organization name
+    plus a telephone number, which must stay verbatim.  Any lower-case prose
+    word (beyond name connectors and organization suffixes) disqualifies the
+    line, and without a phone-number token this rule never fires.
+    """
+    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    if not plain or len(plain) > 120:
+        return False
+    residue = _PRESERVED_IDENTIFIER_RE.sub(" ", plain)
+    if not _PDF_CONTACT_PHONE_RE.search(residue):
+        return False
+    without_phones = _PDF_CONTACT_PHONE_RE.sub(" ", residue)
+    words = [
+        word.rstrip(".")
+        for word in _SHORT_CITATION_WORD_RE.findall(without_phones)
+    ]
+    if not 1 <= len(words) <= 8:
+        return False
+    for word in words:
+        normalized = word.strip("&.")
+        if not normalized:
+            continue
+        if normalized.casefold() in _PDF_PROPER_NAME_CONNECTORS:
+            continue
+        if normalized.casefold() in _PDF_PROPER_NAME_SUFFIXES:
+            continue
+        if not (normalized[:1].isupper() or normalized.isupper()):
+            return False
+    leftover = _SHORT_CITATION_WORD_RE.sub("", without_phones)
+    return bool(re.fullmatch(r"[\s,;:.&'’()\[\]/\\-]*", leftover))
+
+
 def _looks_like_pdf_translatable_short_label(text: str) -> bool:
     """Recognize compact English headings/roles that still need translation.
 
@@ -980,6 +1115,19 @@ def _pdf_element_requires_translation(elem: dict) -> bool:
         and not elem.get("bold")
     ):
         return False
+    # Unlike the compact-identifier gate above, these deliberately ignore
+    # ``single_line_heading`` and ``table_hint``: the measured deal-table rows
+    # and analyst bylines carried those flags, and a row with no lower-case
+    # prose cannot be a real heading the flags are meant to protect.  A
+    # full-date element leaves the queue because its translation is
+    # deterministic (applied by ``_translate_pdf_deterministic_labels``).
+    if elem.get("layout_class") in {"table", "scattered"} and not elem.get("bold"):
+        if _looks_like_pdf_structured_identifier_row(plain):
+            return False
+        if _looks_like_pdf_contact_line(text):
+            return False
+        if _pdf_full_date_label_translation(plain) is not None:
+            return False
     if _pdf_element_is_multiline_display_title(elem):
         return True
     if _looks_like_pdf_translatable_short_label(text):
@@ -1039,6 +1187,10 @@ def _translate_pdf_fixed_short_label(text: str) -> str:
     replacement = PDF_FIXED_SHORT_LABEL_TRANSLATIONS.get(plain.casefold())
     if replacement is not None:
         return _restore_pdf_superscript_markup(raw, replacement)
+
+    date_translation = _pdf_full_date_label_translation(plain)
+    if date_translation is not None:
+        return _restore_pdf_superscript_markup(raw, date_translation)
 
     band_match = re.fullmatch(
         r"(?i)band\s+(\d+)(\s*\([^)]*\))?",

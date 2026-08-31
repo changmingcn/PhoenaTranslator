@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
-  "package_name": "PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall",
-  "version": "2026.08.13-cross-page-boundary-guard",
-  "built_at_utc": "2026-08-13T07:20:20Z",
+  "package_name": "PhoenaTranslator-20260831-identifier-row-fastpath-reinstall",
+  "version": "2026.08.31-identifier-row-fastpath",
+  "built_at_utc": "2026-08-31T15:44:20Z",
   "source_policy": "exact-active-app-only",
-  "active_release": "/opt/phoena-translator/releases/release-2026.08.03-inline-render-fallback-20260812T092040Z-16943",
+  "active_release": "/opt/phoena-translator/releases/release-2026.08.31-identifier-row-fastpath-20260831T134004Z",
   "payload_file_count": 53,
-  "payload_total_bytes": 1176072,
-  "payload_manifest_sha256": "100dc87055a9f1168fd5bd1ecfd175a27d0eb7042c82dd8050bfd680ddb8ae27",
-  "prior_deployment_content_aggregate_sha256": "3eaa00cf4228eff6899f830abbd0f6f63acc95537b45be086b6c8f978ae5965e",
-  "manifest_binding": "MANIFEST.sha256 contains every payload path and content hash; SOURCE_ALLOWLIST.txt contains the exact 53 payload paths; payload_manifest_sha256 is sha256 of the newline-terminated '<sha256>  <path>' lines of the payload sorted by path, and prior_deployment_content_aggregate_sha256 is that same value for the package named in 'supersedes'",
+  "payload_total_bytes": 1200046,
+  "payload_manifest_sha256": "7c7d5e7dad4b3de07771d7f88ddc23054a3687068f89bb5532e86d726372363f",
+  "prior_deployment_content_aggregate_sha256": "1d1387873946d26896c165a7265be9c989449f10171f38b304fa5a00a9859d26",
+  "manifest_binding": "MANIFEST.sha256 contains every package path and content hash except itself; SOURCE_ALLOWLIST.txt contains the exact payload paths; payload_manifest_sha256 is sha256 of the lexicographically sorted, newline-terminated '<sha256>  <path>' lines of the payload; prior_deployment_content_aggregate_sha256 is that same value computed over the app tree of release-2026.08.17-bold-run-in-wrap, the deployment this package supersedes (the 2026.08.17 deployment shipped without a reinstall package; the last packaged version was 2026.08.13)",
   "installer_blueprint": {
-    "path": "/root/deploy/PhoenaTranslator-20260723-clean-installer",
+    "path": "/root/deploy-staging/phoena-cross-page-boundary-guard-20260813/PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall",
     "install_sh_sha256": "0d275ccd45ea6f974de04e0bb989a1a3a5f4075048a0d4962722431336d474f9",
-    "verify_release_py_sha256_before_count_adaptation": "f7b8ae8b6e5bfc0aa6210341332415d1f75248040f9c192f6db9b399dd50aac5"
+    "verify_release_py_sha256": "277778668c1bbb49e633d4e3a7b01db0935ec0ad1461177342eb0e932d95e937"
   },
   "packaging_templates": {
     "phoena-translator.service_sha256": "f390cb92cbe4633f21e28ce9c0cb5425365adde427f5264363f89267140502ca",
@@ -26,5 +26,5 @@
     "virtual environments and bytecode",
     "fonts, audit evidence, backups and Git metadata"
   ],
-  "supersedes": "PhoenaTranslator-20260803-inline-render-fallback-reinstall (2026.08.03-inline-render-fallback)"
+  "supersedes": "PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall (2026.08.13-cross-page-boundary-guard)"
 }
