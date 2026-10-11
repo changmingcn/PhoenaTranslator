@@ -51,4 +51,5 @@ phoena_translator/workers.py
 requirements-test.txt
 requirements.txt
 tests/test_claude_provider.py
+tests/test_prompt_rules.py
 tests/test_review_fixes.py

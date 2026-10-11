@@ -23,9 +23,9 @@
 ## 安装与校验
 
 ```bash
-sha256sum -c PhoenaTranslator-20261011-claude-provider-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20261011-claude-provider-reinstall.tar.gz
-cd PhoenaTranslator-20261011-claude-provider-reinstall
+sha256sum -c PhoenaTranslator-20261011b-prompt-glossary-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261011b-prompt-glossary-reinstall.tar.gz
+cd PhoenaTranslator-20261011b-prompt-glossary-reinstall
 ./install.sh --verify-only
 sudo ./install.sh
 ```

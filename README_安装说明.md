@@ -1,20 +1,19 @@
 # PhoenaTranslator 干净重装包
 
-版本：`2026.10.11-claude-provider`
+版本：`2026.10.11b-prompt-glossary`
 
-这是当前已修正翻译程序的恢复安装版。它只包含 54 个源码文件（51 个运行时文件 + 3 个测试及测试依赖文件）和安装元数据，不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
+这是当前已修正翻译程序的恢复安装版。它只包含 55 个源码文件（51 个运行时文件 + 4 个测试及测试依赖文件）和安装元数据，不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
 
-## 相对上一版（2026.08.31-identifier-row-fastpath）的变化
+## 相对上一版（2026.10.11-claude-provider）的变化
 
-- **新增原生 Claude 翻译后端（默认关闭）**：`TRANSLATOR_LLM_PROVIDER=deepseek`（默认）或
-  `claude`；取值写错时启动即报错，不会静默改道。DeepSeek 请求参数逐项不变。
-- Claude 走官方 `anthropic` SDK（Messages API），所需环境变量：`ANTHROPIC_API_KEY`；可选
-  `CLAUDE_MODEL`（默认 `claude-opus-5-5`，另支持 `claude-sonnet-5-5`、`claude-haiku-5-5`）、
-  `CLAUDE_EFFORT`、`CLAUDE_FALLBACKS`（默认开，仅 Opus/Sonnet 5.5）、`CLAUDE_PROMPT_CACHE`、
-  `CLAUDE_TIMEOUT_SECONDS`，以及 `CLAUDE_PRICE_*_USD_PER_M` 价格覆盖（按模型给默认值）。
-- 用量账本仍写 `deepseek_usage.jsonl`：DeepSeek 记录不变（schema 1）；Claude 记录为 schema 2，
-  在原字段之外增加 `provider`、`cache_creation_input_tokens` 等字段。
-- 依赖新增 `anthropic==1.13.0`（及其闭包，见 `constraints.txt`）；自动化测试从 171 增至 215。
+- **译文不再自行加注**：两套系统提示词（PDF 文本、EPUB XHTML）末尾新增“忠实性要求”：不得添加原文没有的
+  解释、释义、括号说明或注释；原文已有的括号照常保留；QE、WAM、RV 等缩写按原文保留；标题
+  “Bottom line (for X)”译为“结论/小结”而非“底线”。同时删去旧规则中“可在首次出现时括号注释中文”
+  一句，其余旧规则逐字不变（测试按旧版 sha256 锁定）。
+- **互换／掉期术语表**：利率互换、互换利差、互换利率/曲线、SOFR互换、互换期权、美债相对互换变便宜；
+  外汇掉期、掉期点；交叉货币互换、交叉货币基差、货币互换额度；利率互换与互换利差绝不译作“掉期”。
+- 两段规则是固定文本，位于系统提示词前缀内，Claude 提示缓存照常命中；“未翻译”校验阈值未改；
+  页面缓存按任务编号隔离，无需提升缓存版本。依赖不变；自动化测试从 215 增至 226。
 
 ## 支持范围
 
@@ -29,9 +28,9 @@
 先在下载目录校验压缩包（校验文件与压缩包应在同一目录）：
 
 ```bash
-sha256sum -c PhoenaTranslator-20261011-claude-provider-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20261011-claude-provider-reinstall.tar.gz
-cd PhoenaTranslator-20261011-claude-provider-reinstall
+sha256sum -c PhoenaTranslator-20261011b-prompt-glossary-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261011b-prompt-glossary-reinstall.tar.gz
+cd PhoenaTranslator-20261011b-prompt-glossary-reinstall
 # 可选的完整预检（需要系统已装 python3）
 ./install.sh --verify-only
 sudo ./install.sh
