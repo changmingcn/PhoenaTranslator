@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
-  "package_name": "PhoenaTranslator-20260831-identifier-row-fastpath-reinstall",
-  "version": "2026.08.31-identifier-row-fastpath",
-  "built_at_utc": "2026-08-31T15:44:20Z",
+  "package_name": "PhoenaTranslator-20261011-claude-provider-reinstall",
+  "version": "2026.10.11-claude-provider",
+  "built_at_utc": "2026-10-11T02:12:57Z",
   "source_policy": "exact-active-app-only",
-  "active_release": "/opt/phoena-translator/releases/release-2026.08.31-identifier-row-fastpath-20260831T134004Z",
-  "payload_file_count": 53,
-  "payload_total_bytes": 1200046,
-  "payload_manifest_sha256": "7c7d5e7dad4b3de07771d7f88ddc23054a3687068f89bb5532e86d726372363f",
-  "prior_deployment_content_aggregate_sha256": "1d1387873946d26896c165a7265be9c989449f10171f38b304fa5a00a9859d26",
-  "manifest_binding": "MANIFEST.sha256 contains every package path and content hash except itself; SOURCE_ALLOWLIST.txt contains the exact payload paths; payload_manifest_sha256 is sha256 of the lexicographically sorted, newline-terminated '<sha256>  <path>' lines of the payload; prior_deployment_content_aggregate_sha256 is that same value computed over the app tree of release-2026.08.17-bold-run-in-wrap, the deployment this package supersedes (the 2026.08.17 deployment shipped without a reinstall package; the last packaged version was 2026.08.13)",
+  "active_release": "/opt/phoena-translator/releases/release-2026.10.11-claude-provider-20261011T021219Z",
+  "payload_file_count": 54,
+  "payload_total_bytes": 1241255,
+  "payload_manifest_sha256": "02e9a2db5658720fd159ffa89694a5f1e8e86ddca15dbf86333f3ffa98205add",
+  "prior_deployment_content_aggregate_sha256": "7c7d5e7dad4b3de07771d7f88ddc23054a3687068f89bb5532e86d726372363f",
+  "manifest_binding": "MANIFEST.sha256 contains every package path and content hash except itself; SOURCE_ALLOWLIST.txt contains the exact payload paths; payload_manifest_sha256 is sha256 of the lexicographically sorted, newline-terminated '<sha256>  <path>' lines of the payload; prior_deployment_content_aggregate_sha256 is that same value computed over the app tree (excluding __pycache__) of release-2026.08.31-identifier-row-fastpath, the production deployment this package supersedes (it equals that package's payload_manifest_sha256). active_release is the staged, not yet activated, release directory built from this payload with a fresh venv",
   "installer_blueprint": {
-    "path": "/root/deploy-staging/phoena-cross-page-boundary-guard-20260813/PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall",
+    "path": "/root/deploy-staging/phoena-claude-provider-20261011/PhoenaTranslator-20261011-claude-provider-reinstall",
     "install_sh_sha256": "0d275ccd45ea6f974de04e0bb989a1a3a5f4075048a0d4962722431336d474f9",
-    "verify_release_py_sha256": "277778668c1bbb49e633d4e3a7b01db0935ec0ad1461177342eb0e932d95e937"
+    "verify_release_py_sha256": "52b67f1d26c3cc6a0bc0d4ab70f349e9518cdad1e4c3b38a8b942cc49c5157cb"
   },
   "packaging_templates": {
     "phoena-translator.service_sha256": "f390cb92cbe4633f21e28ce9c0cb5425365adde427f5264363f89267140502ca",
@@ -26,5 +26,5 @@
     "virtual environments and bytecode",
     "fonts, audit evidence, backups and Git metadata"
   ],
-  "supersedes": "PhoenaTranslator-20260813-cross-page-boundary-guard-reinstall (2026.08.13-cross-page-boundary-guard)"
+  "supersedes": "PhoenaTranslator-20260831-identifier-row-fastpath-reinstall (2026.08.31-identifier-row-fastpath)"
 }

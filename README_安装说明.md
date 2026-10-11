@@ -1,27 +1,20 @@
 # PhoenaTranslator 干净重装包
 
-版本：`2026.08.13-cross-page-boundary-guard`
+版本：`2026.10.11-claude-provider`
 
-这是当前已修正翻译程序的恢复安装版。它只包含 53 个源码文件（51 个运行时文件 + 2 个测试及测试依赖文件）和安装元数据，不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
+这是当前已修正翻译程序的恢复安装版。它只包含 54 个源码文件（51 个运行时文件 + 3 个测试及测试依赖文件）和安装元数据，不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
 
-## 相对上一版（2026.08.03-inline-render-fallback）的变化
+## 相对上一版（2026.08.31-identifier-row-fastpath）的变化
 
-本包以生产发布
-`release-2026.08.03-inline-render-fallback-20260812T092040Z-16943`
-的有效载荷为基线，修正 PDF 同页段落被误当作跨页续句的问题；文件集合未变（仍是
-53 个）。
-
-- **黑体首行不再把后续常规体误搬到上一页**：跨页吸收前新增同页归属检查；若小写开头
-  的候选行紧接在同字号、同栏且句意未完的本页行之后，则保留在本页。该检查不要求两行
-  的粗细相同，覆盖“首句/首行局部黑体、后续行常规体”的排版。
-- **表格边界不再吞掉邻近正文首行**：表格横向容差保持 12 pt，纵向容差从 12 pt 收紧为
-  3 pt，避免图表下方正文被错误标成表格元素并拆段。
-- **完整句后的弱跨页证据更保守**：只有位于下一页顶部区域的小写开头文本才可作为弱
-  续句候选；审计阶段也会拒绝存在同页前导行的错误搬移记录。
-- **旧错误缓存强制失效**：PDF 版面语义版本提升至 v38，重新翻译时不会复用 v37 中已经
-  被错误拆分和跨页搬移的页面缓存。
-
-三个实际问题 PDF 的确定性抽取复核均已通过；自动化测试从 148 增至 153。
+- **新增原生 Claude 翻译后端（默认关闭）**：`TRANSLATOR_LLM_PROVIDER=deepseek`（默认）或
+  `claude`；取值写错时启动即报错，不会静默改道。DeepSeek 请求参数逐项不变。
+- Claude 走官方 `anthropic` SDK（Messages API），所需环境变量：`ANTHROPIC_API_KEY`；可选
+  `CLAUDE_MODEL`（默认 `claude-opus-5-5`，另支持 `claude-sonnet-5-5`、`claude-haiku-5-5`）、
+  `CLAUDE_EFFORT`、`CLAUDE_FALLBACKS`（默认开，仅 Opus/Sonnet 5.5）、`CLAUDE_PROMPT_CACHE`、
+  `CLAUDE_TIMEOUT_SECONDS`，以及 `CLAUDE_PRICE_*_USD_PER_M` 价格覆盖（按模型给默认值）。
+- 用量账本仍写 `deepseek_usage.jsonl`：DeepSeek 记录不变（schema 1）；Claude 记录为 schema 2，
+  在原字段之外增加 `provider`、`cache_creation_input_tokens` 等字段。
+- 依赖新增 `anthropic==1.13.0`（及其闭包，见 `constraints.txt`）；自动化测试从 171 增至 215。
 
 ## 支持范围
 
@@ -36,9 +29,9 @@
 先在下载目录校验压缩包（校验文件与压缩包应在同一目录）：
 
 ```bash
-sha256sum -c PhoenaTranslator-20260831-identifier-row-fastpath-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20260831-identifier-row-fastpath-reinstall.tar.gz
-cd PhoenaTranslator-20260831-identifier-row-fastpath-reinstall
+sha256sum -c PhoenaTranslator-20261011-claude-provider-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261011-claude-provider-reinstall.tar.gz
+cd PhoenaTranslator-20261011-claude-provider-reinstall
 # 可选的完整预检（需要系统已装 python3）
 ./install.sh --verify-only
 sudo ./install.sh

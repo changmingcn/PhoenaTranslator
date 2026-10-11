@@ -9,15 +9,16 @@
 - 对数学内容采用保守策略：当公式过于密集或结构过于复杂、无法可靠翻译时，会保留原英文，避免错误改写或排版损坏
 - 通过浏览器上传文件、查看进度并下载结果
 - 使用 OpenAI 兼容的大语言模型 API，安装时填写 API Key、Base URL 和模型名
+- 可选原生 Claude 后端：在 `/etc/phoena-translator/translator.env` 设 `TRANSLATOR_LLM_PROVIDER=claude`、`ANTHROPIC_API_KEY`，可选 `CLAUDE_MODEL`（默认 `claude-opus-5-5`，另支持 `claude-sonnet-5-5`、`claude-haiku-5-5`）；不设时仍走 DeepSeek
 
 ## 快速安装
 
 从 [Releases](https://github.com/changmingcn/PhoenaTranslator/releases/latest) 下载安装包和 SHA-256 校验文件，然后在服务器执行：
 
 ```bash
-sha256sum -c PhoenaTranslator-20260831-identifier-row-fastpath-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20260831-identifier-row-fastpath-reinstall.tar.gz
-cd PhoenaTranslator-20260831-identifier-row-fastpath-reinstall
+sha256sum -c PhoenaTranslator-20261011-claude-provider-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261011-claude-provider-reinstall.tar.gz
+cd PhoenaTranslator-20261011-claude-provider-reinstall
 ./install.sh --verify-only   # 可选预检
 sudo ./install.sh
 ```
@@ -51,4 +52,4 @@ http://服务器IP/
 - 重装前后的主机级恢复项目见 `HOST_RESTORE_CHECKLIST.md`
 - `SOURCE_IDENTITY.json` 记录本包对应的生产发布、文件数和内容清单摘要
 
-当前版本：`2026.08.13-cross-page-boundary-guard`
+当前版本：`2026.10.11-claude-provider`
