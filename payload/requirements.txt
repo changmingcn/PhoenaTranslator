@@ -5,3 +5,4 @@ gunicorn==26.0.0
 fonttools==4.63.0
 numpy==2.4.6
 opencv-python-headless==4.13.0.92
+anthropic==1.13.0

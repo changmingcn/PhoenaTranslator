@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import sys
 import threading
 import time
 from collections import deque
@@ -28,6 +29,9 @@ class APIUsagePrices:
     cache_hit_usd_per_million: float
     cache_miss_usd_per_million: float
     output_usd_per_million: float
+    # Providers that bill prompt-cache writes separately (Claude: 1.25x input)
+    # set this; ``None`` keeps the original miss-priced accounting.
+    cache_write_usd_per_million: float | None = None
 
 
 @dataclass
@@ -72,7 +76,35 @@ def strip_think_tags(text: str) -> str:
     return text.strip()
 
 
+def _anthropic_error_kind(exc: Exception) -> str | None:
+    """Classify an ``anthropic`` SDK exception by type and status code.
+
+    Returns ``"rate_limit"``, ``"transient"``, ``"fatal"`` or ``None`` when
+    ``exc`` is not an Anthropic error. The SDK is looked up in
+    ``sys.modules`` only: if it was never imported, no Anthropic exception can
+    exist, so DeepSeek-only processes never load it.
+    """
+    anthropic = sys.modules.get("anthropic")
+    if anthropic is None:
+        return None
+    if isinstance(exc, anthropic.APIConnectionError):  # incl. APITimeoutError
+        return "transient"
+    if isinstance(exc, anthropic.APIStatusError):
+        status_code = getattr(exc, "status_code", None)
+        if status_code == 429:
+            return "rate_limit"
+        if isinstance(status_code, int) and (
+            status_code >= 500 or status_code in {408, 409, 425}
+        ):
+            return "transient"  # 500 api_error, 529 overloaded_error, ...
+        return "fatal"  # 400/401/402/403/404/413/422: never retried
+    return None
+
+
 def is_rate_limit_error(exc: Exception) -> bool:
+    anthropic_kind = _anthropic_error_kind(exc)
+    if anthropic_kind is not None:
+        return anthropic_kind == "rate_limit"
     text = str(exc).lower()
     status_code = getattr(exc, "status_code", None)
     return (
@@ -107,6 +139,9 @@ def extract_status_code(exc: Exception) -> int | None:
 
 
 def is_retryable_api_error(exc: Exception) -> bool:
+    anthropic_kind = _anthropic_error_kind(exc)
+    if anthropic_kind is not None:
+        return anthropic_kind == "transient"
     text = str(exc).lower()
     status_code = extract_status_code(exc)
     return (
@@ -162,6 +197,15 @@ def extract_retry_delay(
     attempt: int,
     policy: APIRetryPolicy,
 ) -> float:
+    if _anthropic_error_kind(exc) is not None:
+        response = getattr(exc, "response", None)
+        headers = getattr(response, "headers", None)
+        raw_after = headers.get("retry-after") if headers is not None else None
+        if raw_after is not None:
+            try:
+                return min(max(float(raw_after), 0.0) + 1.0, policy.rate_limit_max_delay)
+            except (TypeError, ValueError):
+                pass
     text = str(exc)
     patterns = (
         r"retry after ([0-9]+(?:\.[0-9]+)?)s",
@@ -286,12 +330,22 @@ def completion_usage_record(
         if explicit_miss is None
         else nonnegative_int(explicit_miss)
     )
-    conservative_cost_usd = (
-        cache_hit_tokens * prices.cache_hit_usd_per_million
-        + cache_miss_tokens * prices.cache_miss_usd_per_million
-        + completion_tokens * prices.output_usd_per_million
-    ) / 1_000_000
-    return {
+    cache_write_tokens = nonnegative_int(raw.get("cache_creation_input_tokens"))
+    if prices.cache_write_usd_per_million is None:
+        conservative_cost_usd = (
+            cache_hit_tokens * prices.cache_hit_usd_per_million
+            + cache_miss_tokens * prices.cache_miss_usd_per_million
+            + completion_tokens * prices.output_usd_per_million
+        ) / 1_000_000
+    else:
+        uncached_tokens = max(cache_miss_tokens - cache_write_tokens, 0)
+        conservative_cost_usd = (
+            cache_hit_tokens * prices.cache_hit_usd_per_million
+            + uncached_tokens * prices.cache_miss_usd_per_million
+            + cache_write_tokens * prices.cache_write_usd_per_million
+            + completion_tokens * prices.output_usd_per_million
+        ) / 1_000_000
+    record = {
         "schema": 1,
         "ts": time.time() if timestamp is None else timestamp,
         "model": model,
@@ -302,6 +356,16 @@ def completion_usage_record(
         "total_tokens": total_tokens,
         "conservative_cost_usd": round(conservative_cost_usd, 10),
     }
+    # Schema 2 = schema 1 fields (same meaning) + provider metadata. Claude:
+    # prompt_tokens = input + cache_write + cache_read; prompt_cache_hit_tokens
+    # = cache reads; prompt_cache_miss_tokens = input + cache writes, of which
+    # cache_creation_input_tokens were billed at the cache-write rate.
+    ledger_fields = getattr(response, "ledger_fields", None)
+    if isinstance(ledger_fields, dict) and ledger_fields:
+        record["schema"] = 2
+        record["cache_creation_input_tokens"] = cache_write_tokens
+        record.update(ledger_fields)
+    return record
 
 
 def record_completion_usage(

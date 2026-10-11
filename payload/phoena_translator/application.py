@@ -36,7 +36,12 @@ from phoena_translator.epub.pipeline import (
 )
 from phoena_translator.epub.xhtml import DEFAULT_CHUNK_MAX_BYTES as CHUNK_MAX_BYTES
 from phoena_translator.glossary import build_glossary_text, load_explicit_glossary
-from phoena_translator.llm import DeepSeekTranslationAdapter, LLMSettings
+from phoena_translator.llm import (
+    ClaudeSettings,
+    ClaudeTranslationAdapter,
+    DeepSeekTranslationAdapter,
+    LLMSettings,
+)
 from phoena_translator.logging_setup import configure_logging
 from phoena_translator.pdf.audit import (
     PDFAuditDependencies,
@@ -118,6 +123,10 @@ ALLOWED_EXTENSIONS = set(APP_CONFIG.allowed_extensions)
 DEEPSEEK_API_KEY = APP_CONFIG.deepseek_api_key
 DEEPSEEK_BASE_URL = APP_CONFIG.deepseek_base_url
 DEEPSEEK_MODEL = APP_CONFIG.deepseek_model
+LLM_PROVIDER = APP_CONFIG.llm_provider
+CLAUDE_MODEL = APP_CONFIG.claude_model
+# The model id every translation request names; DeepSeek remains the default.
+ACTIVE_LLM_MODEL = CLAUDE_MODEL if LLM_PROVIDER == "claude" else DEEPSEEK_MODEL
 
 tasks: dict = {}
 tasks_lock = threading.Lock()
@@ -128,16 +137,29 @@ _runtime_init_lock = threading.Lock()
 _runtime_initialized = False
 
 # ---------------------------------------------------------------------------
-# OpenAI-compatible client for DeepSeek
+# LLM adapter: OpenAI-compatible DeepSeek (default) or native Claude
 # ---------------------------------------------------------------------------
 
-_llm_adapter = DeepSeekTranslationAdapter(
-    LLMSettings(
-        api_key=DEEPSEEK_API_KEY,
-        base_url=DEEPSEEK_BASE_URL,
-        model=DEEPSEEK_MODEL,
+if LLM_PROVIDER == "claude":
+    _llm_adapter = ClaudeTranslationAdapter(
+        ClaudeSettings(
+            api_key=APP_CONFIG.anthropic_api_key,
+            model=CLAUDE_MODEL,
+            effort=APP_CONFIG.claude_effort,
+            fallbacks=APP_CONFIG.claude_fallbacks,
+            prompt_cache=APP_CONFIG.claude_prompt_cache,
+            timeout_seconds=APP_CONFIG.claude_timeout_seconds,
+        ),
+        logger=log,
     )
-)
+else:
+    _llm_adapter = DeepSeekTranslationAdapter(
+        LLMSettings(
+            api_key=DEEPSEEK_API_KEY,
+            base_url=DEEPSEEK_BASE_URL,
+            model=DEEPSEEK_MODEL,
+        )
+    )
 
 
 API_MAX_CONCURRENCY = APP_CONFIG.api_max_concurrency
@@ -213,6 +235,13 @@ def _record_rate_limit(delay: float, exc: Exception) -> None:
 
 
 def _current_api_prices() -> APIUsagePrices:
+    if LLM_PROVIDER == "claude":
+        return APIUsagePrices(
+            cache_hit_usd_per_million=APP_CONFIG.claude_price_cache_read_usd_per_m,
+            cache_miss_usd_per_million=APP_CONFIG.claude_price_input_usd_per_m,
+            output_usd_per_million=APP_CONFIG.claude_price_output_usd_per_m,
+            cache_write_usd_per_million=APP_CONFIG.claude_price_cache_write_usd_per_m,
+        )
     return APIUsagePrices(
         cache_hit_usd_per_million=DEEPSEEK_PRICE_CACHE_HIT_USD_PER_M,
         cache_miss_usd_per_million=DEEPSEEK_PRICE_CACHE_MISS_USD_PER_M,
@@ -248,7 +277,7 @@ def _create_chat_completion(
     messages: list[dict],
     max_tokens: int,
     temperature: float,
-    model: str = DEEPSEEK_MODEL,
+    model: str = ACTIVE_LLM_MODEL,
 ):
     return _create_chat_completion_impl(
         messages=messages,

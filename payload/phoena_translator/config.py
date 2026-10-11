@@ -44,6 +44,50 @@ def _env_float(
     return max(minimum, value)
 
 
+LLM_PROVIDERS = ("deepseek", "claude")
+CLAUDE_DEFAULT_MODEL = "claude-opus-5-5"
+CLAUDE_EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
+# USD per 1M tokens: (input, output, cache read). 5-minute cache writes are
+# billed at 1.25x input. Unknown Claude models are priced as Opus 5.5 so the
+# ledger's ``conservative_cost_usd`` never under-reports.
+CLAUDE_DEFAULT_PRICES: dict[str, tuple[float, float, float]] = {
+    "claude-opus-5-5": (4.0, 20.0, 0.20),
+    "claude-sonnet-5-5": (2.0, 10.0, 0.20),
+    "claude-haiku-5-5": (0.10, 0.50, 0.01),
+}
+CLAUDE_CACHE_WRITE_MULTIPLIER = 1.25
+
+
+def _llm_provider(env: Mapping[str, str]) -> str:
+    raw = env.get("TRANSLATOR_LLM_PROVIDER", "").strip().lower() or "deepseek"
+    if raw not in LLM_PROVIDERS:
+        # Fail closed: a typo must not silently route traffic elsewhere.
+        raise ValueError(
+            f"TRANSLATOR_LLM_PROVIDER={raw!r} is invalid; expected one of "
+            f"{', '.join(LLM_PROVIDERS)}"
+        )
+    return raw
+
+
+def _claude_effort(env: Mapping[str, str]) -> str | None:
+    raw = env.get("CLAUDE_EFFORT", "").strip().lower()
+    if not raw:
+        return None
+    if raw not in CLAUDE_EFFORT_LEVELS:
+        raise ValueError(
+            f"CLAUDE_EFFORT={raw!r} is invalid; expected one of "
+            f"{', '.join(CLAUDE_EFFORT_LEVELS)}"
+        )
+    return raw
+
+
+def claude_default_prices(model: str) -> tuple[float, float, float]:
+    for family, prices in CLAUDE_DEFAULT_PRICES.items():
+        if model == family or model.startswith(family + "-"):
+            return prices
+    return CLAUDE_DEFAULT_PRICES[CLAUDE_DEFAULT_MODEL]
+
+
 @dataclass(frozen=True)
 class AppConfig:
     upload_dir: Path
@@ -81,6 +125,17 @@ class AppConfig:
     deepseek_price_cache_hit_usd_per_m: float = 0.0028
     deepseek_price_cache_miss_usd_per_m: float = 0.14
     deepseek_price_output_usd_per_m: float = 0.28
+    llm_provider: str = "deepseek"
+    anthropic_api_key: str = field(default="", repr=False)
+    claude_model: str = CLAUDE_DEFAULT_MODEL
+    claude_effort: str | None = None
+    claude_fallbacks: bool = True
+    claude_prompt_cache: bool = True
+    claude_timeout_seconds: float = 300.0
+    claude_price_input_usd_per_m: float = 4.0
+    claude_price_output_usd_per_m: float = 20.0
+    claude_price_cache_read_usd_per_m: float = 0.20
+    claude_price_cache_write_usd_per_m: float = 5.0
     disable_auto_resume: bool = False
 
     @classmethod
@@ -99,6 +154,9 @@ class AppConfig:
             minimum=1024,
         )
         glossary_raw = env.get("TRANSLATOR_GLOSSARY_JSON", "").strip()
+        claude_model = env.get("CLAUDE_MODEL", "").strip() or CLAUDE_DEFAULT_MODEL
+        claude_in, claude_out, claude_read = claude_default_prices(claude_model)
+        claude_price_input = _env_float(env, "CLAUDE_PRICE_INPUT_USD_PER_M", claude_in)
         font_regular_raw = env.get("TRANSLATOR_PDF_FONT_REGULAR", "").strip()
         font_bold_raw = env.get("TRANSLATOR_PDF_FONT_BOLD", "").strip()
         return cls(
@@ -245,6 +303,34 @@ class AppConfig:
                 env,
                 "DEEPSEEK_PRICE_OUTPUT_USD_PER_M",
                 0.28,
+            ),
+            llm_provider=_llm_provider(env),
+            anthropic_api_key=env.get("ANTHROPIC_API_KEY", ""),
+            claude_model=claude_model,
+            claude_effort=_claude_effort(env),
+            claude_fallbacks=_env_bool(env, "CLAUDE_FALLBACKS", True),
+            claude_prompt_cache=_env_bool(env, "CLAUDE_PROMPT_CACHE", True),
+            claude_timeout_seconds=_env_float(
+                env,
+                "CLAUDE_TIMEOUT_SECONDS",
+                300.0,
+                minimum=30.0,
+            ),
+            claude_price_input_usd_per_m=claude_price_input,
+            claude_price_output_usd_per_m=_env_float(
+                env,
+                "CLAUDE_PRICE_OUTPUT_USD_PER_M",
+                claude_out,
+            ),
+            claude_price_cache_read_usd_per_m=_env_float(
+                env,
+                "CLAUDE_PRICE_CACHE_READ_USD_PER_M",
+                claude_read,
+            ),
+            claude_price_cache_write_usd_per_m=_env_float(
+                env,
+                "CLAUDE_PRICE_CACHE_WRITE_USD_PER_M",
+                claude_price_input * CLAUDE_CACHE_WRITE_MULTIPLIER,
             ),
             disable_auto_resume=_env_bool(
                 env,
