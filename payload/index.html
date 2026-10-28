@@ -290,6 +290,18 @@ header p {
   margin-top: 0.5rem;
 }
 
+.warning-msg {
+  color: var(--warning);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.warning-msg.warning-detail {
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+  word-break: break-all;
+}
+
 .empty-state {
   text-align: center;
   color: var(--text-secondary);
@@ -541,11 +553,50 @@ header p {
         html += '下载译文</a>';
         html += '<button class="delete-btn" onclick="deleteTask(\'' + tid + '\')">&#128465; 删除</button>';
         html += '</div>';
+        if (t.warning) {
+          html += '<div class="warning-msg">提示: ' + escapeHtml(t.warning) + '</div>';
+          // Tolerated segments carry the reason for the text actually published;
+          // failure_reasons (last attempt) is only a fallback for older records.
+          var lines = [];
+          var lineTotal = 0;
+          if (Array.isArray(t.lenient_segments) || Array.isArray(t.fallback_segments)) {
+            var groups = [[t.lenient_segments, '存疑译文'], [t.fallback_segments, '保留原文']];
+            for (var g = 0; g < groups.length; g++) {
+              var list = Array.isArray(groups[g][0]) ? groups[g][0] : [];
+              for (var r = 0; r < list.length; r++) {
+                var entry = list[r] || {};
+                lines.push(groups[g][1] + ' ' + (entry.segment || '') + '：' + (entry.reason || ''));
+              }
+            }
+            lineTotal = Math.max(lines.length,
+              (Number(t.lenient_segment_count) || 0) + (Number(t.fallback_segment_count) || 0));
+          } else {
+            var reasons = Array.isArray(t.failure_reasons) ? t.failure_reasons : [];
+            for (var q = 0; q < reasons.length; q++) {
+              var item = reasons[q] || {};
+              lines.push((item.file || '') + '#' + (item.segment || '') + '：' + (item.reason || ''));
+            }
+            lineTotal = Math.max(lines.length, Number(t.failed_segment_count) || 0);
+          }
+          for (var k = 0; k < lines.length && k < 5; k++) {
+            html += '<div class="warning-msg warning-detail">' + escapeHtml(lines[k]) + '</div>';
+          }
+          if (lineTotal > 5) {
+            html += '<div class="warning-msg warning-detail">…另有' + (lineTotal - 5) + '段</div>';
+          }
+        }
+        if (t.type === 'epub' && Number(t.failed_segment_count) > 0) {
+          html += '<div class="task-actions"><button class="upload-btn" onclick="retryEpubTask(\'' + tid + '\')">重试未通过段落</button></div>';
+        }
       }
 
       if (t.status === 'failed' && t.error) {
         html += '<div class="error-msg">错误: ' + escapeHtml(t.error) + '</div>';
-        html += '<div class="task-actions"><button class="delete-btn" onclick="deleteTask(\'' + tid + '\')">&#128465; 删除</button></div>';
+        html += '<div class="task-actions">';
+        if (t.type === 'epub') {
+          html += '<button class="upload-btn" onclick="retryEpubTask(\'' + tid + '\')">重试未通过段落</button>';
+        }
+        html += '<button class="delete-btn" onclick="deleteTask(\'' + tid + '\')">&#128465; 删除</button></div>';
       }
 
       if (t.status === 'needs_password') {
@@ -630,6 +681,26 @@ header p {
     }).catch(function() {
       password = '';
       showToast('继续任务失败: 网络错误');
+    });
+  };
+
+  // EPUB resume needs no password: validated segments come from the checkpoint.
+  window.retryEpubTask = function(taskId) {
+    apiFetch('/task/' + taskId + '/resume', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    }).then(function(res) { return res.json().then(function(data) {
+      return { ok: res.ok, data: data };
+    }); }).then(function(result) {
+      if (result.ok) {
+        showToast('任务已重新排队');
+        refreshTasks();
+      } else {
+        showToast('重试失败: ' + (result.data.error || '未知错误'));
+      }
+    }).catch(function() {
+      showToast('重试失败: 网络错误');
     });
   };
 

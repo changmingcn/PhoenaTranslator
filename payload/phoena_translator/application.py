@@ -519,10 +519,24 @@ def _translate_single_chunk(
     )
 
 
+def _translate_epub_payload(text: str, system_prompt: str) -> str:
+    """Let the EPUB segment validator own JSON and per-paragraph integrity."""
+    response = _create_chat_completion(
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": text},
+        ],
+        max_tokens=65536,
+        temperature=0.3,
+    )
+    return strip_think_tags(response.choices[0].message.content or "")
+
+
 def translate_epub(task_id: str, src_path: str, out_path: str):
     """Run the modular, bounded EPUB pipeline through legacy application services."""
     dependencies = EPUBPipelineDependencies(
         translate_text=translate_text,
+        translate_payload=_translate_epub_payload,
         build_glossary=build_glossary,
         make_prompt=_make_prompt_with_glossary,
         save_progress=save_progress,

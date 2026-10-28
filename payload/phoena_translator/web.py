@@ -28,6 +28,13 @@ class WebDependencies:
     task_store: Callable[[], TaskStore]
 
 
+def _failed_segment_count(data: dict) -> int:
+    try:
+        return int(data.get("failed_segment_count") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _safe_download_name(value: str, fallback: str) -> str:
     value = str(value or "").replace("\\", "/").rsplit("/", 1)[-1]
     value = "".join(char for char in value if ord(char) >= 32 and char not in "\r\n")
@@ -186,6 +193,30 @@ def create_app(
         data = _record(task_id)
         if not data:
             return jsonify({"error": "Task not found"}), 404
+        # A completed EPUB that published fallback or lenient segments can be
+        # resumed too: the checkpoint retries only the segments that failed.
+        if data.get("type") == "epub" and (
+            data.get("status") == "failed"
+            or (data.get("status") == "completed" and _failed_segment_count(data) > 0)
+        ):
+            source_path = config.upload_dir / f"{task_id}.epub"
+            output_path = config.output_dir / f"{task_id}.epub"
+            if not source_path.is_file():
+                return jsonify({"error": "Upload file lost after restart"}), 409
+            queued = dict(data)
+            queued.update({"status": "queued", "current_file": "正在恢复已通过校验的译文...",
+                           "error": None, "output": None, "warning": None})
+            dependencies.save_progress(task_id, queued)
+            with dependencies.tasks_lock():
+                dependencies.tasks()[task_id] = queued
+            accepted = dependencies.enqueue_task(task_id, "epub", str(source_path),
+                                                 str(output_path), "", source_path.stat().st_size)
+            if not accepted:
+                dependencies.save_progress(task_id, data)
+                with dependencies.tasks_lock():
+                    dependencies.tasks()[task_id] = data
+                return jsonify({"error": "Translation queue is at capacity"}), 503
+            return jsonify({"ok": True}), 200
         if data.get("status") != "needs_password":
             return jsonify({"error": "Task does not require password resumption"}), 400
         payload = request.get_json(silent=True)

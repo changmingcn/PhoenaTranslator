@@ -106,7 +106,7 @@ def test_openai_client_created_without_sdk_retries():
 
 
 # ---------------------------------------------------------------------------
-# B5 — EPUB integrity failures are retryable once (strict), then fail closed
+# B5 — legacy chunk API remains compatible; the pipeline rejects bad segments
 # ---------------------------------------------------------------------------
 
 _SOURCE_CHUNK = (
@@ -153,7 +153,7 @@ def test_api_exception_reported_as_api_failure():
     assert kind == CHUNK_FAILURE_API
 
 
-def test_pipeline_fails_closed_after_one_strict_retry(tmp_path):
+def test_pipeline_fails_without_source_fallback_after_bounded_retries(tmp_path):
     calls: list[str] = []
 
     def fake_translate(text, system_prompt=None, **kwargs):
@@ -177,20 +177,19 @@ def test_pipeline_fails_closed_after_one_strict_retry(tmp_path):
         api_concurrency=1,
         max_chunk_rounds=4,
         sleep=lambda seconds: None,
+        max_fallback_segments=0,
+        max_fallback_ratio=0,
     )
-    total_files, total_chunks, completed = EPUBPipeline(
-        dependencies
-    )._translate_extracted("task", book_root)
+    with pytest.raises(ValueError, match="no output published"):
+        EPUBPipeline(dependencies)._translate_extracted("task", book_root)
 
-    assert total_files == 1 and total_chunks == 1
-    assert "chapter1.xhtml" in completed
-    # One normal attempt plus exactly one strict retry, then fail closed.
-    assert len(calls) == 2
-    assert "占位符" in calls[1] and "占位符" not in calls[0]
+    assert len(calls) == 4
+    assert all("JSON" in prompt for prompt in calls)
+    assert "上次响应未通过校验" in calls[1]
     assert chapter.read_text(encoding="utf-8") == _SOURCE_CHUNK
 
 
-def test_pipeline_keeps_non_utf8_member_as_source(tmp_path):
+def test_pipeline_rejects_non_utf8_member_before_translation(tmp_path):
     book_root = tmp_path / "book"
     book_root.mkdir()
     good = book_root / "a.xhtml"
@@ -199,7 +198,7 @@ def test_pipeline_keeps_non_utf8_member_as_source(tmp_path):
     bad.write_bytes("<p>UTF-16 content that is long enough here</p>".encode("utf-16"))
 
     def fake_translate(text, system_prompt=None, **kwargs):
-        return text  # echo keeps markup identical -> passes integrity
+        pytest.fail("non-UTF-8 input must fail before any translation call")
 
     dependencies = EPUBPipelineDependencies(
         translate_text=fake_translate,
@@ -213,11 +212,8 @@ def test_pipeline_keeps_non_utf8_member_as_source(tmp_path):
         api_concurrency=1,
         sleep=lambda seconds: None,
     )
-    total_files, _chunks, completed = EPUBPipeline(dependencies)._translate_extracted(
-        "task", book_root
-    )
-    assert total_files == 2
-    assert completed == {"a.xhtml", "b.xhtml"}
+    with pytest.raises(ValueError, match="b.xhtml"):
+        EPUBPipeline(dependencies)._translate_extracted("task", book_root)
     assert bad.read_bytes().startswith(b"\xff\xfe")  # untouched source bytes
 
 

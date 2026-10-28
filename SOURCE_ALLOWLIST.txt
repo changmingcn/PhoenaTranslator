@@ -10,6 +10,7 @@ phoena_translator/epub/__init__.py
 phoena_translator/epub/archive.py
 phoena_translator/epub/math_protection.py
 phoena_translator/epub/pipeline.py
+phoena_translator/epub/segments.py
 phoena_translator/epub/xhtml.py
 phoena_translator/glossary.py
 phoena_translator/legacy_exports.py
@@ -51,5 +52,8 @@ phoena_translator/workers.py
 requirements-test.txt
 requirements.txt
 tests/test_claude_provider.py
+tests/test_epub_currency.py
+tests/test_epub_resume.py
+tests/test_epub_segments.py
 tests/test_prompt_rules.py
 tests/test_review_fixes.py

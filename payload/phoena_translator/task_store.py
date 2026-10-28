@@ -197,4 +197,7 @@ class TaskStore:
         output = self.resolve_output_path(task_id, record)
         if output is not None:
             paths.insert(1, output)
+            if ext == "epub":
+                paths.append(Path(str(output) + ".segments.json"))
+                paths.append(Path(str(output) + ".segments.json.tmp"))
         return paths

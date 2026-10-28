@@ -22,6 +22,23 @@ def looks_like_latex_dollar_content(content: str) -> bool:
     stripped = (content or "").strip()
     if not stripped or len(stripped) > 400:
         return False
+    # A pair of currency amounts is not a LaTeX delimiter pair. In particular,
+    # a hyphen in ordinary prose ("$30 billion ... lead-up ... $110 billion")
+    # must not protect the entire intervening sentence from translation.
+    if re.match(
+        r"\d[\d,.]*(?:\s*(?:thousand|million|billion|trillion|dollars?|USD|US))\b",
+        stripped,
+        re.IGNORECASE,
+    ):
+        return False
+    prose_words = re.findall(r"[A-Za-z]+", stripped)
+    if not re.search(r"\\[A-Za-z]+|[\^_{}]", stripped):
+        long_words = [
+            word for word in prose_words
+            if len(word) > 3 and word.lower() not in MATH_FUNCTION_WORDS
+        ]
+        if len(prose_words) > 8 or len(long_words) >= 2:
+            return False
     if re.match(r"\d", stripped) and not re.search(r"[\\^_{}=<>+*/-]", stripped):
         return False
     if re.search(r"[\\^_{}=<>+*/-]", stripped):
@@ -68,18 +85,27 @@ def find_xhtml_math_intervals(text: str) -> list[tuple[int, int, str]]:
                         reason,
                     )
                 )
-        for match in re.finditer(
-            r"(?s)(?<!\\)\$(?!\$)(.+?)(?<!\\)\$(?!\$)", segment
-        ):
-            if looks_like_latex_dollar_content(match.group(1)):
+        # Scan candidate openings individually. A rejected currency pair must
+        # not consume the opening delimiter of a following genuine formula.
+        dollar_positions = [
+            match.start() for match in re.finditer(r"(?<![\\$])\$(?!\$)", segment)
+        ]
+        dollar_index = 0
+        while dollar_index + 1 < len(dollar_positions):
+            opening, closing = dollar_positions[dollar_index:dollar_index + 2]
+            content = segment[opening + 1:closing]
+            if looks_like_latex_dollar_content(content):
                 candidates.append(
                     (
-                        range_start + match.start(),
-                        range_start + match.end(),
+                        range_start + opening,
+                        range_start + closing + 1,
                         2,
                         "latex_inline_dollar",
                     )
                 )
+                dollar_index += 2
+            else:
+                dollar_index += 1
         if segment.strip() and is_math_block(html.unescape(segment)):
             candidates.append((range_start, range_end, 3, "math_text_node"))
         for symbol_start, symbol_end in iter_unicode_math_symbol_ranges(segment):

@@ -1,24 +1,15 @@
 {
   "schema_version": 1,
-  "package_name": "PhoenaTranslator-20261011b-prompt-glossary-reinstall",
-  "version": "2026.10.11b-prompt-glossary",
-  "built_at_utc": "2026-10-11T02:59:03Z",
-  "source_policy": "exact-active-app-only",
-  "active_release": "/opt/phoena-translator/releases/release-2026.10.11b-prompt-glossary-20261011T025903Z",
-  "payload_file_count": 55,
-  "payload_total_bytes": 1253096,
-  "payload_manifest_sha256": "4f952d33aabb67491336109013b9f024ad67492a3c11e77dd648842327628050",
-  "prior_deployment_content_aggregate_sha256": "02e9a2db5658720fd159ffa89694a5f1e8e86ddca15dbf86333f3ffa98205add",
-  "manifest_binding": "MANIFEST.sha256 contains every package path and content hash except itself; SOURCE_ALLOWLIST.txt contains the exact payload paths; payload_manifest_sha256 is sha256 of the lexicographically sorted, newline-terminated '<sha256>  <path>' lines of the payload; prior_deployment_content_aggregate_sha256 is that same value computed over the app tree (excluding __pycache__) of release-2026.10.11-claude-provider, the production deployment this package supersedes (it equals that package's payload_manifest_sha256). active_release is the staged, not yet activated, release directory built from this payload with a fresh venv",
-  "installer_blueprint": {
-    "path": "/root/deploy-staging/phoena-prompt-glossary-20261011/PhoenaTranslator-20261011b-prompt-glossary-reinstall",
-    "install_sh_sha256": "0d275ccd45ea6f974de04e0bb989a1a3a5f4075048a0d4962722431336d474f9",
-    "verify_release_py_sha256": "8c148adc2f4a2f5e6f708633c8f6d16405771ee071ef201559997b0b86030e98"
-  },
-  "packaging_templates": {
-    "phoena-translator.service_sha256": "f390cb92cbe4633f21e28ce9c0cb5425365adde427f5264363f89267140502ca",
-    "phoena-translator.nginx.conf_sha256": "5978e99ba703491c4a0fdee54d68db8bf9ecc247a4fdaf582c068af9172d17bb"
-  },
+  "package_name": "PhoenaTranslator-20261028-epub-tolerant-publish-reinstall",
+  "version": "2026.10.28-epub-tolerant-publish",
+  "built_at_utc": "2026-10-28T08:16:20.089877+00:00",
+  "source_policy": "verified-epub-tolerance-fix-on-active-app",
+  "active_release": "/opt/phoena-translator/releases/release-2026.10.28-epub-tolerant-publish",
+  "payload_file_count": 59,
+  "payload_total_bytes": 1340364,
+  "payload_manifest_sha256": "34f6a039c8e20bec54448ec6bc7a7758cf372f983ef35f9a106102610932c794",
+  "prior_deployment_content_aggregate_sha256": "17d0ce24ad89a3d426cbd63ab918b348918c0cb5d16cc6bc8e46434b796843e9",
+  "supersedes": "PhoenaTranslator-20261023-epub-segments-reinstall",
   "excluded_classes": [
     "credentials and environment files",
     "TLS certificates and private keys",
@@ -26,5 +17,5 @@
     "virtual environments and bytecode",
     "fonts, audit evidence, backups and Git metadata"
   ],
-  "supersedes": "PhoenaTranslator-20261011-claude-provider-reinstall (2026.10.11-claude-provider)"
+  "validation": "Server regression suite on soft: 321 passed, 2 skipped (release venv libraries, Python 3.13). Engineering review (refuter-t1e) two rounds, second round DEPLOY. Production task e728e0a5 resumed on this release: 2,522 segments reused, 6 re-requested, published with coverage 1.0; output EPUB zip-tested and all 42 XHTML parse."
 }
