@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import fitz
 
-from phoena_translator.pdf.model import ElementType
+from phoena_translator.pdf.model import DEFAULT_FONTSIZE, ElementType
 from phoena_translator.pdf.text_shape import (
     _bucket_pdf_fontsize,
     _pick_pdf_dominant_value,
@@ -23,7 +23,7 @@ def _derive_pdf_page_layout_styles(
     if not text_elements:
         return {
             "body": {
-                "fontsize": 11.0,
+                "fontsize": DEFAULT_FONTSIZE,
                 "line_height": 15.4,
                 "color": 0,
                 "color_hex": "#000000",
@@ -48,12 +48,12 @@ def _derive_pdf_page_layout_styles(
     overall_fontsize = _pick_pdf_dominant_value(
         [
             (
-                _bucket_pdf_fontsize(elem.get("fontsize", 11.0)),
+                _bucket_pdf_fontsize(elem.get("fontsize", DEFAULT_FONTSIZE)),
                 max(len(_plain_text(elem.get("content", "")).strip()), 1),
             )
             for elem in text_elements
         ],
-        11.0,
+        DEFAULT_FONTSIZE,
     )
     overall_color = _pick_pdf_dominant_value(
         [

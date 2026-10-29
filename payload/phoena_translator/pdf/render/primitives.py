@@ -20,7 +20,7 @@ from phoena_translator.pdf.geometry import (
     _pdf_rect_intersects_protected,
     _subtract_pdf_protected_rects,
 )
-from phoena_translator.pdf.model import ElementType
+from phoena_translator.pdf.model import DEFAULT_FONTSIZE, ElementType
 from phoena_translator.pdf.settings import PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE
 from phoena_translator.pdf.text_shape import _collapsed_plain_text, _plain_text
 from phoena_translator.pdf.translate.inline_markup import _normalize_pdf_translation
@@ -783,7 +783,7 @@ def _constrain_pdf_htmlbox_rect_ladder_to_neighbors(
 def _resolve_pdf_render_style(elem: dict, layout_styles: dict[str, dict]) -> dict:
     layout_class = elem.get("layout_class", "body")
     class_style = layout_styles.get(layout_class, layout_styles.get("body", {}))
-    fontsize = max(float(elem.get("fontsize", class_style.get("fontsize", 11.0))), 6.5)
+    fontsize = max(float(elem.get("fontsize", class_style.get("fontsize", DEFAULT_FONTSIZE))), 6.5)
     color = int(elem.get("color", class_style.get("color", 0)))
     line_height = max(float(elem.get("line_height", fontsize * 1.18)), fontsize * 1.05)
     r_val = (color >> 16) & 0xFF

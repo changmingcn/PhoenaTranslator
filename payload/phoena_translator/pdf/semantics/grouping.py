@@ -25,6 +25,7 @@ from phoena_translator.pdf.text_shape import (
     _pick_pdf_dominant_value,
     _plain_text,
 )
+from phoena_translator.pdf.model import DEFAULT_FONTSIZE
 
 
 def group_adjacent(
@@ -128,8 +129,8 @@ def dominant_group_style(group: list[dict]) -> dict[str, Any]:
     """Font size, line height and colour weighted by each element's text."""
     fontsize = float(
         _pick_pdf_dominant_value(
-            [(float(elem.get("fontsize", 11.0)), _text_weight(elem)) for elem in group],
-            11.0,
+            [(float(elem.get("fontsize", DEFAULT_FONTSIZE)), _text_weight(elem)) for elem in group],
+            DEFAULT_FONTSIZE,
         )
     )
     return {

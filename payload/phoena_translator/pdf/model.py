@@ -47,6 +47,20 @@ class SkipReason(StrEnum):
 
 Rect = list[float]  # [x0, y0, x1, y1] in page points
 
+# Font size assumed for an element or line that carries none.
+DEFAULT_FONTSIZE = 11.0
+
+# A paragraph's rendered indents are clamped to shares of its width:
+# margin_left <= 0.35 w and -0.18 w <= text_indent <= 0.25 w.
+PARAGRAPH_MAX_MARGIN_SHARE = 0.35
+PARAGRAPH_MAX_HANGING_SHARE = 0.18
+PARAGRAPH_MAX_FIRST_LINE_SHARE = 0.25
+
+
+def indent_step_threshold(fontsize: float) -> float:
+    """Smallest x offset that counts as a deliberate first-line or hanging indent."""
+    return max(fontsize * 0.50, 3.0)
+
 
 class SuperscriptRun(TypedDict, total=False):
     text: str
@@ -243,6 +257,10 @@ class CrossPageMergeDecision:
 
 __all__ = [
     "CrossPageMergeDecision",
+    "DEFAULT_FONTSIZE",
+    "PARAGRAPH_MAX_FIRST_LINE_SHARE",
+    "PARAGRAPH_MAX_HANGING_SHARE",
+    "PARAGRAPH_MAX_MARGIN_SHARE",
     "ElementType",
     "FormulaImageElement",
     "InlineMathFragment",
@@ -256,4 +274,5 @@ __all__ = [
     "SuperscriptRun",
     "TableImageElement",
     "TextElement",
+    "indent_step_threshold",
 ]

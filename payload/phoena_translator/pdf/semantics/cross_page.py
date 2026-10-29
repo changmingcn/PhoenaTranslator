@@ -23,6 +23,7 @@ from phoena_translator.pdf.model import (
     ElementType,
     LayoutClass,
     SkipReason,
+    DEFAULT_FONTSIZE,
 )
 from phoena_translator.pdf.semantics.watermarks import _is_disclaimer_block
 from phoena_translator.pdf.text_shape import (
@@ -92,9 +93,9 @@ def _cross_page_dominant_fontsize(page_extractions) -> float:
             if not text:
                 continue
             weighted.append(
-                (_bucket_pdf_fontsize(elem.get("fontsize", 11.0)), len(text))
+                (_bucket_pdf_fontsize(elem.get("fontsize", DEFAULT_FONTSIZE)), len(text))
             )
-    return float(_pick_pdf_dominant_value(weighted, 11.0))
+    return float(_pick_pdf_dominant_value(weighted, DEFAULT_FONTSIZE))
 
 
 def _is_cross_page_body_elem(

@@ -16,6 +16,7 @@ from phoena_translator.pdf.text_shape import (
     _pdf_has_terminal_sentence_boundary,
     _pdf_text_colors_semantically_compatible,
 )
+from phoena_translator.pdf.model import DEFAULT_FONTSIZE
 
 
 def _pdf_same_baseline_geometry_compatible(first: dict, second: dict) -> bool:
@@ -30,8 +31,8 @@ def _pdf_same_baseline_geometry_compatible(first: dict, second: dict) -> bool:
     ):
         return False
 
-    first_size = max(float(first.get("fontsize", 11.0)), 1.0)
-    second_size = max(float(second.get("fontsize", 11.0)), 1.0)
+    first_size = max(float(first.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
+    second_size = max(float(second.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     if abs(first_size - second_size) > max(first_size * 0.08, 0.7):
         return False
     return _pdf_text_colors_semantically_compatible(
@@ -78,8 +79,8 @@ def _pdf_same_baseline_candidate_group(
         overlap_ratio = vertical_overlap / min(previous_height, current_height)
         gap = float(current["x0"]) - float(previous["x1"])
         fontsize = max(
-            float(previous.get("fontsize", 11.0)),
-            float(current.get("fontsize", 11.0)),
+            float(previous.get("fontsize", DEFAULT_FONTSIZE)),
+            float(current.get("fontsize", DEFAULT_FONTSIZE)),
             1.0,
         )
         if (
@@ -122,7 +123,7 @@ def _pdf_repeated_column_group_starts(line_infos: list[dict]) -> set[int]:
         first_y = min(float(line["y0"]) for line in first)
         second_y = min(float(line["y0"]) for line in second)
         fontsize = max(
-            float(line.get("fontsize", 11.0)) for line in (*first, *second)
+            float(line.get("fontsize", DEFAULT_FONTSIZE)) for line in (*first, *second)
         )
         if second_y <= first_y + 0.5 or second_y - first_y > max(
             fontsize * 2.2,
@@ -179,7 +180,7 @@ def _looks_like_pdf_bare_footnote_run_in_group(lines: list[dict]) -> bool:
     if len(lines) < 2:
         return False
     first = re.sub(r"\s+", " ", lines[0].get("plain", "")).strip()
-    fontsize = max(float(lines[0].get("fontsize", 11.0)), 1.0)
+    fontsize = max(float(lines[0].get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     return bool(
         re.fullmatch(r"\d{1,3}", first)
         and float(lines[0]["x1"]) - float(lines[0]["x0"])
@@ -308,7 +309,7 @@ def _normalize_pdf_same_baseline_prose_fragments(
         coverage = (float(group[-1]["x1"]) - float(group[0]["x0"])) / block_width
         left_gap = float(group[0]["x0"]) - float(block_rect.x0)
         right_gap = float(block_rect.x1) - float(group[-1]["x1"])
-        fontsize = max(float(line.get("fontsize", 11.0)) for line in group)
+        fontsize = max(float(line.get("fontsize", DEFAULT_FONTSIZE)) for line in group)
         enough_prose = (
             len(alpha_words) >= 6
             or (

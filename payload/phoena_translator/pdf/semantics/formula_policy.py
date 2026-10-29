@@ -15,6 +15,7 @@ from phoena_translator.pdf.model import (
     LayoutClass,
     PageExtraction,
     SkipReason,
+    DEFAULT_FONTSIZE,
 )
 from phoena_translator.pdf.semantics.cross_page import _cross_page_dominant_fontsize
 from phoena_translator.pdf.text_shape import (
@@ -204,7 +205,7 @@ def _preserve_pdf_formula_mid_sentence_neighbors(
                 continue
             line_height = max(
                 float(elem.get("line_height", 0.0) or 0.0),
-                float(elem.get("fontsize", 11.0) or 11.0) * 1.2,
+                float(elem.get("fontsize", DEFAULT_FONTSIZE) or 11.0) * 1.2,
                 8.0,
             )
             coupled = False

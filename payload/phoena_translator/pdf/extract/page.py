@@ -44,7 +44,7 @@ from phoena_translator.pdf.geometry import (
     _pdf_rotation_from_direction,
     _split_pdf_line_layout_cells,
 )
-from phoena_translator.pdf.model import ElementType, PdfElement
+from phoena_translator.pdf.model import DEFAULT_FONTSIZE, ElementType, PdfElement
 from phoena_translator.pdf.semantics.continuations import (
     _merge_pdf_detached_list_marker_elements,
     _merge_pdf_semantic_continuation_elements,
@@ -515,8 +515,8 @@ def _pdf_bold_run_in_wraps_into_mixed_line(
     ):
         return False
 
-    previous_size = max(float(previous.get("fontsize", 11.0)), 1.0)
-    transition_size = max(float(transition_line.get("fontsize", 11.0)), 1.0)
+    previous_size = max(float(previous.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
+    transition_size = max(float(transition_line.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     if abs(previous_size - transition_size) > max(previous_size * 0.08, 0.7):
         return False
 
@@ -547,12 +547,12 @@ def _split_pdf_heading_segments(group_lines: list[dict]) -> list[list[dict]]:
     dominant_size = float(_pick_pdf_dominant_value(
         [
             (
-                float(line.get("fontsize", 11.0)),
+                float(line.get("fontsize", DEFAULT_FONTSIZE)),
                 max(len(line.get("plain", "").strip()), 1),
             )
             for line in group_lines
         ],
-        11.0,
+        DEFAULT_FONTSIZE,
     ))
     segments = _split_pdf_disjoint_line_segments(group_lines, dominant_size)
     split_segments: list[list[dict]] = []

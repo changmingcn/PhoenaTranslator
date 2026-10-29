@@ -23,7 +23,14 @@ from phoena_translator.pdf.translate.placeholders import (
 )
 
 log = logging.getLogger("translator")
-from phoena_translator.pdf.model import ElementType, LayoutClass
+from phoena_translator.pdf.model import (
+    DEFAULT_FONTSIZE,
+    ElementType,
+    LayoutClass,
+    PARAGRAPH_MAX_MARGIN_SHARE,
+    PARAGRAPH_MAX_HANGING_SHARE,
+    indent_step_threshold,
+)
 from phoena_translator.pdf.semantics.grouping import (
     ParagraphIndent,
     build_merged_text_element,
@@ -282,13 +289,13 @@ def _make_pdf_reference_fragment_from_source_lines(
     rich = _join_pdf_line_fragments(
         [line.get("rich") or line.get("plain", "") for line in lines]
     )
-    fontsize = max(float(parent.get("fontsize", 11.0)), 1.0)
+    fontsize = max(float(parent.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     first_x0 = float(lines[0]["bbox"][0])
     body_x0 = min(
         (float(line["bbox"][0]) for line in lines[1:]),
         default=first_x0,
     )
-    hanging_indent = body_x0 - first_x0 >= max(fontsize * 0.50, 3.0)
+    hanging_indent = body_x0 - first_x0 >= indent_step_threshold(fontsize)
     if hanging_indent:
         margin_left = max(0.0, body_x0 - rect.x0)
         text_indent = first_x0 - body_x0
@@ -303,8 +310,8 @@ def _make_pdf_reference_fragment_from_source_lines(
             [float(value) for value in line["bbox"]] for line in lines
         ],
         "source_lines": lines,
-        "margin_left": min(margin_left, rect.width * 0.35),
-        "text_indent": max(-rect.width * 0.18, text_indent),
+        "margin_left": min(margin_left, rect.width * PARAGRAPH_MAX_MARGIN_SHARE),
+        "text_indent": max(-rect.width * PARAGRAPH_MAX_HANGING_SHARE, text_indent),
         "gap_before": 0.0,
         "text_align": "left",
         "nowrap": None,
@@ -470,8 +477,8 @@ def _pdf_reference_entry_elements_can_merge(
     first_rect = _get_pdf_primary_paragraph_rect(first)
     previous_rect = _get_pdf_primary_paragraph_rect(previous)
     current_rect = _get_pdf_primary_paragraph_rect(current)
-    fontsize = max(float(previous.get("fontsize", 11.0)), 1.0)
-    current_fontsize = max(float(current.get("fontsize", 11.0)), 1.0)
+    fontsize = max(float(previous.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
+    current_fontsize = max(float(current.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     if abs(fontsize - current_fontsize) > max(fontsize * 0.18, 1.1):
         return False
 
@@ -520,7 +527,7 @@ def _merge_pdf_reference_entry_elements(
         first_x0, body_x0 = first_and_body_x0(source_lines)
         style = dominant_group_style(group)
         fontsize = style["fontsize"]
-        if body_x0 - first_x0 >= max(fontsize * 0.50, 3.0):  # hanging indent
+        if body_x0 - first_x0 >= indent_step_threshold(fontsize):  # hanging indent
             margin_left = max(0.0, body_x0 - rect.x0)
             text_indent = first_x0 - body_x0
         else:
@@ -534,8 +541,8 @@ def _merge_pdf_reference_entry_elements(
             rich=rich,
             source_lines=source_lines,
             indent=ParagraphIndent(
-                margin_left=min(margin_left, rect.width * 0.35),
-                text_indent=max(-rect.width * 0.18, text_indent),
+                margin_left=min(margin_left, rect.width * PARAGRAPH_MAX_MARGIN_SHARE),
+                text_indent=max(-rect.width * PARAGRAPH_MAX_HANGING_SHARE, text_indent),
             ),
             toc_leader=None,
             render_fontsize=fontsize,

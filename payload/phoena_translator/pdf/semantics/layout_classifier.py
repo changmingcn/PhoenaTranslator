@@ -12,7 +12,7 @@ from phoena_translator.pdf.extract.paragraphs import (
     _pdf_element_prefers_single_line_heading,
 )
 from phoena_translator.pdf.geometry import _get_pdf_elem_rect
-from phoena_translator.pdf.model import ElementType, SkipReason
+from phoena_translator.pdf.model import DEFAULT_FONTSIZE, ElementType, SkipReason
 from phoena_translator.pdf.semantics.glossary import (
     _mark_pdf_glossary_term_elements,
     _normalize_pdf_glossary_cells,
@@ -39,10 +39,10 @@ def _classify_pdf_page_text_elements(elements: list[dict], page_rect: fitz.Rect)
     page_height = max(page_rect.height, 1.0)
     overall_fontsize = _pick_pdf_dominant_value(
         [
-            (_bucket_pdf_fontsize(elements[idx].get("fontsize", 11.0)), max(len(_plain_text(elements[idx].get("content", "")).strip()), 1))
+            (_bucket_pdf_fontsize(elements[idx].get("fontsize", DEFAULT_FONTSIZE)), max(len(_plain_text(elements[idx].get("content", "")).strip()), 1))
             for idx in text_indices
         ],
-        11.0,
+        DEFAULT_FONTSIZE,
     )
 
     for idx in text_indices:

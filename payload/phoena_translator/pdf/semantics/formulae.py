@@ -41,7 +41,7 @@ from phoena_translator.pdf.text_shape import (
 from phoena_translator.pdf.translate.inline_markup import _pdf_superscript_signature
 
 log = logging.getLogger("translator")
-from phoena_translator.pdf.model import ElementType, SkipReason
+from phoena_translator.pdf.model import DEFAULT_FONTSIZE, ElementType, SkipReason
 from phoena_translator.pdf.semantics.references import _translate_pdf_citation_labels
 from phoena_translator.pdf.text_shape import (
     _join_pdf_line_fragments,
@@ -207,7 +207,7 @@ def _split_pdf_formula_adjacent_paragraph_elements(
                 paragraph_rect,
                 page_rect,
                 [paragraph],
-                float(elem.get("fontsize", 11.0)),
+                float(elem.get("fontsize", DEFAULT_FONTSIZE)),
             )
             fragment["x"] = float(paragraph_rect.x0)
             fragment["y"] = float(paragraph_rect.y0)
@@ -371,8 +371,8 @@ def _pdf_wrapped_math_continuation_pair_can_merge(
 
     p_rect = _get_pdf_elem_rect(previous)
     f_rect = _get_pdf_elem_rect(current)
-    p_fontsize = max(float(previous.get("fontsize", 11.0)), 1.0)
-    f_fontsize = max(float(current.get("fontsize", 11.0)), 1.0)
+    p_fontsize = max(float(previous.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
+    f_fontsize = max(float(current.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     if f_fontsize > p_fontsize * 1.30 or f_fontsize < p_fontsize * 0.50:
         return False
 
@@ -530,7 +530,7 @@ def _merge_pdf_wrapped_math_continuation_pair(
             }
         ]
 
-    fontsize = float(previous.get("fontsize", 11.0))
+    fontsize = float(previous.get("fontsize", DEFAULT_FONTSIZE))
     merged = dict(previous)
     merged.update(
         {

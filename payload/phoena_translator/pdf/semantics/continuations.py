@@ -29,7 +29,15 @@ from phoena_translator.pdf.extract.superscripts import (
     _pdf_element_footnote_definition_marker,
     _pdf_source_line_footnote_definition_marker,
 )
-from phoena_translator.pdf.model import ElementType, LayoutClass
+from phoena_translator.pdf.model import (
+    DEFAULT_FONTSIZE,
+    ElementType,
+    LayoutClass,
+    PARAGRAPH_MAX_MARGIN_SHARE,
+    PARAGRAPH_MAX_HANGING_SHARE,
+    PARAGRAPH_MAX_FIRST_LINE_SHARE,
+    indent_step_threshold,
+)
 from phoena_translator.pdf.semantics.grouping import (
     ParagraphIndent,
     build_merged_text_element,
@@ -105,7 +113,7 @@ def _pdf_detached_list_marker_target_score(
     if first_line_rect.x0 <= marker_rect.x0:
         return None
 
-    fontsize = max(float(candidate.get("fontsize", 11.0)), 1.0)
+    fontsize = max(float(candidate.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     horizontal_gap = first_line_rect.x0 - marker_rect.x1
     if horizontal_gap < -max(fontsize * 0.35, 3.0):
         return None
@@ -226,10 +234,10 @@ def _merge_pdf_detached_list_marker_elements(
                 "source_lines": source_lines,
                 "margin_left": min(
                     max(body_x0 - merged_rect.x0, 0.0),
-                    merged_rect.width * 0.35,
+                    merged_rect.width * PARAGRAPH_MAX_MARGIN_SHARE,
                 ),
                 "text_indent": max(
-                    -merged_rect.width * 0.18,
+                    -merged_rect.width * PARAGRAPH_MAX_HANGING_SHARE,
                     float(marker_rect.x0) - body_x0,
                 ),
                 "gap_before": 0.0,
@@ -251,7 +259,7 @@ def _merge_pdf_detached_list_marker_elements(
                     merged_rect,
                     page_rect,
                     [paragraph],
-                    float(target.get("fontsize", 11.0)),
+                    float(target.get("fontsize", DEFAULT_FONTSIZE)),
                 ),
                 "content": merged_plain,
                 "rich_content": merged_rich
@@ -341,8 +349,8 @@ def _pdf_semantic_continuation_elements_can_merge(
     previous_rect = _get_pdf_primary_paragraph_rect(previous)
     current_rect = _get_pdf_primary_paragraph_rect(current)
     first_rect = _get_pdf_primary_paragraph_rect(first)
-    fontsize = max(float(previous.get("fontsize", 11.0)), 1.0)
-    current_fontsize = max(float(current.get("fontsize", 11.0)), 1.0)
+    fontsize = max(float(previous.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
+    current_fontsize = max(float(current.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     if abs(fontsize - current_fontsize) > max(fontsize * 0.10, 0.8):
         return False
     if bool(previous.get("bold")) != bool(current.get("bold")):
@@ -397,11 +405,11 @@ def _merge_pdf_semantic_continuation_elements(
             rich=rich,
             source_lines=source_lines,
             indent=ParagraphIndent(
-                margin_left=min(max(body_x0 - rect.x0, 0.0), rect.width * 0.35),
-                text_indent=max(-rect.width * 0.18, first_x0 - body_x0),
+                margin_left=min(max(body_x0 - rect.x0, 0.0), rect.width * PARAGRAPH_MAX_MARGIN_SHARE),
+                text_indent=max(-rect.width * PARAGRAPH_MAX_HANGING_SHARE, first_x0 - body_x0),
             ),
             toc_leader=_parse_pdf_toc_leader(plain),
-            render_fontsize=float(group[0].get("fontsize", 11.0)),
+            render_fontsize=float(group[0].get("fontsize", DEFAULT_FONTSIZE)),
         )
 
     merged_elements, _ = merge_groups(
@@ -457,8 +465,8 @@ def _pdf_wrapped_line_elements_can_merge(
 
     previous_rect = _get_pdf_elem_rect(previous)
     current_rect = _get_pdf_elem_rect(current)
-    previous_fontsize = max(float(previous.get("fontsize", 11.0)), 1.0)
-    current_fontsize = max(float(current.get("fontsize", 11.0)), 1.0)
+    previous_fontsize = max(float(previous.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
+    current_fontsize = max(float(current.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     if abs(previous_fontsize - current_fontsize) > max(previous_fontsize * 0.08, 0.7):
         return False
     if bool(previous.get("bold")) != bool(current.get("bold")):
@@ -532,7 +540,7 @@ def _merge_pdf_wrapped_line_group(group: list[dict], page_rect: fitz.Rect) -> di
     hanging_lead = _looks_like_pdf_paragraph_lead(line_infos[0]["plain"])
     if hanging_lead:
         margin_left = max(0.0, body_x0 - merged_rect.x0)
-        text_indent = max(-merged_rect.width * 0.18, first_x0 - body_x0)
+        text_indent = max(-merged_rect.width * PARAGRAPH_MAX_HANGING_SHARE, first_x0 - body_x0)
     else:
         margin_left = 0.0
         text_indent = max(0.0, first_x0 - body_x0)
@@ -563,8 +571,8 @@ def _merge_pdf_wrapped_line_group(group: list[dict], page_rect: fitz.Rect) -> di
             }
             for line in line_infos
         ],
-        "margin_left": min(margin_left, merged_rect.width * 0.35),
-        "text_indent": min(text_indent, merged_rect.width * 0.25),
+        "margin_left": min(margin_left, merged_rect.width * PARAGRAPH_MAX_MARGIN_SHARE),
+        "text_indent": min(text_indent, merged_rect.width * PARAGRAPH_MAX_FIRST_LINE_SHARE),
         "gap_before": 0.0,
         "text_align": "left",
         "nowrap": None,
@@ -583,7 +591,7 @@ def _merge_pdf_wrapped_line_group(group: list[dict], page_rect: fitz.Rect) -> di
         merged_rect,
         page_rect,
         [paragraph],
-        float(merged.get("fontsize", 11.0)),
+        float(merged.get("fontsize", DEFAULT_FONTSIZE)),
     )
     pitches = sorted(
         float(line_infos[pos + 1]["y0"]) - float(line_infos[pos]["y0"])
@@ -690,8 +698,8 @@ def _pdf_strong_continuation_elements_can_merge(
 
     previous_rect = _get_pdf_primary_paragraph_rect(previous)
     current_rect = _get_pdf_primary_paragraph_rect(current)
-    previous_fontsize = max(float(previous.get("fontsize", 11.0)), 1.0)
-    current_fontsize = max(float(current.get("fontsize", 11.0)), 1.0)
+    previous_fontsize = max(float(previous.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
+    current_fontsize = max(float(current.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     if abs(previous_fontsize - current_fontsize) > max(
         previous_fontsize * 0.15,
         1.0,
@@ -745,8 +753,8 @@ def _merge_pdf_strong_continuation_elements(
         first_x0, body_x0 = first_and_body_x0(source_lines)
         style = dominant_group_style(group)
         fontsize = style["fontsize"]
-        hanging_indent = body_x0 - first_x0 >= max(fontsize * 0.50, 3.0)
-        first_line_indent = first_x0 - body_x0 >= max(fontsize * 0.50, 3.0)
+        hanging_indent = body_x0 - first_x0 >= indent_step_threshold(fontsize)
+        first_line_indent = first_x0 - body_x0 >= indent_step_threshold(fontsize)
         if hanging_indent:
             margin_left = max(0.0, body_x0 - rect.x0)
             text_indent = first_x0 - body_x0
@@ -761,8 +769,8 @@ def _merge_pdf_strong_continuation_elements(
             rich=rich,
             source_lines=source_lines,
             indent=ParagraphIndent(
-                margin_left=min(margin_left, rect.width * 0.35),
-                text_indent=max(-rect.width * 0.18, min(text_indent, rect.width * 0.25)),
+                margin_left=min(margin_left, rect.width * PARAGRAPH_MAX_MARGIN_SHARE),
+                text_indent=max(-rect.width * PARAGRAPH_MAX_HANGING_SHARE, min(text_indent, rect.width * PARAGRAPH_MAX_FIRST_LINE_SHARE)),
                 first_line_indent=first_line_indent,
             ),
             toc_leader=_parse_pdf_toc_leader(plain),

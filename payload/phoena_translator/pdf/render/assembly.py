@@ -20,6 +20,7 @@ from phoena_translator.pdf.model import (
     PageExtraction,
     PdfAudit,
     SkipReason,
+    DEFAULT_FONTSIZE,
 )
 from phoena_translator.pdf.render.page_styles import _derive_pdf_page_layout_styles
 from phoena_translator.pdf.render.paragraph_html import (
@@ -333,7 +334,7 @@ def _prepare_page(
         render_style = _resolve_pdf_render_style(elem, layout_styles)
         bbox = elem.get("bbox", elem.get("rect"))
         render_rect = fitz.Rect(bbox) if isinstance(bbox, list) else fitz.Rect(bbox)
-        fontsize = float(render_style.get("fontsize", elem.get("fontsize", 11.0)))
+        fontsize = float(render_style.get("fontsize", elem.get("fontsize", DEFAULT_FONTSIZE)))
         if elem.get("non_horizontal"):
             if not _build_pdf_rotated_text_rects(
                 render_rect,
@@ -585,7 +586,7 @@ def _prepare_element_render(
     style = _resolve_pdf_render_style(element, page_plan.layout_styles)
     bbox = element.get("bbox", element.get("rect"))
     source_rect = fitz.Rect(bbox) if isinstance(bbox, list) else fitz.Rect(bbox)
-    fontsize = float(style.get("fontsize", element.get("fontsize", 11.0)))
+    fontsize = float(style.get("fontsize", element.get("fontsize", DEFAULT_FONTSIZE)))
     color_int = int(style.get("color", element.get("color", 0)))
     red, green, blue = (
         (color_int >> 16) & 0xFF,

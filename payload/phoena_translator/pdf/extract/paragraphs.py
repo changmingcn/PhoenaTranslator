@@ -18,7 +18,13 @@ from phoena_translator.pdf.geometry import (
     _get_pdf_elem_rect,
     _get_pdf_render_bbox,
 )
-from phoena_translator.pdf.model import ElementType
+from phoena_translator.pdf.model import (
+    DEFAULT_FONTSIZE,
+    ElementType,
+    PARAGRAPH_MAX_FIRST_LINE_SHARE,
+    PARAGRAPH_MAX_HANGING_SHARE,
+    PARAGRAPH_MAX_MARGIN_SHARE,
+)
 from phoena_translator.pdf.semantics.toc import _parse_pdf_toc_leader
 from phoena_translator.pdf.text_shape import (
     _collapsed_plain_text,
@@ -574,7 +580,7 @@ def _build_pdf_paragraphs(
         )
         if is_list_lead:
             margin_left = max(0.0, body_x0 - block_rect.x0)
-            text_indent = max(-block_rect.width * 0.18, first_x0 - body_x0)
+            text_indent = max(-block_rect.width * PARAGRAPH_MAX_HANGING_SHARE, first_x0 - body_x0)
         else:
             margin_left = max(0.0, min(body_x0, first_x0) - block_rect.x0)
             text_indent = max(0.0, first_x0 - body_x0)
@@ -635,9 +641,9 @@ def _build_pdf_paragraphs(
                     }
                     for line in lines
                 ],
-                "margin_left": min(margin_left, block_rect.width * 0.35),
+                "margin_left": min(margin_left, block_rect.width * PARAGRAPH_MAX_MARGIN_SHARE),
                 "text_indent": max(
-                    -block_rect.width * 0.18, min(text_indent, block_rect.width * 0.25)
+                    -block_rect.width * PARAGRAPH_MAX_HANGING_SHARE, min(text_indent, block_rect.width * PARAGRAPH_MAX_FIRST_LINE_SHARE)
                 ),
                 "gap_before": min(gap_before, avg_height * 2.0),
                 "text_align": text_align,
@@ -727,12 +733,12 @@ def _make_pdf_text_element_from_lines(
 
     font_weights = [
         (
-            float(line.get("fontsize", 11.0)),
+            float(line.get("fontsize", DEFAULT_FONTSIZE)),
             max(len((line.get("plain") or "").strip()), 1),
         )
         for line in line_infos
     ]
-    fontsize = float(_pick_pdf_dominant_value(font_weights, 11.0))
+    fontsize = float(_pick_pdf_dominant_value(font_weights, DEFAULT_FONTSIZE))
 
     paragraph_lines = [
         {
@@ -890,7 +896,7 @@ def _is_pdf_single_visual_line_element(elem: dict) -> bool:
     if not plain or "\n" in (elem.get("content") or ""):
         return False
     rect = _get_pdf_elem_rect(elem)
-    fontsize = max(float(elem.get("fontsize", 11.0)), 1.0)
+    fontsize = max(float(elem.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     line_height = max(float(elem.get("line_height", fontsize * 1.1)), 1.0)
     return rect.height <= max(fontsize * 1.85, line_height * 1.45, 22.0)
 
@@ -912,7 +918,7 @@ def _pdf_visual_line_info_from_element(elem: dict) -> dict:
         "x1": float(rect.x1),
         "y0": float(rect.y0),
         "y1": float(rect.y1),
-        "fontsize": float(elem.get("fontsize", 11.0)),
+        "fontsize": float(elem.get("fontsize", DEFAULT_FONTSIZE)),
         "line_height": float(elem.get("line_height", max(rect.height, 1.0))),
         "color": int(elem.get("color", 0)),
         "bold": bool(elem.get("bold")),
@@ -990,11 +996,11 @@ def _rebase_pdf_split_paragraph_layout(
 
     rebased["margin_left"] = min(
         margin_left,
-        max(paragraph_rect.width * 0.35, 0.0),
+        max(paragraph_rect.width * PARAGRAPH_MAX_MARGIN_SHARE, 0.0),
     )
     rebased["text_indent"] = max(
-        -paragraph_rect.width * 0.18,
-        min(text_indent, paragraph_rect.width * 0.25),
+        -paragraph_rect.width * PARAGRAPH_MAX_HANGING_SHARE,
+        min(text_indent, paragraph_rect.width * PARAGRAPH_MAX_FIRST_LINE_SHARE),
     )
     return rebased
 
@@ -1102,7 +1108,7 @@ def _split_pdf_text_elements_into_semantic_fragments(
                         rect,
                         page_rect,
                         [paragraph_copy],
-                        float(elem.get("fontsize", 11.0)),
+                        float(elem.get("fontsize", DEFAULT_FONTSIZE)),
                     ),
                     "content": plain,
                     "rich_content": rich if rich != plain or superscript_runs else None,
@@ -1146,10 +1152,10 @@ def _normalize_pdf_drop_cap_lines(
             for line in normalized[1:]
             if (line.get("plain") or "").strip()
         ],
-        float(first_drop_cap.get("body_size", normalized[0].get("fontsize", 11.0))),
+        float(first_drop_cap.get("body_size", normalized[0].get("fontsize", DEFAULT_FONTSIZE))),
     )
     body_fontsize = max(
-        float(body_fontsize or normalized[0].get("fontsize", 11.0)), 6.0
+        float(body_fontsize or normalized[0].get("fontsize", DEFAULT_FONTSIZE)), 6.0
     )
 
     first = normalized[0]
@@ -1211,7 +1217,7 @@ def _pdf_element_prefers_single_line_heading(elem: dict, page_rect: fitz.Rect) -
         return False
 
     rect = _get_pdf_elem_rect(elem)
-    fontsize = max(float(elem.get("fontsize", 11.0)), 1.0)
+    fontsize = max(float(elem.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     if rect.height > max(fontsize * 1.9, 24.0):
         return False
     if rect.width > max(page_rect.width * 0.78, fontsize * 42.0):
@@ -1249,7 +1255,7 @@ def _merge_adjacent_heading_elements(elements: list[dict]) -> list[dict]:
             and len(_plain_text(prev.get("content", ""))) <= 200
             and len(_plain_text(elem.get("content", ""))) <= 200
             and abs(
-                float(prev.get("fontsize", 11.0)) - float(elem.get("fontsize", 11.0))
+                float(prev.get("fontsize", DEFAULT_FONTSIZE)) - float(elem.get("fontsize", DEFAULT_FONTSIZE))
             )
             <= 0.6
             and not _ends_with_sentence_boundary(prev.get("content", ""))
@@ -1257,7 +1263,7 @@ def _merge_adjacent_heading_elements(elements: list[dict]) -> list[dict]:
             prev_rect = fitz.Rect(prev["bbox"])
             cur_rect = fitz.Rect(elem["bbox"])
             gap = cur_rect.y0 - prev_rect.y1
-            fontsize = float(prev.get("fontsize", 11.0))
+            fontsize = float(prev.get("fontsize", DEFAULT_FONTSIZE))
             x_overlap = min(prev_rect.x1, cur_rect.x1) - max(prev_rect.x0, cur_rect.x0)
             if -fontsize * 0.6 <= gap <= fontsize * 1.6 and x_overlap > 10.0:
                 union = prev_rect | cur_rect
