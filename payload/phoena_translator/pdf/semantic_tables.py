@@ -864,6 +864,20 @@ def _prepare_pdf_glossary_column_geometry(
     return changed
 
 
+_PDF_GLOSSARY_TERM_HEADERS = frozenset(
+    {"term", "key term", "key terms", "glossary term", "glossary terms"}
+)
+
+
+def _is_pdf_glossary_term_header(cell: str) -> bool:
+    """``cell`` is casefolded, whitespace-collapsed plain text."""
+    return cell in _PDF_GLOSSARY_TERM_HEADERS
+
+
+def _is_pdf_glossary_meaning_header(cell: str) -> bool:
+    return cell in {"meaning", "definition"} or cell.startswith("meaning in ")
+
+
 def _normalize_pdf_glossary_cells(
     elements: list[dict],
     page_rect: fitz.Rect,
@@ -888,14 +902,10 @@ def _normalize_pdf_glossary_cells(
         for index in text_indices
     }
     term_headers = [
-        index
-        for index, text in normalized.items()
-        if text in {"term", "key term", "key terms", "glossary term", "glossary terms"}
+        index for index, text in normalized.items() if _is_pdf_glossary_term_header(text)
     ]
     meaning_headers = [
-        index
-        for index, text in normalized.items()
-        if text in {"meaning", "definition"} or text.startswith("meaning in ")
+        index for index, text in normalized.items() if _is_pdf_glossary_meaning_header(text)
     ]
     if not term_headers or not meaning_headers:
         return False
@@ -1010,16 +1020,7 @@ def _normalize_pdf_glossary_cells(
         return False
     elements[left_header_index]["glossary_cell_hint"] = True
     elements[right_header_index]["glossary_cell_hint"] = True
-    normalized_elements = []
-    for index, element in enumerate(elements):
-        if index in removed_indices:
-            continue
-        normalized_elements.append(replacements.get(index, element))
-    normalized_elements.sort(
-        key=lambda element: (
-            float(element.get("y", _get_pdf_elem_rect(element).y0)),
-            float(element.get("x", _get_pdf_elem_rect(element).x0)),
-        )
+    elements[:] = _apply_pdf_semantic_table_replacements(
+        elements, replacements, removed_indices
     )
-    elements[:] = normalized_elements
     return True

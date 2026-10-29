@@ -95,6 +95,7 @@ from phoena_translator.pdf.model import (
     PdfElement,
     SkipReason,
 )
+from phoena_translator.pdf.semantic_tables import _is_pdf_glossary_meaning_header, _is_pdf_glossary_term_header
 
 log = logging.getLogger("translator")
 
@@ -127,25 +128,14 @@ def _mark_pdf_glossary_term_elements(
         for index in text_indices
     }
     normalized_cells = set(normalized_by_index.values())
-    has_term_header = bool(
-        normalized_cells
-        & {"term", "key term", "key terms", "glossary term", "glossary terms"}
-    )
-    has_meaning_header = any(
-        cell in {"meaning", "definition"}
-        or cell.startswith("meaning in ")
-        for cell in normalized_cells
-    )
+    has_term_header = any(map(_is_pdf_glossary_term_header, normalized_cells))
+    has_meaning_header = any(map(_is_pdf_glossary_meaning_header, normalized_cells))
     if not (has_term_header and has_meaning_header):
         return set()
     header_indices = [
         index
         for index, cell in normalized_by_index.items()
-        if cell in {
-            "term", "key term", "key terms", "glossary term", "glossary terms",
-            "meaning", "definition",
-        }
-        or cell.startswith("meaning in ")
+        if _is_pdf_glossary_term_header(cell) or _is_pdf_glossary_meaning_header(cell)
     ]
     glossary_header_bottom = max(
         (_get_pdf_elem_rect(elements[index]).y1 for index in header_indices),
