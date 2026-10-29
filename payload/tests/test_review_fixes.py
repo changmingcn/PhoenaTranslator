@@ -14,56 +14,15 @@ import pytest
 from phoena_translator.api_runtime import is_rate_limit_error, strip_think_tags
 from phoena_translator.config import AppConfig, get_app_config
 from phoena_translator.epub.pipeline import (
-    CHUNK_FAILURE_API,
-    CHUNK_FAILURE_INTEGRITY,
     EPUBPipeline,
     EPUBPipelineDependencies,
-    translate_single_chunk,
 )
-from phoena_translator.epub.xhtml import is_appendix_xhtml
 from phoena_translator.glossary import build_glossary_text
 from phoena_translator.llm import DeepSeekTranslationAdapter, LLMSettings
 from phoena_translator.logging_setup import configure_logging
 from phoena_translator.workers import TaskJob, TaskWorkerPool
 
 log = logging.getLogger("test")
-
-
-# ---------------------------------------------------------------------------
-# B1/B2 — EPUB skip-section detection must not fire on substrings
-# ---------------------------------------------------------------------------
-
-
-class TestAppendixDetection:
-    def test_calibre_split_content_is_translated(self):
-        assert not is_appendix_xhtml(
-            "OEBPS/index_split_003.xhtml", "<p>Chapter body text of the book.</p>"
-        )
-
-    def test_bare_index_filename_alone_is_translated(self):
-        assert not is_appendix_xhtml(
-            "OEBPS/index.xhtml", "<p>Main landing content.</p>"
-        )
-
-    def test_heading_mentioning_keyword_is_translated(self):
-        assert not is_appendix_xhtml(
-            "OEBPS/ch06.xhtml", "<h2>Cross-references in law</h2><p>x</p>"
-        )
-        assert not is_appendix_xhtml(
-            "OEBPS/ch07.xhtml", "<h1>European index futures</h1><p>x</p>"
-        )
-
-    def test_real_bibliography_filename_is_skipped(self):
-        assert is_appendix_xhtml("OEBPS/bibliography.xhtml", "<p>[1] Smith</p>")
-        assert is_appendix_xhtml("OEBPS/05_references.xhtml", "<p>[1] Smith</p>")
-
-    def test_real_index_heading_is_skipped(self):
-        assert is_appendix_xhtml(
-            "OEBPS/backmatter2.xhtml", "<head><title>Index</title></head><p>A, 1</p>"
-        )
-        assert is_appendix_xhtml(
-            "OEBPS/backmatter3.xhtml", "<h1>References and Further Reading</h1>"
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -106,51 +65,13 @@ def test_openai_client_created_without_sdk_retries():
 
 
 # ---------------------------------------------------------------------------
-# B5 — legacy chunk API remains compatible; the pipeline rejects bad segments
+# B5 — the pipeline rejects bad segments
 # ---------------------------------------------------------------------------
 
 _SOURCE_CHUNK = (
     "<html><body><p>This is a long enough paragraph of English prose that "
     "clearly needs translation to Chinese.</p></body></html>"
 )
-
-
-def test_integrity_failure_reported_as_retryable():
-    def fake_translate(text, system_prompt=None, **kwargs):
-        return "标签全部丢失的输出"
-
-    rel, idx, result, kind = translate_single_chunk(
-        "t", "f.xhtml", 0, 1, _SOURCE_CHUNK, "PROMPT",
-        translate_text=fake_translate, logger=log,
-    )
-    assert result is None
-    assert kind == CHUNK_FAILURE_INTEGRITY
-
-
-def test_strict_retry_appends_marker_hint():
-    prompts: list[str] = []
-
-    def fake_translate(text, system_prompt=None, **kwargs):
-        prompts.append(system_prompt or "")
-        return "标签全部丢失的输出"
-
-    translate_single_chunk(
-        "t", "f.xhtml", 0, 1, _SOURCE_CHUNK, "PROMPT",
-        translate_text=fake_translate, logger=log, strict_retry=True,
-    )
-    assert "占位符" in prompts[-1] and prompts[-1].startswith("PROMPT")
-
-
-def test_api_exception_reported_as_api_failure():
-    def fake_translate(text, system_prompt=None, **kwargs):
-        raise RuntimeError("provider down")
-
-    _rel, _idx, result, kind = translate_single_chunk(
-        "t", "f.xhtml", 0, 1, _SOURCE_CHUNK, "PROMPT",
-        translate_text=fake_translate, logger=log,
-    )
-    assert result is None
-    assert kind == CHUNK_FAILURE_API
 
 
 def test_pipeline_fails_without_source_fallback_after_bounded_retries(tmp_path):
@@ -172,7 +93,6 @@ def test_pipeline_fails_without_source_fallback_after_bounded_retries(tmp_path):
         save_progress=lambda task_id, data: None,
         load_task=lambda task_id: {},
         logger=log,
-        system_prompt_xhtml="SYS",
         workers=1,
         api_concurrency=1,
         max_chunk_rounds=4,
@@ -207,7 +127,6 @@ def test_pipeline_rejects_non_utf8_member_before_translation(tmp_path):
         save_progress=lambda task_id, data: None,
         load_task=lambda task_id: {},
         logger=log,
-        system_prompt_xhtml="SYS",
         workers=1,
         api_concurrency=1,
         sleep=lambda seconds: None,
@@ -566,8 +485,12 @@ def _orphan_tail_fixture():
 class TestCrossPageOrphanTail:
     def test_fragment_detection(self):
         from phoena_translator.pdf.semantic_cross_page import (
-            _cross_page_orphan_tail_fragment,
+            _cross_page_whole_fragment_tail,
         )
+
+        def _cross_page_orphan_tail_fragment(elem):
+            fragment = _cross_page_whole_fragment_tail(elem)
+            return fragment[0] if fragment else None
 
         _pages, _source, orphan, body = _orphan_tail_fixture()
         assert _cross_page_orphan_tail_fragment(orphan) == "traders."
@@ -579,12 +502,12 @@ class TestCrossPageOrphanTail:
 
     def test_absorption_moves_tail_and_merges_orphan_away(self):
         from phoena_translator.pdf.semantic_cross_page import (
-            _absorb_cross_page_orphan_tails,
+            _merge_cross_page_sentences,
         )
 
         pages, source, orphan, _body = _orphan_tail_fixture()
         audit_log: list = []
-        absorbed = _absorb_cross_page_orphan_tails(
+        absorbed = _merge_cross_page_sentences(
             pages, 2, _page_rects_letter(), audit_log=audit_log
         )
         assert absorbed == 1
@@ -599,25 +522,25 @@ class TestCrossPageOrphanTail:
 
     def test_absorption_skips_when_source_sentence_complete(self):
         from phoena_translator.pdf.semantic_cross_page import (
-            _absorb_cross_page_orphan_tails,
+            _merge_cross_page_sentences,
         )
 
         pages, source, orphan, _body = _orphan_tail_fixture()
         source["content"] = source["content"] + " traders."
         source["paragraphs"][0]["plain"] += " traders."
-        absorbed = _absorb_cross_page_orphan_tails(pages, 2, _page_rects_letter())
+        absorbed = _merge_cross_page_sentences(pages, 2, _page_rects_letter())
         assert absorbed == 0
         assert orphan["type"] == "text"
 
     def test_audit_validator_accepts_and_rejects(self):
         from phoena_translator.pdf.audit import _validate_pdf_merge_audit
         from phoena_translator.pdf.semantic_cross_page import (
-            _absorb_cross_page_orphan_tails,
+            _merge_cross_page_sentences,
         )
 
         pages, source, _orphan, _body = _orphan_tail_fixture()
         audit_log: list = []
-        _absorb_cross_page_orphan_tails(
+        _merge_cross_page_sentences(
             pages, 2, _page_rects_letter(), audit_log=audit_log
         )
         assert _validate_pdf_merge_audit(audit_log, pages) == []
@@ -1525,14 +1448,14 @@ class TestCrossPageCapitalizedNameBreak:
         )
 
         assert _cross_page_tail_start_acceptable(
-            "Traders.", source_dangling=True, source_ends_capitalized=True
+            "Traders.", source_dangling=True
         )
         assert _cross_page_tail_start_acceptable(
-            "Traders.", source_dangling=True, source_ends_capitalized=False
+            "Traders.", source_dangling=True
         )
         # Non-body captions are rejected before this lexical OR helper.
         assert _cross_page_tail_start_acceptable(
-            "Table VII.", source_dangling=True, source_ends_capitalized=True
+            "Table VII.", source_dangling=True
         )
 
 
@@ -3561,7 +3484,6 @@ def test_continuation_decision_is_frozen_and_string_compatible():
         ContinuationDecision,
         SourceContinuationEvidence,
         _cross_page_continuation_decision,
-        _cross_page_source_continuation_reason,
     )
 
     complete = _cross_page_continuation_decision("Demand remained stable.")
@@ -3585,9 +3507,9 @@ def test_continuation_decision_is_frozen_and_string_compatible():
     assert dangling.evidence is SourceContinuationEvidence.DANGLING
     assert dangling.source_dangling is True
     assert footnoted.evidence is SourceContinuationEvidence.COMPLETE
-    assert _cross_page_source_continuation_reason(
+    assert _cross_page_continuation_decision(
         "The findings agree with Smith et al."
-    ) == "ambiguous-terminal-abbreviation"
+    ).audit_value == "ambiguous-terminal-abbreviation"
     with pytest.raises(TypeError, match="SourceContinuationEvidence"):
         ContinuationDecision("complete")
     with pytest.raises(FrozenInstanceError):
@@ -3696,7 +3618,6 @@ def test_pipeline_dependencies_preserve_legacy_bool_constructor():
         load_progress=no_op,
         save_progress=no_op,
         translate_text=no_op,
-        retry_translate_pdf=no_op,
         trim_process_memory=no_op,
         extract_page_elements=no_op,
         filter_formula_safe_rects=no_op,
@@ -4743,7 +4664,6 @@ class TestRotatedPageCoordinateSpace:
         return doc, page
 
     def test_extraction_rect_is_a_noop_without_rotation(self):
-        import fitz
 
         from phoena_translator.pdf.geometry import _pdf_page_extraction_rect
 

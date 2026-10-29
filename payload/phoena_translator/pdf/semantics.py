@@ -104,18 +104,12 @@ from phoena_translator.pdf.semantic_continuations import (
     _pdf_internal_paragraph_lead_residuals,
 )
 from phoena_translator.pdf.semantic_cross_page import (
-    _split_trailing_fragment_for_merge,
     _looks_like_right_aligned_signoff,
     _cross_page_dominant_fontsize,
     _is_cross_page_body_elem,
-    _is_cross_page_heading_elem,
     _carry_fragment_is_prose,
     _first_cross_page_lexical_char,
-    _cross_page_geometry_rejection,
-    _cross_page_element_rejection,
     _merge_cross_page_sentences,
-    _absorb_cross_page_orphan_tails,
-    _cross_page_orphan_tail_fragment,
 )
 
 __all__ = (
@@ -208,16 +202,10 @@ __all__ = (
     "_merge_pdf_wrapped_math_continuation_pair",
     "_merge_pdf_wrapped_inline_math_continuation_fragments",
     "_promote_pdf_formula_overlaps",
-    "_split_trailing_fragment_for_merge",
     "_looks_like_right_aligned_signoff",
     "_cross_page_dominant_fontsize",
     "_is_cross_page_body_elem",
-    "_is_cross_page_heading_elem",
     "_carry_fragment_is_prose",
     "_first_cross_page_lexical_char",
-    "_cross_page_geometry_rejection",
-    "_cross_page_element_rejection",
     "_merge_cross_page_sentences",
-    "_absorb_cross_page_orphan_tails",
-    "_cross_page_orphan_tail_fragment",
 )

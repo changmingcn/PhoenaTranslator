@@ -44,7 +44,6 @@ from phoena_translator.pdf.semantic_cross_page import (
     _cross_page_destination_start_rejection,
     _cross_page_dominant_fontsize,
     _cross_page_tail_start_acceptable,
-    _first_cross_page_lexical_char,
     _is_cross_page_non_body_context,
     _strip_trailing_footnote_marker,
 )
@@ -830,7 +829,6 @@ def _validate_pdf_orphan_tail_decision(
         or not _cross_page_tail_start_acceptable(
             tail,
             source_dangling=True,
-            source_ends_capitalized=True,
         )
     ):
         return "orphan-tail-malformed"
@@ -938,14 +936,9 @@ def _validate_pdf_orphan_tail_decision(
     ):
         return "orphan-tail-source-evidence"
     source_dangling = continuation_decision.source_dangling
-    source_words = re.findall(r"[A-Za-z][A-Za-z'’-]*", source_original)
-    source_ends_capitalized = bool(
-        source_dangling and source_words and source_words[-1][:1].isupper()
-    )
     if not _cross_page_tail_start_acceptable(
         tail,
         source_dangling=source_dangling,
-        source_ends_capitalized=source_ends_capitalized,
     ):
         return "orphan-tail-start-policy"
     destination_original = _normalized_audit_text(

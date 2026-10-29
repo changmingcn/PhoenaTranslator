@@ -19,7 +19,6 @@ from phoena_translator.api_runtime import (
     CompletionDependencies,
     create_chat_completion,
 )
-from phoena_translator.epub.pipeline import translate_single_chunk
 from phoena_translator.llm import DeepSeekTranslationAdapter, LLMSettings
 from phoena_translator.pdf.context import PDFPageTranslationContext
 from phoena_translator.pdf.page_translation import (
@@ -36,14 +35,12 @@ from phoena_translator.prompts import (
     PROMPT_RULE_BLOCKS,
     SWAP_GLOSSARY,
     SYSTEM_PROMPT_TEXT,
-    SYSTEM_PROMPT_XHTML,
 )
 
 log = logging.getLogger("test")
 
 # sha256 of the 2026.08.31 / 2026.10.11 base prompts (git e8b6317).
 LEGACY_TEXT_SHA256 = "03f7e7bd0d652a312628e571aa9bbe7921eb66d828c770bf2bb7592470760881"
-LEGACY_XHTML_SHA256 = "9132cf80dcac0dbc8ae4c9df414ce18b0d5974569505949872e0281d5f869335"
 # The only legacy text removed: it licensed exactly the glosses being banned.
 REMOVED_GLOSS_CLAUSE = "，可在首次出现时括号注释中文"
 SWAP_TEXT = "Swap spreads widened as Treasuries cheapened to swaps."
@@ -96,7 +93,6 @@ def test_swap_glossary_content():
     "prompt,legacy_sha,anchor",
     [
         (SYSTEM_PROMPT_TEXT, LEGACY_TEXT_SHA256, "保留英文原文；但首字母大写"),
-        (SYSTEM_PROMPT_XHTML, LEGACY_XHTML_SHA256, "保留英文原文\n5."),
     ],
 )
 def test_base_prompt_is_legacy_minus_gloss_clause_plus_rule_blocks(
@@ -150,14 +146,12 @@ def test_application_facade_and_wiring_use_rule_prompts(monkeypatch):
     application.translate_text(SWAP_TEXT)
     assert len(systems) == 1 and _has_rules(systems[0])
     assert application.SYSTEM_PROMPT_TEXT is SYSTEM_PROMPT_TEXT
-    assert application.SYSTEM_PROMPT_XHTML is SYSTEM_PROMPT_XHTML
     glossary_prompt = application._make_prompt_with_glossary(
         SYSTEM_PROMPT_TEXT, "SOFR → SOFR"
     )
     assert glossary_prompt.startswith(SYSTEM_PROMPT_TEXT)
     source = inspect.getsource(application)
     assert source.count("system_prompt_text=SYSTEM_PROMPT_TEXT") >= 2
-    assert "system_prompt_xhtml=SYSTEM_PROMPT_XHTML" in source
 
 
 def _page_context(systems: list[str], reply: str) -> PDFPageTranslationContext:
@@ -197,22 +191,6 @@ def test_pdf_element_one_and_strict_retry_prompts_carry_rules():
     assert len(systems) >= 2
     assert all(_has_rules(system) for system in systems)
     assert systems[0].endswith("HINT")
-
-
-@pytest.mark.parametrize("strict", [False, True])
-def test_epub_chunk_prompts_carry_rules(strict):
-    systems: list[str] = []
-
-    def translate(text, system_prompt=None, **_):
-        systems.append(system_prompt)
-        return "<p>互换利差</p>"
-
-    xhtml_prompt = application._make_prompt_with_glossary(SYSTEM_PROMPT_XHTML, "")
-    translate_single_chunk(
-        "t", "f.xhtml", 0, 1, "<html><body><p>Swap spreads.</p></body></html>",
-        xhtml_prompt, translate_text=translate, logger=log, strict_retry=strict,
-    )
-    assert systems and all(_has_rules(system) for system in systems)
 
 
 # ---------------------------------------------------------------------------

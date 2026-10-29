@@ -362,14 +362,6 @@ def _find_pdf_table_regions(page) -> list[dict]:
     return regions
 
 
-def _find_pdf_table_rects(page) -> list[fitz.Rect]:
-    """Compatibility wrapper for callers that only need table bounds."""
-    return [
-        fitz.Rect(region["rect"])
-        for region in _find_pdf_table_regions(page)
-    ]
-
-
 def _looks_like_pdf_hidden_text_artifact_span(
     span: dict,
     page_rect: fitz.Rect,

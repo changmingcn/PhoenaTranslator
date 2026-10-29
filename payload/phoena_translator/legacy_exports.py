@@ -4,26 +4,14 @@ from __future__ import annotations
 
 from phoena_translator.epub.archive import ArchiveLimits  # noqa: F401 - legacy facade
 from phoena_translator.epub.math_protection import (
-    XHTML_MATH_PLACEHOLDER_RE,  # noqa: F401 - legacy facade
     find_xhtml_math_intervals as _find_xhtml_math_intervals,  # noqa: F401 - legacy facade
-    looks_like_latex_dollar_content as _looks_like_latex_dollar_content,  # noqa: F401 - legacy facade
-    protect_xhtml_math_fragments as _protect_xhtml_math_fragments,  # noqa: F401 - legacy facade
-    restore_xhtml_math_fragments as _restore_xhtml_math_fragments,  # noqa: F401 - legacy facade
 )
 from phoena_translator.epub.pipeline import (
     EPUBPipeline,  # noqa: F401 - legacy facade
     EPUBPipelineDependencies,  # noqa: F401 - legacy facade
-    translate_single_chunk as _translate_epub_single_chunk,  # noqa: F401 - legacy facade
 )
 from phoena_translator.epub.xhtml import (
     DEFAULT_CHUNK_MAX_BYTES as CHUNK_MAX_BYTES,  # noqa: F401 - legacy facade
-    SKIP_SECTION_PATTERNS,  # noqa: F401 - legacy facade
-    fix_xhtml_entities as _fix_xhtml_entities,  # noqa: F401 - legacy facade
-    fix_xhtml_tags as _fix_xhtml_tags,  # noqa: F401 - legacy facade
-    is_appendix_xhtml as _is_appendix_xhtml,  # noqa: F401 - legacy facade
-    merge_translated_chunks as _merge_translated_chunks,  # noqa: F401 - legacy facade
-    split_raw as _split_raw,  # noqa: F401 - legacy facade
-    split_xhtml_to_chunks as _split_xhtml_to_chunks,  # noqa: F401 - legacy facade
     visible_text_ranges as _xhtml_visible_text_ranges,  # noqa: F401 - legacy facade
 )
 from phoena_translator.math_text import (
@@ -110,7 +98,6 @@ from phoena_translator.pdf.math_detection import (
     _mark_pdf_superscript_spans,  # noqa: F401 - legacy facade
     _normalize_pdf_font_name,  # noqa: F401 - legacy facade
     _normalize_pdf_translation,  # noqa: F401 - legacy facade
-    _pdf_element_leading_superscript_footnote_marker,  # noqa: F401 - legacy facade
     _pdf_exact_source_native_superscript_matches,  # noqa: F401 - legacy facade
     _pdf_formula_region_signature,  # noqa: F401 - legacy facade
     _pdf_inline_markup_preserved,  # noqa: F401 - legacy facade
@@ -140,7 +127,6 @@ from phoena_translator.pdf.math_detection import (
 )
 from phoena_translator.pdf.extraction import (
     _extract_pdf_vector_ocr_elements,  # noqa: F401 - legacy facade
-    _find_pdf_table_rects,  # noqa: F401 - legacy facade
     _find_pdf_table_regions,  # noqa: F401 - legacy facade
     _has_compact_open_pdf_table_rules,  # noqa: F401 - legacy facade
     _is_compact_open_pdf_table,  # noqa: F401 - legacy facade
@@ -171,14 +157,11 @@ from phoena_translator.pdf.semantics import (
     _color_int_to_rgb,  # noqa: F401 - legacy facade
     _complete_pdf_citation_separator_inline_math_fragments,  # noqa: F401 - legacy facade
     _cross_page_dominant_fontsize,  # noqa: F401 - legacy facade
-    _cross_page_element_rejection,  # noqa: F401 - legacy facade
-    _cross_page_geometry_rejection,  # noqa: F401 - legacy facade
     _derive_pdf_page_layout_styles,  # noqa: F401 - legacy facade
     _detect_pdf_drop_cap_span,  # noqa: F401 - legacy facade
     _ends_with_sentence_boundary,  # noqa: F401 - legacy facade
     _first_cross_page_lexical_char,  # noqa: F401 - legacy facade
     _is_cross_page_body_elem,  # noqa: F401 - legacy facade
-    _is_cross_page_heading_elem,  # noqa: F401 - legacy facade
     _is_disclaimer_block,  # noqa: F401 - legacy facade
     _is_heading_like_elem,  # noqa: F401 - legacy facade
     _is_new_pdf_paragraph,  # noqa: F401 - legacy facade
@@ -250,7 +233,6 @@ from phoena_translator.pdf.semantics import (
     _split_pdf_formula_adjacent_paragraph_elements,  # noqa: F401 - legacy facade
     _split_pdf_reference_entry_elements,  # noqa: F401 - legacy facade
     _split_pdf_text_elements_into_semantic_fragments,  # noqa: F401 - legacy facade
-    _split_trailing_fragment_for_merge,  # noqa: F401 - legacy facade
     _strip_pdf_toc_label,  # noqa: F401 - legacy facade
     _translate_pdf_citation_labels,  # noqa: F401 - legacy facade
 )
@@ -332,7 +314,6 @@ from phoena_translator.pdf.cache import (
     _load_pdf_cached_page_indices,  # noqa: F401 - legacy facade
     _load_pdf_layout_cache,  # noqa: F401 - legacy facade
     _load_pdf_page_translation_cache,  # noqa: F401 - legacy facade
-    _migrate_pdf_page_translation_cache_by_identity,  # noqa: F401 - legacy facade
     _pdf_audit_path,  # noqa: F401 - legacy facade
     _pdf_cache_element_identity,  # noqa: F401 - legacy facade
     _pdf_layout_cache_path,  # noqa: F401 - legacy facade

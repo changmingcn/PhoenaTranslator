@@ -13,7 +13,6 @@ from phoena_translator.api_runtime import (
     APIRuntimeState,
     APIUsagePrices,
     CompletionDependencies,
-    completion_usage_record as _completion_usage_record_impl,
     create_chat_completion as _create_chat_completion_impl,
     extract_retry_delay as _extract_retry_delay_impl,
     extract_status_code as _extract_status_code,  # noqa: F401 - legacy API
@@ -29,11 +28,7 @@ from phoena_translator.api_runtime import (
 )
 from phoena_translator.config import AppConfig, get_app_config
 from phoena_translator.epub.archive import ArchiveLimits
-from phoena_translator.epub.pipeline import (
-    EPUBPipeline,
-    EPUBPipelineDependencies,
-    translate_single_chunk as _translate_epub_single_chunk,
-)
+from phoena_translator.epub.pipeline import EPUBPipeline, EPUBPipelineDependencies
 from phoena_translator.epub.xhtml import DEFAULT_CHUNK_MAX_BYTES as CHUNK_MAX_BYTES
 from phoena_translator.glossary import build_glossary_text, load_explicit_glossary
 from phoena_translator.llm import (
@@ -66,7 +61,7 @@ from phoena_translator.pdf.translation import (
     PDFTranslationDependencies,
     translate_text as _translate_text_impl,
 )
-from phoena_translator.prompts import SYSTEM_PROMPT_TEXT, SYSTEM_PROMPT_XHTML
+from phoena_translator.prompts import SYSTEM_PROMPT_TEXT
 from phoena_translator.task_store import TaskStore
 from phoena_translator.task_runtime import (
     TaskPersistenceDependencies,
@@ -249,14 +244,6 @@ def _current_api_prices() -> APIUsagePrices:
     )
 
 
-def _completion_usage_record(resp, model: str) -> dict | None:
-    return _completion_usage_record_impl(
-        resp,
-        model,
-        _current_api_prices(),
-    )
-
-
 def _api_usage_log_path() -> str:
     return str(Path(PROGRESS_DIR) / "deepseek_usage.jsonl")
 
@@ -410,17 +397,6 @@ def resume_interrupted_tasks() -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# EPUB helpers
-# ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
-# EPUB chunking helpers
-# ---------------------------------------------------------------------------
-
-# Max bytes per chunk sent to API (~20KB; 40KB still causes frequent timeouts on large chapters)
-
 # Number of per-document translation worker threads used to prepare and dispatch
 # page/chunk work. Actual DeepSeek request concurrency is capped separately.
 TRANSLATION_WORKERS = APP_CONFIG.translation_workers
@@ -503,22 +479,6 @@ def enqueue_translation_task(
 # ---------------------------------------------------------------------------
 
 
-def _translate_single_chunk(
-    task_id, rel, chunk_idx, total_chunks, chunk_text, xhtml_prompt
-):
-    """Compatibility facade over the dependency-injected EPUB chunk translator."""
-    return _translate_epub_single_chunk(
-        task_id,
-        rel,
-        chunk_idx,
-        total_chunks,
-        chunk_text,
-        xhtml_prompt,
-        translate_text=translate_text,
-        logger=log,
-    )
-
-
 def _translate_epub_payload(text: str, system_prompt: str) -> str:
     """Let the EPUB segment validator own JSON and per-paragraph integrity."""
     response = _create_chat_completion(
@@ -542,7 +502,6 @@ def translate_epub(task_id: str, src_path: str, out_path: str):
         save_progress=save_progress,
         load_task=load_progress,
         logger=log,
-        system_prompt_xhtml=SYSTEM_PROMPT_XHTML,
         workers=TRANSLATION_WORKERS,
         api_concurrency=API_MAX_CONCURRENCY,
         archive_limits=ArchiveLimits(
@@ -645,7 +604,6 @@ def translate_pdf(
         load_progress=load_progress,
         save_progress=save_progress,
         translate_text=translate_text,
-        retry_translate_pdf=translate_pdf,
         trim_process_memory=_trim_process_memory,
         extract_page_elements=_extract_page_elements,
         filter_formula_safe_rects=_filter_pdf_formula_safe_rects,

@@ -51,7 +51,6 @@ def dependencies(adapter, progress, **extra):
         save_progress=save,
         load_task=lambda task_id: state,
         logger=logging.getLogger(__name__),
-        system_prompt_xhtml="LEGACY XHTML PROMPT",
         workers=1, api_concurrency=1,
         sleep=lambda seconds: pytest.fail("semantic retries must not sleep"),
         **extra,
@@ -72,7 +71,7 @@ def test_verified_segments_resume_without_api_calls(tmp_path):
     def translate(payload, **kwargs):
         return json.dumps({key: chinese(value) for key, value in json.loads(payload).items()})
     assert EPUBPipeline(dependencies(translate, progress)).translate("resume", str(source), str(output))
-    before = output.read_bytes()
+    assert output.is_file()
     output.unlink()
     def no_api(*args, **kwargs):
         pytest.fail("validated checkpoint should avoid a provider call")

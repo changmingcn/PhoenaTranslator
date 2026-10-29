@@ -632,40 +632,6 @@ def _pdf_element_is_body_prose(elem: dict, dominant_fontsize: float) -> bool:
     return rect.height > line_height * 1.6
 
 
-def _pdf_table_marked_rect_clusters(
-    rects: list[fitz.Rect],
-) -> list[list[fitz.Rect]]:
-    """Group marked cell rects into one cluster per table.
-
-    Clustering on vertical adjacency alone merges a table in the left text
-    column with a chart in the right one.  The merged union then spans the
-    page, every later ``x_aligned`` test passes vacuously, and the sweep walks
-    up the text columns paragraph by paragraph (2026-07-27: this delivered a
-    whole page of a two-column paper in English).  Cells of one table always
-    share horizontal extent, so require that too.
-    """
-    clusters: list[list[fitz.Rect]] = []
-    for rect in sorted(rects, key=lambda item: (item.y0, item.x0)):
-        touching = [
-            cluster
-            for cluster in clusters
-            if any(
-                min(rect.x1, member.x1) - max(rect.x0, member.x0) > -12.0
-                and max(rect.y0 - member.y1, member.y0 - rect.y1) <= 30.0
-                for member in cluster
-            )
-        ]
-        if not touching:
-            clusters.append([rect])
-            continue
-        merged = [rect]
-        for cluster in touching:
-            merged.extend(cluster)
-            clusters.remove(cluster)
-        clusters.append(merged)
-    return clusters
-
-
 def _pdf_element_in_page_footer_band(elem: dict, page_rect) -> bool:
     """True for the running footer band under the last body/table line.
 

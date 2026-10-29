@@ -29,43 +29,6 @@ from phoena_translator.pdf.semantic_text import (
 )
 
 
-def _split_trailing_fragment_for_merge(text: str) -> tuple[str, str]:
-    """Split a text block into (keep_on_page, carry_to_next_page).
-    Only the trailing incomplete sentence fragment should be carried forward.
-    Large fully translated body text must stay on the original page.
-    """
-    stripped = text.rstrip()
-    if not stripped or _ends_with_sentence_boundary(stripped):
-        return stripped, ""
-
-    import unicodedata
-
-    for idx in range(len(stripped) - 1, -1, -1):
-        ch = stripped[idx]
-        if ch in ",，、":
-            continue
-        if unicodedata.category(ch).startswith("P"):
-            keep_text = stripped[: idx + 1].rstrip()
-            carry_text = stripped[idx + 1 :].strip()
-            if carry_text:
-                return keep_text, carry_text
-            break
-
-    # If there is no sentence-ending punctuation, fall back to the last line/
-    # paragraph only; otherwise we risk moving an entire page block forward.
-    parts = [p.strip() for p in re.split(r"\n\s*\n+|\n", stripped) if p.strip()]
-    if len(parts) > 1:
-        carry_text = parts[-1]
-        keep_text = stripped[: -len(carry_text)].rstrip()
-        if carry_text:
-            return keep_text, carry_text
-
-    # As a final safeguard, only move the whole block when it is genuinely short.
-    if len(_plain_text(stripped)) <= 240:
-        return "", stripped
-    return stripped, ""
-
-
 def _looks_like_right_aligned_signoff(elem: dict, page_rect: fitz.Rect | None) -> bool:
     text = _plain_text(elem.get("content", "")).strip()
     if not text or _ends_with_sentence_boundary(text):
@@ -208,15 +171,6 @@ def _is_cross_page_body_elem(
     return True
 
 
-def _is_cross_page_heading_elem(elem, dominant_fontsize: float) -> bool:
-    if elem.get("type") != "text":
-        return False
-    return (
-        _is_heading_like_elem(elem)
-        or float(elem.get("fontsize", dominant_fontsize)) > dominant_fontsize * 1.2
-    )
-
-
 def _carry_fragment_is_prose(carry_text: str) -> bool:
     words = re.findall(r"[A-Za-z]{2,}", carry_text)
     return len(words) >= 2
@@ -227,11 +181,6 @@ def _first_cross_page_lexical_char(text: str) -> str:
     return match.group(0) if match else ""
 
 
-_CROSS_PAGE_CAPTION_LEAD_RE = re.compile(
-    r"^(?:Table|Figure|Graph|Panel|Appendix|Exhibit|Chart|Box|Note|Notes|Source|"
-    r"Sources|Section|Chapter)\b"
-    r"|^[IVXLCDM]+[.\uff0e]"
-)
 _CROSS_PAGE_DIRECT_LABEL_RE = re.compile(
     r"^(?:"
     r"(?:Table|Figure|Graph|Panel|Appendix|Exhibit|Chart|Box)"
@@ -437,17 +386,10 @@ def _cross_page_continuation_decision(text: str) -> ContinuationDecision:
     return ContinuationDecision(SourceContinuationEvidence.COMPLETE)
 
 
-def _cross_page_source_continuation_reason(text: str) -> str:
-    """Compatibility facade returning the historical serialized value."""
-
-    return _cross_page_continuation_decision(text).audit_value
-
-
 def _cross_page_tail_start_acceptable(
     text: str,
     *,
     source_dangling: bool,
-    source_ends_capitalized: bool = False,
 ) -> bool:
     """Apply the required two-signal OR policy to a page-turn pair.
 
@@ -457,9 +399,6 @@ def _cross_page_tail_start_acceptable(
     signal is present, lexical shape must not veto the merge; headings,
     footnotes, watermarks and other non-body objects are filtered before this
     helper is called.
-
-    ``source_ends_capitalized`` remains in the signature for compatibility
-    with older callers and serialized tests, but the OR rule does not need it.
     """
     plain = _plain_text(text or "")
     first_alpha = re.search(r"[A-Za-z]", plain)
@@ -573,89 +512,6 @@ def _cross_page_destination_start_evidence(
         else None
     )
     return start_kind, start_exception
-
-
-def _cross_page_geometry_rejection(prev_page_rect, next_page_rect) -> str | None:
-    if prev_page_rect is None or next_page_rect is None:
-        return None
-
-    prev_landscape = prev_page_rect.width > prev_page_rect.height
-    next_landscape = next_page_rect.width > next_page_rect.height
-    if prev_landscape != next_landscape:
-        return "page-orientation-mismatch"
-
-    width_delta = abs(prev_page_rect.width - next_page_rect.width) / max(
-        prev_page_rect.width, next_page_rect.width, 1.0
-    )
-    height_delta = abs(prev_page_rect.height - next_page_rect.height) / max(
-        prev_page_rect.height, next_page_rect.height, 1.0
-    )
-    if width_delta > 0.12 or height_delta > 0.12:
-        return "page-size-mismatch"
-    return None
-
-
-def _cross_page_pair_incompatibility(
-    prev_elem: dict,
-    next_elem: dict,
-    prev_page_rect,
-    next_page_rect,
-    dominant_fontsize: float,
-) -> str | None:
-    """Font and column compatibility shared by both merge directions."""
-    prev_size = float(prev_elem.get("fontsize", dominant_fontsize))
-    next_size = float(next_elem.get("fontsize", dominant_fontsize))
-    if abs(prev_size - next_size) > max(0.8, max(prev_size, next_size) * 0.10):
-        return "font-size-mismatch"
-
-    if prev_page_rect is None or next_page_rect is None:
-        return None
-    prev_rect = _get_pdf_elem_rect(prev_elem)
-    next_rect = _get_pdf_elem_rect(next_elem)
-    prev_x0 = (prev_rect.x0 - prev_page_rect.x0) / max(prev_page_rect.width, 1.0)
-    prev_x1 = (prev_rect.x1 - prev_page_rect.x0) / max(prev_page_rect.width, 1.0)
-    next_x0 = (next_rect.x0 - next_page_rect.x0) / max(next_page_rect.width, 1.0)
-    next_x1 = (next_rect.x1 - next_page_rect.x0) / max(next_page_rect.width, 1.0)
-    prev_width = max(prev_x1 - prev_x0, 0.001)
-    next_width = max(next_x1 - next_x0, 0.001)
-    overlap = max(0.0, min(prev_x1, next_x1) - max(prev_x0, next_x0))
-    overlap_ratio = overlap / min(prev_width, next_width)
-    center_delta = abs((prev_x0 + prev_x1) / 2.0 - (next_x0 + next_x1) / 2.0)
-    width_ratio = max(prev_width, next_width) / min(prev_width, next_width)
-    if overlap_ratio < 0.60 or center_delta > 0.15 or width_ratio > 1.8:
-        return "column-geometry-mismatch"
-    return None
-
-
-def _cross_page_element_rejection(
-    prev_elem: dict,
-    next_elem: dict,
-    prev_page_rect,
-    next_page_rect,
-    dominant_fontsize: float,
-) -> str | None:
-    geometry_rejection = _cross_page_geometry_rejection(prev_page_rect, next_page_rect)
-    if geometry_rejection:
-        return geometry_rejection
-
-    start_kind, start_exception = _cross_page_destination_start_evidence(
-        prev_elem,
-        next_elem.get("content", ""),
-    )
-    start_rejection = _cross_page_destination_start_rejection(
-        start_kind,
-        start_exception,
-    )
-    if start_rejection:
-        return start_rejection
-
-    return _cross_page_pair_incompatibility(
-        prev_elem,
-        next_elem,
-        prev_page_rect,
-        next_page_rect,
-        dominant_fontsize,
-    )
 
 
 CROSS_PAGE_ORPHAN_TAIL_MAX_CHARS = 80
@@ -967,7 +823,6 @@ def _cross_page_whole_fragment_tail(
     elem: dict,
     *,
     source_dangling: bool = False,
-    source_ends_capitalized: bool = False,
 ) -> tuple[str, str] | None:
     """Return (plain, rich) when an element is exactly one stranded tail.
 
@@ -999,7 +854,6 @@ def _cross_page_whole_fragment_tail(
     if not _cross_page_tail_start_acceptable(
         plain,
         source_dangling=source_dangling,
-        source_ends_capitalized=source_ends_capitalized,
     ):
         return None
     split = _find_leading_sentence_tail(
@@ -1058,7 +912,6 @@ def _cross_page_unterminated_fragment_tail(
     if not _cross_page_tail_start_acceptable(
         plain,
         source_dangling=source_dangling,
-        source_ends_capitalized=bool(source_last_word[:1].isupper()),
     ):
         return None
     if len(re.findall(r"[A-Za-z]{2,}", plain)) < 2:
@@ -1174,9 +1027,6 @@ def _merge_cross_page_sentences(
         source_dangling = continuation_decision.source_dangling
         source_words = re.findall(r"[A-Za-z][A-Za-z'’-]*", source_plain)
         source_last_word = source_words[-1] if source_words else ""
-        source_ends_capitalized = bool(
-            source_dangling and source_last_word[:1].isupper()
-        )
         if _looks_like_right_aligned_signoff(last_elem, page_rect):
             continue
 
@@ -1247,7 +1097,6 @@ def _merge_cross_page_sentences(
         fragment = _cross_page_whole_fragment_tail(
             first_elem,
             source_dangling=source_dangling,
-            source_ends_capitalized=source_ends_capitalized,
         )
         fragment_unterminated = False
         if fragment is None:
@@ -1310,7 +1159,6 @@ def _merge_cross_page_sentences(
         if not _cross_page_tail_start_acceptable(
             first_plain,
             source_dangling=source_dangling,
-            source_ends_capitalized=source_ends_capitalized,
         ):
             continue
         rich = first_elem.get("rich_content")
@@ -1379,24 +1227,3 @@ def _merge_cross_page_sentences(
             source_continuation_reason=continuation_decision.audit_value,
         )
     return absorbed
-
-
-def _cross_page_orphan_tail_fragment(elem: dict) -> str | None:
-    """Compatibility wrapper returning only the plain fragment text."""
-    fragment = _cross_page_whole_fragment_tail(elem)
-    return fragment[0] if fragment else None
-
-
-def _absorb_cross_page_orphan_tails(
-    page_extractions,
-    total_pages,
-    page_rects=None,
-    audit_log=None,
-) -> int:
-    """Compatibility alias: the backward absorber is the merge itself now."""
-    return _merge_cross_page_sentences(
-        page_extractions,
-        total_pages,
-        page_rects,
-        audit_log,
-    )

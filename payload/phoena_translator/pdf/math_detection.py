@@ -808,21 +808,6 @@ def _pdf_source_line_leading_superscript_footnote_marker(
     return marker
 
 
-def _pdf_element_leading_superscript_footnote_marker(
-    elem: dict,
-) -> str | None:
-    for paragraph in elem.get("paragraphs") or []:
-        source_lines = [
-            line for line in (paragraph.get("source_lines") or [])
-            if (line.get("plain") or "").strip()
-        ]
-        if source_lines:
-            return _pdf_source_line_leading_superscript_footnote_marker(
-                source_lines[0]
-            )
-    return None
-
-
 def _select_pdf_inline_math_fragments_for_text(
     fragments: list[dict],
     plain: str,

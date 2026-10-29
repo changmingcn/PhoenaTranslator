@@ -18,10 +18,6 @@ from pathlib import Path
 from typing import Any
 
 from .archive import ArchiveLimits, package_epub, safe_extract_epub
-from .math_protection import (
-    protect_xhtml_math_fragments,
-    restore_xhtml_math_fragments,
-)
 from .segments import (
     SEGMENT_SYSTEM_PROMPT,
     BatchValidation,
@@ -33,12 +29,7 @@ from .segments import (
     validate_segment_translation,
 )
 from ..prompts import PROMPT_RULE_BLOCKS
-from .xhtml import (
-    DEFAULT_CHUNK_MAX_BYTES,
-    fix_xhtml_entities,
-    fix_xhtml_tags,
-    markup_tokens,
-)
+from .xhtml import DEFAULT_CHUNK_MAX_BYTES
 
 
 TranslateText = Callable[..., str]
@@ -56,7 +47,6 @@ class EPUBPipelineDependencies:
     save_progress: SaveProgress
     load_task: LoadTask
     logger: logging.Logger
-    system_prompt_xhtml: str
     workers: int
     api_concurrency: int
     archive_limits: ArchiveLimits = ArchiveLimits()
@@ -83,100 +73,15 @@ class EPUBPipelineDependencies:
             raise ValueError("EPUB fallback share must be between 0 and 1")
 
 
-_STRICT_MARKUP_RETRY_HINT = (
-    "\n\n上一次输出未原样保留全部 XHTML 标签或数学占位符。"
-    "必须逐字保留所有标签、属性和 PHOENA_MATH_ 形态的占位符"
-    "（数量与顺序不得改变），只翻译标签之间的可见文本。"
-)
-
-# Failure kinds retained for callers of the legacy XHTML chunk helper.  The
-# production pipeline below uses JSON segments with a bounded tolerance: after
-# the last attempt, at most min(max(max_fallback_segments, max_fallback_ratio x
-# N), max_fallback_share x N) of the N requested segments may still fail.
-# Within that budget a segment whose last structurally valid response failed
-# only the long-English rule, with every long English run copied from its
-# source (a kept article title), is published leniently; any other failure
-# keeps its exact original markup. Structural rules are never waived,
-# the task records every such segment plus a warning, the checkpoint keeps only
-# accepted translations (so a resume retries them), and exceeding the budget
-# still fails the task without publishing output.
-CHUNK_FAILURE_API = "api"
-CHUNK_FAILURE_INTEGRITY = "integrity"
-
-
-def translate_single_chunk(
-    task_id: str,
-    relative_path: str,
-    chunk_index: int,
-    total_chunks: int,
-    chunk_text: str,
-    xhtml_prompt: str,
-    *,
-    translate_text: TranslateText,
-    logger: logging.Logger,
-    strict_retry: bool = False,
-) -> tuple[str, int, str | None, str | None]:
-    """Legacy XHTML adapter: report integrity defects without returning a result."""
-    try:
-        protected_chunk, math_records = protect_xhtml_math_fragments(chunk_text)
-        logger.info(
-            "[%s] %s chunk %s/%s (%s UTF-8 bytes) — sending to translation adapter%s",
-            task_id,
-            relative_path,
-            chunk_index + 1,
-            total_chunks,
-            len(chunk_text.encode("utf-8")),
-            " (strict markup retry)" if strict_retry else "",
-        )
-        prompt = (
-            xhtml_prompt + _STRICT_MARKUP_RETRY_HINT if strict_retry else xhtml_prompt
-        )
-        translated = translate_text(
-            "请将以下XHTML文件内容翻译为中文，保留所有HTML标签结构不变，只翻译文本内容："
-            f"\n\n{protected_chunk}",
-            system_prompt=prompt,
-        )
-        translated = fix_xhtml_entities(translated)
-        translated = fix_xhtml_tags(translated)
-        restored = restore_xhtml_math_fragments(translated, math_records)
-        if restored is None:
-            logger.error(
-                "[%s] %s chunk %s/%s — math placeholder integrity failed",
-                task_id,
-                relative_path,
-                chunk_index + 1,
-                total_chunks,
-            )
-            return relative_path, chunk_index, None, CHUNK_FAILURE_INTEGRITY
-        if markup_tokens(restored) != markup_tokens(chunk_text):
-            logger.error(
-                "[%s] %s chunk %s/%s — XHTML markup integrity failed",
-                task_id,
-                relative_path,
-                chunk_index + 1,
-                total_chunks,
-            )
-            return relative_path, chunk_index, None, CHUNK_FAILURE_INTEGRITY
-        chinese_count = len(re.findall(r"[\u4e00-\u9fff]", restored))
-        logger.info(
-            "[%s] %s chunk %s/%s — OK, %s Chinese chars",
-            task_id,
-            relative_path,
-            chunk_index + 1,
-            total_chunks,
-            chinese_count,
-        )
-        return relative_path, chunk_index, restored, None
-    except Exception as exc:
-        logger.error(
-            "[%s] %s chunk %s/%s — failed: %s",
-            task_id,
-            relative_path,
-            chunk_index + 1,
-            total_chunks,
-            exc,
-        )
-        return relative_path, chunk_index, None, CHUNK_FAILURE_API
+# After the last attempt, at most min(max(max_fallback_segments,
+# max_fallback_ratio x N), max_fallback_share x N) of the N requested segments
+# may still fail. Within that budget a segment whose last structurally valid
+# response failed only the long-English rule, with every long English run
+# copied from its source (a kept article title), is published leniently; any
+# other failure keeps its exact original markup. Structural rules are never
+# waived, the task records every such segment plus a warning, the checkpoint
+# keeps only accepted translations (so a resume retries them), and exceeding
+# the budget still fails the task without publishing output.
 
 
 class EPUBPipeline:
@@ -572,5 +477,4 @@ class EPUBPipeline:
 __all__ = [
     "EPUBPipeline",
     "EPUBPipelineDependencies",
-    "translate_single_chunk",
 ]

@@ -1,8 +1,7 @@
-"""Byte-exact XHTML MathML, LaTeX and Unicode-math protection."""
+"""Locate XHTML MathML, LaTeX and Unicode-math spans that must stay verbatim."""
 
 from __future__ import annotations
 
-import hashlib
 import html
 import re
 
@@ -13,9 +12,6 @@ from ..math_text import (
     iter_unicode_math_symbol_ranges,
 )
 from .xhtml import visible_text_ranges
-
-
-XHTML_MATH_PLACEHOLDER_RE = re.compile(r"PHOENA_MATH_\d{4}_[0-9A-F]{16}")
 
 
 def looks_like_latex_dollar_content(content: str) -> bool:
@@ -144,63 +140,7 @@ def find_xhtml_math_intervals(text: str) -> list[tuple[int, int, str]]:
     return sorted(selected, key=lambda item: item[0])
 
 
-def protect_xhtml_math_fragments(text: str) -> tuple[str, list[dict]]:
-    intervals = find_xhtml_math_intervals(text)
-    if not intervals:
-        return text, []
-    records: list[dict] = []
-    pieces: list[str] = []
-    cursor = 0
-    for index, (start, end, reason) in enumerate(intervals):
-        original = text[start:end]
-        digest = hashlib.sha256(
-            f"{start}:{end}:".encode("ascii") + original.encode("utf-8")
-        ).hexdigest().upper()[:16]
-        token = f"PHOENA_MATH_{index:04d}_{digest}"
-        while token in text:
-            digest = hashlib.sha256(
-                (digest + original).encode("utf-8")
-            ).hexdigest().upper()[:16]
-            token = f"PHOENA_MATH_{index:04d}_{digest}"
-        pieces.extend((text[cursor:start], token))
-        records.append(
-            {
-                "token": token,
-                "original": original,
-                "sha256": hashlib.sha256(original.encode("utf-8")).hexdigest(),
-                "reason": reason,
-            }
-        )
-        cursor = end
-    pieces.append(text[cursor:])
-    return "".join(pieces), records
-
-
-def restore_xhtml_math_fragments(translated: str, records: list[dict]) -> str | None:
-    if not records:
-        return translated
-    expected_tokens = [record["token"] for record in records]
-    observed_tokens = XHTML_MATH_PLACEHOLDER_RE.findall(translated or "")
-    if observed_tokens != expected_tokens:
-        return None
-    for record in records:
-        original = record.get("original", "")
-        if hashlib.sha256(original.encode("utf-8")).hexdigest() != record.get("sha256"):
-            return None
-        if (translated or "").count(record["token"]) != 1:
-            return None
-    restored = translated
-    for record in records:
-        restored = restored.replace(record["token"], record["original"], 1)
-    if XHTML_MATH_PLACEHOLDER_RE.search(restored):
-        return None
-    return restored
-
-
 __all__ = [
-    "XHTML_MATH_PLACEHOLDER_RE",
     "find_xhtml_math_intervals",
     "looks_like_latex_dollar_content",
-    "protect_xhtml_math_fragments",
-    "restore_xhtml_math_fragments",
 ]

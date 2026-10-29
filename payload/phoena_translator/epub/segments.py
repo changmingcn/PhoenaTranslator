@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Collection, Mapping, Sequence
 
 from .math_protection import find_xhtml_math_intervals
+from .xhtml import markup_ranges
 
 
 SEGMENT_SYSTEM_PROMPT = """你是专业英文图书中文译者。输入是 JSON 对象，键是稳定段落 ID，值是一个完整语义段落、标题或列表项。
@@ -166,49 +167,10 @@ def validate_xhtml(source: str) -> None:
         raise ValueError("Invalid XHTML: root element must be html")
 
 
-def _markup_ranges(source: str) -> list[tuple[int, int]]:
-    """Lex already-validated XML, including quoted '>' and DTD subsets."""
-    ranges: list[tuple[int, int]] = []
-    cursor = 0
-    while (start := source.find("<", cursor)) >= 0:
-        terminator = None
-        for prefix, suffix in (("<!--", "-->"), ("<![CDATA[", "]]>"), ("<?", "?>")):
-            if source.startswith(prefix, start):
-                terminator = suffix
-                break
-        if terminator:
-            end = source.find(terminator, start + 2) + len(terminator)
-        else:
-            quote = None
-            depth = 0
-            end = start + 1
-            is_doctype = source[start:start + 9].upper() == "<!DOCTYPE"
-            while end < len(source):
-                char = source[end]
-                if quote:
-                    if char == quote:
-                        quote = None
-                elif char in "\"'":
-                    quote = char
-                elif is_doctype and char == "[":
-                    depth += 1
-                elif is_doctype and char == "]":
-                    depth -= 1
-                elif char == ">" and depth == 0:
-                    end += 1
-                    break
-                end += 1
-        if end <= start:
-            raise ValueError("Invalid XHTML markup boundary")
-        ranges.append((start, end))
-        cursor = end
-    return ranges
-
-
 def _nodes(source: str) -> list[_Node]:
     roots: list[_Node] = []
     stack: list[_Node] = []
-    for start, end in _markup_ranges(source):
+    for start, end in markup_ranges(source, strict=True):
         raw = source[start:end]
         if raw.startswith(("<!", "<?")):
             continue
@@ -233,7 +195,7 @@ def _protect(raw: str) -> tuple[str, tuple[ProtectedFragment, ...]]:
             inner = raw[node.inner_start:node.inner_end]
             visible: list[str] = []
             cursor = 0
-            for start, end in _markup_ranges(inner):
+            for start, end in markup_ranges(inner, strict=True):
                 visible.append(inner[cursor:start])
                 cursor = end
             visible.append(inner[cursor:])
@@ -253,7 +215,7 @@ def _protect(raw: str) -> tuple[str, tuple[ProtectedFragment, ...]]:
     ):
         candidates.append((0, match.start(), match.end()))
     candidates.extend((1, start, end) for start, end, _reason in find_xhtml_math_intervals(raw))
-    markup = _markup_ranges(raw)
+    markup = markup_ranges(raw, strict=True)
     for start, end in markup:
         if raw.startswith("<![CDATA[", start):
             candidates.extend(((2, start, start + 9), (2, end - 3, end)))

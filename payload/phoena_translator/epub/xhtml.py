@@ -1,235 +1,63 @@
-"""Pure-Python XHTML classification, repair, chunking and merge helpers."""
+"""XHTML markup lexing shared by EPUB segmentation and math protection."""
 
 from __future__ import annotations
 
-import logging
-import re
-from pathlib import Path
 
-
+# UTF-8 byte budget for one translation request.
 DEFAULT_CHUNK_MAX_BYTES = 20_000
-SKIP_SECTION_PATTERNS = re.compile(
-    r"(?i)\b(bibliography|references|index|endnotes?|glossary|acronyms|abbreviations)\b"
-)
-# Substring matching on file names silently skipped Calibre-style content files
-# (``index_split_000.xhtml``) and any chapter whose heading merely mentioned a
-# keyword ("Cross-references in law").  Mirror the PDF side's discipline
-# instead: the file-name stem or the whole normalized heading must BE the
-# section marker, not contain it.  A bare ``index`` stem stays translatable
-# because EPUB landing/content pages commonly use that name; a genuine
-# back-of-book index is still caught by its <title>/<h1> below.
-_SKIP_SECTION_FILENAME_STEM_RE = re.compile(
-    r"(?i)^(?:\d{1,4}[-_ .]*)?"
-    r"(?:bibliograph(?:y|ies)|references?|endnotes?|glossary|acronyms|abbreviations)"
-    r"(?:[-_ .]*\d{1,4})?$"
-)
-_SKIP_SECTION_HEADING_RE = re.compile(
-    r"(?i)^(?:section\s+)?(?:\d+(?:\.\d+)*[.):]?\s*)?"
-    r"(?:bibliography|references|index|endnotes?|glossary|acronyms|abbreviations)"
-    r"(?:\s*(?:&|and)\s*(?:further\s+reading|notes|references))?$"
-)
-_BODY_RE = re.compile(r"(<body[^>]*>)(.*?)(</body>)", re.DOTALL | re.IGNORECASE)
+
+_DELIMITED_MARKUP = (("<!--", "-->"), ("<![CDATA[", "]]>"), ("<?", "?>"))
 
 
-def _is_skip_section_heading(raw_heading: str) -> bool:
-    heading = re.sub(r"<[^>]+>", "", raw_heading or "")
-    heading = re.sub(r"\s+", " ", heading).strip(" \t\r\n-–—:;.")
-    return bool(heading) and bool(_SKIP_SECTION_HEADING_RE.fullmatch(heading))
+def _tag_end(text: str, start: int) -> int:
+    """Return the end of the tag at ``start``, honouring quotes and DTD subsets."""
+    quote: str | None = None
+    depth = 0
+    is_doctype = text[start:start + 9].upper() == "<!DOCTYPE"
+    cursor = start + 1
+    while cursor < len(text):
+        char = text[cursor]
+        if quote:
+            if char == quote:
+                quote = None
+        elif char in "\"'":
+            quote = char
+        elif is_doctype and char == "[":
+            depth += 1
+        elif is_doctype and char == "]":
+            depth -= 1
+        elif char == ">" and depth == 0:
+            return cursor + 1
+        cursor += 1
+    return cursor
 
 
-def is_appendix_xhtml(filepath: str, content: str) -> bool:
-    """Detect bibliography/reference/index material that should not be translated."""
-    stem = Path(Path(filepath).name.lower()).stem
-    if _SKIP_SECTION_FILENAME_STEM_RE.fullmatch(stem):
-        return True
-    title_match = re.search(
-        r"<title[^>]*>(.*?)</title>", content, re.IGNORECASE | re.DOTALL
-    )
-    if title_match and _is_skip_section_heading(title_match.group(1)):
-        return True
-    heading_match = re.search(
-        r"<h[12][^>]*>(.*?)</h[12]>", content, re.IGNORECASE | re.DOTALL
-    )
-    if heading_match and _is_skip_section_heading(heading_match.group(1)):
-        return True
-    return False
+def markup_ranges(text: str, *, strict: bool = False) -> list[tuple[int, int]]:
+    """Lex markup ranges while respecting quotes, comments, CDATA and DOCTYPE.
 
-
-def _byte_length(value: str) -> int:
-    return len(value.encode("utf-8"))
-
-
-def _split_oversized_text(value: str, max_bytes: int) -> list[str]:
-    if max_bytes < 1:
-        raise ValueError("max_bytes must be positive")
-    chunks: list[str] = []
-    current: list[str] = []
-    current_bytes = 0
-    for char in value:
-        char_bytes = len(char.encode("utf-8"))
-        if current and current_bytes + char_bytes > max_bytes:
-            chunks.append("".join(current))
-            current = []
-            current_bytes = 0
-        current.append(char)
-        current_bytes += char_bytes
-    if current:
-        chunks.append("".join(current))
-    return chunks
-
-
-def split_raw(text: str, max_size: int) -> list[str]:
-    """Fallback byte-bounded split that never cuts a UTF-8 code point."""
-    if max_size < 1:
-        raise ValueError("max_size must be positive")
-    chunks: list[str] = []
-    current = ""
-    for line in text.splitlines(keepends=True) or [text]:
-        if _byte_length(line) > max_size:
-            if current:
-                chunks.append(current)
-                current = ""
-            chunks.extend(_split_oversized_text(line, max_size))
-            continue
-        if current and _byte_length(current) + _byte_length(line) > max_size:
-            chunks.append(current)
-            current = line
-        else:
-            current += line
-    if current:
-        chunks.append(current)
-    return chunks
-
-
-def split_xhtml_to_chunks(
-    content: str,
-    max_bytes: int = DEFAULT_CHUNK_MAX_BYTES,
-    *,
-    logger: logging.Logger | None = None,
-) -> list[str]:
-    """Split XHTML at structural boundaries while retaining full document wrappers."""
-    if max_bytes < 1:
-        raise ValueError("max_bytes must be positive")
-    if _byte_length(content) <= max_bytes:
-        return [content]
-
-    body_match = _BODY_RE.search(content)
-    if not body_match:
-        return split_raw(content, max_bytes)
-    pre_body = content[: body_match.start(2)]
-    body_content = body_match.group(2)
-    post_body = content[body_match.end(2) :]
-    wrapper_bytes = _byte_length(pre_body) + _byte_length(post_body)
-    body_limit = max_bytes - wrapper_bytes
-    if body_limit < 1:
-        return split_raw(content, max_bytes)
-
-    split_pattern = (
-        r'(?=<(?:h[1-3]|section|div\s+class="(?:chapter|section|part)")[^>]*>)'
-    )
-    sections = [item for item in re.split(split_pattern, body_content) if item.strip()]
-    if len(sections) <= 1:
-        sections = [
-            item
-            for item in re.split(
-                r"(?=<(?:p|div|blockquote|table|ul|ol)[^>]*>)", body_content
-            )
-            if item.strip()
-        ]
-
-    body_chunks: list[str] = []
-    current = ""
-    for section in sections:
-        if current and _byte_length(current) + _byte_length(section) > body_limit:
-            body_chunks.append(current)
-            current = section
-        else:
-            current += section
-    if current:
-        body_chunks.append(current)
-
-    final_chunks: list[str] = []
-    for body_chunk in body_chunks:
-        if _byte_length(body_chunk) <= body_limit:
-            final_chunks.append(pre_body + body_chunk + post_body)
-            continue
-        parts = re.split(r"(</(?:p|li|tr|div|br)>)", body_chunk)
-        merged_parts: list[str] = []
-        for part in parts:
-            if re.fullmatch(r"</(?:p|li|tr|div|br)>", part):
-                if merged_parts:
-                    merged_parts[-1] += part
+    ``strict`` is for input already validated as XML: an unterminated comment,
+    CDATA section or processing instruction raises ``ValueError``.  Otherwise
+    such a construct extends to the end of ``text``.
+    """
+    ranges: list[tuple[int, int]] = []
+    cursor = 0
+    while (start := text.find("<", cursor)) >= 0:
+        end = None
+        for prefix, suffix in _DELIMITED_MARKUP:
+            if text.startswith(prefix, start):
+                stop = text.find(suffix, start + len(prefix))
+                if stop < 0:
+                    if strict:
+                        raise ValueError("Invalid XHTML markup boundary")
+                    end = len(text)
                 else:
-                    merged_parts.append(part)
-            elif part:
-                merged_parts.append(part)
-        parts = [part for part in merged_parts if part.strip()]
-        if len(parts) <= 1:
-            # There is no safe structural split point. Preserve the element as
-            # one valid chunk instead of slicing through markup.
-            final_chunks.append(pre_body + body_chunk + post_body)
-            continue
-        current = ""
-        for part in parts:
-            if current and _byte_length(current) + _byte_length(part) > body_limit:
-                final_chunks.append(pre_body + current + post_body)
-                current = part
-            else:
-                current += part
-        if current:
-            final_chunks.append(pre_body + current + post_body)
-
-    if logger is not None:
-        logger.info(
-            "Split XHTML into %s chunks (UTF-8 bytes: %s)",
-            len(final_chunks),
-            [_byte_length(chunk) for chunk in final_chunks],
-        )
-    return final_chunks
-
-
-def merge_translated_chunks(chunks: list[str]) -> str:
-    if not chunks:
-        return ""
-    if len(chunks) == 1:
-        return chunks[0]
-    first_match = _BODY_RE.search(chunks[0])
-    if not first_match:
-        return "\n".join(chunks)
-    pre_body = chunks[0][: first_match.start(2)]
-    post_body = chunks[0][first_match.end(2) :]
-    bodies: list[str] = []
-    for chunk in chunks:
-        match = re.search(
-            r"<body[^>]*>(.*?)</body>", chunk, re.DOTALL | re.IGNORECASE
-        )
-        bodies.append(match.group(1) if match else chunk)
-    return pre_body + "".join(bodies) + post_body
-
-
-def fix_xhtml_entities(text: str) -> str:
-    """Escape bare ampersands without double-escaping valid XML entities."""
-    return re.sub(
-        r"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)",
-        "&amp;",
-        text,
-    )
-
-
-def fix_xhtml_tags(text: str) -> str:
-    """Repair the narrow set of known translation-provider tag corruptions."""
-    text = re.sub(r"</([a-zA-Z]+)([^\x00-\x7F])", r"</\1>\2", text)
-    text = text.replace("</>", "</a>")
-    text = re.sub(
-        r'<a (href="#fn\d+" id="ft\d+")>(\d+)</sup>',
-        r"<sup><a \1>\2</a></sup>",
-        text,
-    )
-    return re.sub(
-        r'(?<!<sup>)(<a href="#fn\d+" id="ft\d+">\d+</a></sup>)',
-        r"<sup>\1",
-        text,
-    )
+                    end = stop + len(suffix)
+                break
+        if end is None:
+            end = _tag_end(text, start)
+        ranges.append((start, end))
+        cursor = end
+    return ranges
 
 
 def visible_text_ranges(text: str) -> list[tuple[int, int]]:
@@ -245,43 +73,6 @@ def visible_text_ranges(text: str) -> list[tuple[int, int]]:
     return ranges
 
 
-def markup_ranges(text: str) -> list[tuple[int, int]]:
-    """Lex XHTML markup ranges while respecting quotes, comments and CDATA."""
-    ranges: list[tuple[int, int]] = []
-    index = 0
-    while index < len(text):
-        start = text.find("<", index)
-        if start < 0:
-            break
-        if text.startswith("<!--", start):
-            stop = text.find("-->", start + 4)
-            end = len(text) if stop < 0 else stop + 3
-        elif text.startswith("<![CDATA[", start):
-            stop = text.find("]]>", start + 9)
-            end = len(text) if stop < 0 else stop + 3
-        elif text.startswith("<?", start):
-            stop = text.find("?>", start + 2)
-            end = len(text) if stop < 0 else stop + 2
-        else:
-            quote: str | None = None
-            cursor = start + 1
-            while cursor < len(text):
-                char = text[cursor]
-                if quote:
-                    if char == quote:
-                        quote = None
-                elif char in {'"', "'"}:
-                    quote = char
-                elif char == ">":
-                    cursor += 1
-                    break
-                cursor += 1
-            end = cursor
-        ranges.append((start, end))
-        index = max(end, start + 1)
-    return ranges
-
-
 def markup_tokens(text: str) -> list[str]:
     """Return exact markup tokens for deterministic structure comparison."""
     return [text[start:end] for start, end in markup_ranges(text)]
@@ -289,13 +80,7 @@ def markup_tokens(text: str) -> list[str]:
 
 __all__ = [
     "DEFAULT_CHUNK_MAX_BYTES",
-    "fix_xhtml_entities",
-    "fix_xhtml_tags",
-    "is_appendix_xhtml",
-    "merge_translated_chunks",
     "markup_ranges",
     "markup_tokens",
-    "split_raw",
-    "split_xhtml_to_chunks",
     "visible_text_ranges",
 ]

@@ -44,9 +44,6 @@ class PDFPipelineDependencies:
     load_progress: Callable[[str], dict | None]
     save_progress: Callable[[str, dict], None]
     translate_text: Callable[..., str]
-    # Kept for the frozen Stage 1 construction contract.  Recovery is now
-    # iterative and deliberately does not call this compatibility callback.
-    retry_translate_pdf: Callable[..., Any]
     trim_process_memory: Callable[[], None]
     extract_page_elements: Callable[..., list[dict]]
     filter_formula_safe_rects: Callable[..., list[Any]]
