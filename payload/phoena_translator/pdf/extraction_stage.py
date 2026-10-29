@@ -40,7 +40,7 @@ from phoena_translator.pdf.source_fallbacks import (
     _pdf_source_page_fallback_entry,
 )
 from phoena_translator.pdf.context import ImmutableElementPolicy
-from phoena_translator.pdf.extraction import _is_skip_page
+from phoena_translator.pdf.page_filters import _is_skip_page
 from phoena_translator.pdf.geometry import _get_pdf_elem_rect, _pdf_page_extraction_rect
 from phoena_translator.pdf.text_shape import _collapsed_plain_text
 from phoena_translator.pdf.semantic_cross_page import (

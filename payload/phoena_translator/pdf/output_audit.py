@@ -16,7 +16,7 @@ from phoena_translator.pdf.superscripts import (
     _pdf_span_has_lexical_text,
 )
 from phoena_translator.pdf.model import PageExtraction, PdfAudit
-from phoena_translator.pdf.extraction import (
+from phoena_translator.pdf.vector_ocr import (
     _pdf_vector_ocr_normalized_match_text,
     _render_pdf_page_png_for_ocr,
     _run_pdf_tesseract,

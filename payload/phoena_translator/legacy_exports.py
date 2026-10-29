@@ -83,7 +83,7 @@ from phoena_translator.pdf.math_detection import (
     PDF_MATH_ITALIC_FONT_TOKENS,  # noqa: F401 - legacy facade
     PDF_STRONG_MATH_FONT_TOKENS,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.extraction import (
+from phoena_translator.pdf.page_filters import (
     SKIP_SECTION_HEADING_RE,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.errors import (
@@ -163,20 +163,17 @@ from phoena_translator.pdf.text_shape import (
     _looks_like_pdf_list_marker,  # noqa: F401 - legacy facade
     _plain_text,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.extraction import (
-    _extract_pdf_vector_ocr_elements,  # noqa: F401 - legacy facade
-    _find_pdf_table_regions,  # noqa: F401 - legacy facade
-    _has_compact_open_pdf_table_rules,  # noqa: F401 - legacy facade
-    _is_compact_open_pdf_table,  # noqa: F401 - legacy facade
+from phoena_translator.pdf.page_filters import (
     _is_skip_page,  # noqa: F401 - legacy facade
-    _join_pdf_vector_ocr_lines,  # noqa: F401 - legacy facade
-    _looks_like_pdf_body_text_false_table,  # noqa: F401 - legacy facade
     _looks_like_pdf_hidden_text_artifact_span,  # noqa: F401 - legacy facade
-    _make_pdf_vector_ocr_element,  # noqa: F401 - legacy facade
     _mark_pdf_embedded_thumbnail_text_elements,  # noqa: F401 - legacy facade
+    _sanitize_pdf_hidden_text_artifact_spans,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.vector_ocr import (
+    _extract_pdf_vector_ocr_elements,  # noqa: F401 - legacy facade
+    _join_pdf_vector_ocr_lines,  # noqa: F401 - legacy facade
+    _make_pdf_vector_ocr_element,  # noqa: F401 - legacy facade
     _normalize_pdf_vector_ocr_text,  # noqa: F401 - legacy facade
-    _pdf_table_cell_rects,  # noqa: F401 - legacy facade
-    _pdf_table_list,  # noqa: F401 - legacy facade
     _pdf_vector_ocr_candidate,  # noqa: F401 - legacy facade
     _pdf_vector_ocr_detect_regions,  # noqa: F401 - legacy facade
     _pdf_vector_ocr_dominant_fill,  # noqa: F401 - legacy facade
@@ -186,7 +183,14 @@ from phoena_translator.pdf.extraction import (
     _pdf_vector_ocr_outside_paragraphs,  # noqa: F401 - legacy facade
     _pdf_vector_ocr_parse_tsv,  # noqa: F401 - legacy facade
     _pdf_vector_ocr_semantic_paragraphs,  # noqa: F401 - legacy facade
-    _sanitize_pdf_hidden_text_artifact_spans,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.table_detection import (
+    _find_pdf_table_regions,  # noqa: F401 - legacy facade
+    _has_compact_open_pdf_table_rules,  # noqa: F401 - legacy facade
+    _is_compact_open_pdf_table,  # noqa: F401 - legacy facade
+    _looks_like_pdf_body_text_false_table,  # noqa: F401 - legacy facade
+    _pdf_table_cell_rects,  # noqa: F401 - legacy facade
+    _pdf_table_list,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.semantic_text import (
     _bucket_pdf_fontsize,  # noqa: F401 - legacy facade

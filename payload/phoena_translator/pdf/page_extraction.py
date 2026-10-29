@@ -43,12 +43,12 @@ from phoena_translator.pdf.semantic_references import (
     _split_pdf_reference_entry_elements,
 )
 from phoena_translator.pdf.model import ElementType, PdfElement
-from phoena_translator.pdf.extraction import (
-    _extract_pdf_vector_ocr_elements,
-    _find_pdf_table_regions,
+from phoena_translator.pdf.page_filters import (
     _mark_pdf_embedded_thumbnail_text_elements,
     _sanitize_pdf_hidden_text_artifact_spans,
 )
+from phoena_translator.pdf.vector_ocr import _extract_pdf_vector_ocr_elements
+from phoena_translator.pdf.table_detection import _find_pdf_table_regions
 from phoena_translator.pdf.semantic_formulae import (
     _merge_pdf_wrapped_inline_math_continuation_fragments,
     _promote_pdf_formula_overlaps,

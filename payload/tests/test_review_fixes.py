@@ -4072,9 +4072,7 @@ class _FakePDFTable:
 
 def test_pdf_sparse_two_column_wrapper_yields_to_nested_real_table():
     """BOJ p1: body prose beside Chart 1 is not one giant 1x2 table."""
-    from phoena_translator.pdf.extraction import (
-        _prune_sparse_pdf_table_wrappers,
-    )
+    from phoena_translator.pdf.table_detection import _prune_sparse_pdf_table_wrappers
 
     prose = (
         "decision to execution are conducted automatically based on "
