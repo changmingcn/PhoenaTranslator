@@ -5,9 +5,9 @@
   "built_at_utc": "2026-10-29T07:04:15.301511+00:00",
   "source_policy": "release 2026.10.29-modular-runtime: internal modularity refactor of 2026.10.28-epub-tolerant-publish (Runtime composition root, task-state save race fix, legacy facade removal, decomposition of long functions with characterization tests, redundant documents removed); translation behaviour unchanged",
   "active_release": "/opt/phoena-translator/releases/release-2026.10.29-modular-runtime",
-  "payload_file_count": 115,
-  "payload_total_bytes": 1705316,
-  "payload_manifest_sha256": "752986a0ad03a1323817d1b461dc814e9d4ce66f18cecdd0298014a3fc9d33f4",
+  "payload_file_count": 86,
+  "payload_total_bytes": 1051182,
+  "payload_manifest_sha256": "d53242bf00dda071165b1528d338d5374865acaf8844b4ffc161ec7d515359f9",
   "prior_deployment_content_aggregate_sha256": "34f6a039c8e20bec54448ec6bc7a7758cf372f983ef35f9a106102610932c794",
   "supersedes": "PhoenaTranslator-20261028-epub-tolerant-publish-reinstall (2026.10.28-epub-tolerant-publish)",
   "excluded_classes": [
@@ -15,7 +15,8 @@
     "TLS certificates and private keys",
     "production uploads, outputs, progress, tasks, caches, logs and installer state",
     "virtual environments and bytecode",
-    "fonts, audit evidence, backups and Git metadata"
+    "fonts, audit evidence, backups and Git metadata",
+    "tests, test requirements and release tooling (kept in the source repository)"
   ],
   "validation": "Local regression suite: 492 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including end-to-end golden snapshots of two synthetic PDFs that are identical before and after the refactor, an upload-to-download run through the worker pool, gunicorn app:app serving /api/health and /api/tasks, and scratch differential fuzzing of each decomposed module against its previous version. Not yet validated on the production host or against real documents."
 }
