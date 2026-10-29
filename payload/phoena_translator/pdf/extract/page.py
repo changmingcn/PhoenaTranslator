@@ -231,28 +231,9 @@ def _make_pdf_split_layout_element(
     cluster_x1 = float(cell["x1"])
     cluster_y0 = min(span["y0"] for span in cluster)
     cluster_y1 = max(span["y1"] for span in cluster)
-    cluster_sizes = [span["size"] for span in cluster]
-    cluster_colors = [span["color"] for span in cluster]
-    cluster_bold_chars = sum(
-        len(span["text"].strip()) for span in cluster if span["bold"]
-    )
-    cluster_total_chars = sum(len(span["text"].strip()) for span in cluster)
-    cluster_superscript_runs = [
-        {
-            "text": span["text"].strip(),
-            "scale": float(span.get("superscript_scale") or 0.60),
-            "source": span.get("superscript_source"),
-        }
-        for span in cluster
-        if span.get("superscript") and span.get("text", "").strip()
-    ]
-    cluster_superscript_scale = _pick_pdf_dominant_value(
-        [
-            (round(run["scale"], 3), max(len(run["text"]), 1))
-            for run in cluster_superscript_runs
-        ],
-        0.60,
-    )
+    bold_chars = sum(len(span["text"].strip()) for span in cluster if span["bold"])
+    total_chars = sum(len(span["text"].strip()) for span in cluster)
+    superscript_runs = _pdf_cluster_superscript_runs(cluster)
     rect = fitz.Rect(cluster_x0, cluster_y0, cluster_x1, cluster_y1)
     return {
         "type": ElementType.TEXT,
@@ -263,28 +244,17 @@ def _make_pdf_split_layout_element(
         "render_bbox": _get_pdf_render_bbox(
             rect,
             page_rect,
-            [{
-                "plain": cluster_plain,
-                "text_align": cell["align"],
-                "nowrap": True,
-            }],
+            [{"plain": cluster_plain, "text_align": cell["align"], "nowrap": True}],
             line_fontsize,
         ),
         "content": cluster_plain,
         "rich_content": (
             cluster_rich
-            if (
-                cluster_superscript_runs
-                or 0 < cluster_bold_chars < cluster_total_chars * 0.9
-            )
+            if superscript_runs or 0 < bold_chars < total_chars * 0.9
             else None
         ),
-        "superscript_runs": cluster_superscript_runs,
-        "superscript_scale": (
-            float(cluster_superscript_scale)
-            if cluster_superscript_runs
-            else None
-        ),
+        "superscript_runs": superscript_runs,
+        "superscript_scale": _pdf_cluster_superscript_scale(superscript_runs),
         "paragraphs": [{
             "plain": cluster_plain,
             "rich": cluster_rich,
@@ -295,22 +265,10 @@ def _make_pdf_split_layout_element(
             "nowrap": True,
         }],
         "top_padding": max(0.0, cluster_y0 - float(line["bbox"][1])),
-        "fontsize": (
-            max(set(cluster_sizes), key=cluster_sizes.count)
-            if cluster_sizes
-            else line_fontsize
-        ),
+        "fontsize": _most_common_pdf_value([span["size"] for span in cluster], line_fontsize),
         "line_height": max(cluster_y1 - cluster_y0, line_fontsize * 1.05),
-        "color": (
-            max(set(cluster_colors), key=cluster_colors.count)
-            if cluster_colors
-            else 0
-        ),
-        "bold": (
-            cluster_bold_chars > cluster_total_chars * 0.5
-            if cluster_total_chars > 0
-            else False
-        ),
+        "color": _most_common_pdf_value([span["color"] for span in cluster], 0),
+        "bold": bold_chars > total_chars * 0.5 if total_chars > 0 else False,
         "non_horizontal": line_non_horizontal,
         "rotation": _pdf_rotation_from_direction(line.get("dir")),
         "inline_math_fragments": [
@@ -320,6 +278,34 @@ def _make_pdf_split_layout_element(
         "preserve_source_style": bool(line_in_table),
         "table_hint": bool(line_in_table),
     }
+
+
+def _pdf_cluster_superscript_runs(cluster: list[dict]) -> list[dict]:
+    return [
+        {
+            "text": span["text"].strip(),
+            "scale": float(span.get("superscript_scale") or 0.60),
+            "source": span.get("superscript_source"),
+        }
+        for span in cluster
+        if span.get("superscript") and span.get("text", "").strip()
+    ]
+
+
+def _pdf_cluster_superscript_scale(runs: list[dict]) -> float | None:
+    """The text-weighted dominant superscript scale, or ``None`` without runs."""
+    if not runs:
+        return None
+    return float(
+        _pick_pdf_dominant_value(
+            [(round(run["scale"], 3), max(len(run["text"]), 1)) for run in runs],
+            0.60,
+        )
+    )
+
+
+def _most_common_pdf_value(values: list, default):
+    return max(set(values), key=values.count) if values else default
 
 
 def _extract_pdf_line_record(
