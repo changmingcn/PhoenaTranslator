@@ -3,6 +3,9 @@ pages, sweep their grid and roll back marks that caught body prose."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from fractions import Fraction
+
 import fitz
 
 from phoena_translator.pdf.geometry import _get_pdf_elem_rect
@@ -14,6 +17,28 @@ from phoena_translator.pdf.model import (
 )
 from phoena_translator.pdf.semantics.cross_page import _cross_page_dominant_fontsize
 from phoena_translator.pdf.semantics.layout_classifier import _pdf_element_is_body_prose
+
+
+@dataclass(frozen=True)
+class TablePreservationThresholds:
+    # A page is tabular when its table-like cells are numeric enough and either
+    # numerous or at least half of the page's text elements.
+    min_digit_bearing_share: Fraction = Fraction(2, 5)  # exact: compared with counts
+    dense_page_cells: int = 10
+    min_page_cells: int = 4
+    min_page_cell_share: float = 0.5
+    min_marks_for_grid_sweep: int = 4
+    # The grid sweep attaches a cell that overlaps a mark by half its width
+    # and sits within a row gap of it.
+    min_column_overlap: float = 0.5
+    row_gap_min: float = 4.0
+    row_gap_em: float = 0.45
+    # Circuit breaker: release a page whose marks freeze most of its prose.
+    breaker_min_prose_chars: int = 200
+    breaker_frozen_share: float = 0.5
+
+
+TABLES = TablePreservationThresholds()
 
 
 def _pdf_element_in_page_footer_band(elem: dict, page_rect) -> bool:
@@ -103,7 +128,7 @@ def _preserve_page_tables(
     entries, marked_rects = _seed_pdf_table_marks(
         page_number, elements, table_like, page_is_tabular
     )
-    if len(marked_rects) >= 4:
+    if len(marked_rects) >= TABLES.min_marks_for_grid_sweep:
         entries.extend(
             _sweep_pdf_table_grid(page_number, elements, text_indices, prose_indices, page_rect)
         )
@@ -124,8 +149,11 @@ def _pdf_page_is_tabular(elements: list[dict], table_like: list[int], text_count
         for index in table_like
         if any(char.isdigit() for char in str(elements[index].get("content", "")))
     )
-    numeric_enough = digit_bearing * 5 >= count * 2
-    return numeric_enough and (count >= 10 or (count >= 4 and count * 2 >= text_count))
+    numeric_enough = digit_bearing >= count * TABLES.min_digit_bearing_share
+    return numeric_enough and (
+        count >= TABLES.dense_page_cells
+        or (count >= TABLES.min_page_cells and count >= text_count * TABLES.min_page_cell_share)
+    )
 
 
 def _seed_pdf_table_marks(
@@ -222,12 +250,15 @@ def _pdf_rect_attaches_to_table_anchor(rect: fitz.Rect, elem: dict, anchors) -> 
     # stays outside.  Deliberately the same limit the box-growing sweep used:
     # the local sweep is here to stop reaching ACROSS a page, not to let it
     # reach further.
-    gap_limit = max(4.0, 0.45 * float(elem.get("fontsize", 12.0) or 12.0))
+    gap_limit = max(
+        TABLES.row_gap_min,
+        TABLES.row_gap_em * float(elem.get("fontsize", 12.0) or 12.0),
+    )
     for _anchor_index, anchor in anchors:
         if anchor.is_empty:
             continue
         overlap = min(rect.x1, anchor.x1) - max(rect.x0, anchor.x0)
-        if overlap < min(rect.width, anchor.width) * 0.5:
+        if overlap < min(rect.width, anchor.width) * TABLES.min_column_overlap:
             continue
         gap = max(anchor.y0 - rect.y1, rect.y0 - anchor.y1)
         if gap <= gap_limit:
@@ -257,7 +288,10 @@ def _release_pdf_table_marks_freezing_prose(
         for index in prose_indices
         if elements[index].get("skip_translate_reason") == SkipReason.TABLE_PRESERVED
     )
-    if not (prose_total >= 200 and prose_frozen * 2 > prose_total):
+    if not (
+        prose_total >= TABLES.breaker_min_prose_chars
+        and prose_frozen > prose_total * TABLES.breaker_frozen_share
+    ):
         return False
     for entry in entries:
         elem = elements[entry["element"]]

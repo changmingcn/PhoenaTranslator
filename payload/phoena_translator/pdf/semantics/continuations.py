@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 
 import fitz
 
@@ -31,11 +32,11 @@ from phoena_translator.pdf.extract.superscripts import (
 )
 from phoena_translator.pdf.model import (
     DEFAULT_FONTSIZE,
+    PARAGRAPH_MAX_FIRST_LINE_SHARE,
+    PARAGRAPH_MAX_HANGING_SHARE,
+    PARAGRAPH_MAX_MARGIN_SHARE,
     ElementType,
     LayoutClass,
-    PARAGRAPH_MAX_MARGIN_SHARE,
-    PARAGRAPH_MAX_HANGING_SHARE,
-    PARAGRAPH_MAX_FIRST_LINE_SHARE,
     indent_step_threshold,
 )
 from phoena_translator.pdf.semantics.grouping import (
@@ -657,6 +658,32 @@ def _pdf_strong_continuation_element_is_eligible(elem: dict) -> bool:
     return bool(len(paragraphs) == 1 and not paragraphs[0].get("toc_leader"))
 
 
+@dataclass(frozen=True)
+class StrongContinuationThresholds:
+    """Gates for joining a post-classification paragraph split (``em`` = font size)."""
+
+    min_first_chars: int = 35
+    min_previous_chars: int = 8
+    min_current_chars: int = 12
+    fontsize_tolerance_em: float = 0.15
+    fontsize_tolerance_min: float = 1.0
+    max_vertical_overlap_share: float = 0.40
+    max_gap_em: float = 0.55
+    max_gap_min: float = 4.5
+    max_outdent_em: float = 0.35
+    max_outdent_min: float = 3.0
+    max_indent_em: float = 4.0
+    max_indent_page_share: float = 0.08
+    max_indent_min: float = 32.0
+    min_horizontal_overlap: float = 0.35
+    # A capitalised continuation needs at least this hanging indent.
+    capitalized_min_indent_em: float = 0.80
+    capitalized_min_indent: float = 6.0
+
+
+STRONG = StrongContinuationThresholds()
+
+
 def _pdf_strong_continuation_elements_can_merge(
     group: list[dict],
     current: dict,
@@ -682,9 +709,9 @@ def _pdf_strong_continuation_elements_can_merge(
     previous_plain = _collapsed_plain_text(previous.get("content", ""))
     current_plain = _collapsed_plain_text(current.get("content", ""))
     if (
-        len(first_plain) < 35
-        or len(previous_plain) < 8
-        or len(current_plain) < 12
+        len(first_plain) < STRONG.min_first_chars
+        or len(previous_plain) < STRONG.min_previous_chars
+        or len(current_plain) < STRONG.min_current_chars
         or _PDF_SEMANTIC_TERMINAL_RE.search(previous_plain)
         or re.search(
             r"[.\u2024\u2025\u2026\u00b7·]{6,}", previous_plain + current_plain
@@ -701,30 +728,34 @@ def _pdf_strong_continuation_elements_can_merge(
     previous_fontsize = max(float(previous.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     current_fontsize = max(float(current.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
     if abs(previous_fontsize - current_fontsize) > max(
-        previous_fontsize * 0.15,
-        1.0,
+        previous_fontsize * STRONG.fontsize_tolerance_em,
+        STRONG.fontsize_tolerance_min,
     ):
         return False
 
     vertical_gap = current_rect.y0 - previous_rect.y1
-    if vertical_gap < -min(previous_rect.height, current_rect.height) * 0.40:
+    if vertical_gap < -min(previous_rect.height, current_rect.height) * STRONG.max_vertical_overlap_share:
         return False
-    if vertical_gap > max(previous_fontsize * 0.55, 4.5):
+    if vertical_gap > max(previous_fontsize * STRONG.max_gap_em, STRONG.max_gap_min):
         return False
 
     x_shift = current_rect.x0 - previous_rect.x0
-    if x_shift < -max(previous_fontsize * 0.35, 3.0):
+    if x_shift < -max(previous_fontsize * STRONG.max_outdent_em, STRONG.max_outdent_min):
         # Hanging references return left for the next entry.  That is a new
         # semantic paragraph, not a continuation of the prior entry.
         return False
-    if x_shift > max(previous_fontsize * 4.0, page_rect.width * 0.08, 32.0):
+    if x_shift > max(
+        previous_fontsize * STRONG.max_indent_em,
+        page_rect.width * STRONG.max_indent_page_share,
+        STRONG.max_indent_min,
+    ):
         return False
 
     overlap = max(
         0.0,
         min(previous_rect.x1, current_rect.x1) - max(previous_rect.x0, current_rect.x0),
     )
-    if overlap / max(min(previous_rect.width, current_rect.width), 1.0) < 0.35:
+    if overlap / max(min(previous_rect.width, current_rect.width), 1.0) < STRONG.min_horizontal_overlap:
         return False
 
     # A same-column capitalized line is commonly a new participant, label or
@@ -734,7 +765,10 @@ def _pdf_strong_continuation_elements_can_merge(
     if (
         lexical_probe
         and (lexical_probe[0].isupper() or lexical_probe[0].isdigit())
-        and x_shift < max(previous_fontsize * 0.80, 6.0)
+        and x_shift < max(
+            previous_fontsize * STRONG.capitalized_min_indent_em,
+            STRONG.capitalized_min_indent,
+        )
     ):
         return False
     return True

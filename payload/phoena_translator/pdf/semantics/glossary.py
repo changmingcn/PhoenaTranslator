@@ -4,6 +4,7 @@ cell and mark lower-case term cells for translation."""
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 import fitz
 
@@ -23,6 +24,34 @@ from phoena_translator.pdf.translate.targets import (
 _PDF_GLOSSARY_TERM_HEADERS = frozenset(
     {"term", "key term", "key terms", "glossary term", "glossary terms"}
 )
+
+
+@dataclass(frozen=True)
+class GlossaryThresholds:
+    """Geometry shared by the glossary normaliser and the term marker (points)."""
+
+    min_text_elements: int = 8
+    min_aligned_rows: int = 4
+    # Cells align with their column start within these distances.
+    term_alignment: float = 18.0
+    definition_alignment: float = 30.0
+    # Body band of the page, as shares of its height.
+    body_top_share: float = 0.16
+    body_bottom_share: float = 0.90
+    header_fallback_share: float = 0.12
+    header_row_tolerance: float = 9.0
+    min_column_spacing: float = 48.0
+    min_column_spacing_share: float = 0.10
+    term_max_chars: int = 80
+    term_max_width_share: float = 0.38
+    definition_min_chars: int = 24
+    min_column_gap: float = 12.0
+    min_column_gap_share: float = 0.03
+    row_tolerance_min: float = 5.0
+    row_tolerance_em: float = 0.85
+
+
+GLOSSARY = GlossaryThresholds()
 
 
 def _merge_pdf_glossary_cell_group(
@@ -252,7 +281,7 @@ def _normalize_pdf_glossary_cells(
                 continue
             y_delta = abs(right_rect.y0 - left_rect.y0)
             gap = right_rect.x0 - left_rect.x0
-            if y_delta > max(float(elements[left_index].get("fontsize", 9.0)), 9.0):
+            if y_delta > max(float(elements[left_index].get("fontsize", 9.0)), GLOSSARY.header_row_tolerance):
                 continue
             candidate = (y_delta, -gap, left_index, right_index)
             if best_headers is None or candidate[:2] < best_headers[:2]:
@@ -265,11 +294,11 @@ def _normalize_pdf_glossary_cells(
     right_header_rect = _get_pdf_elem_rect(elements[right_header_index])
     left_x = float(left_header_rect.x0)
     right_x = float(right_header_rect.x0)
-    if right_x - left_x < max(page_rect.width * 0.10, 48.0):
+    if right_x - left_x < max(page_rect.width * GLOSSARY.min_column_spacing_share, GLOSSARY.min_column_spacing):
         return False
 
     header_bottom = max(left_header_rect.y1, right_header_rect.y1)
-    body_bottom = page_rect.y0 + page_rect.height * 0.90
+    body_bottom = page_rect.y0 + page_rect.height * GLOSSARY.body_bottom_share
     if not _geometry_prepared and _prepare_pdf_glossary_column_geometry(
         elements,
         page_rect,
@@ -292,9 +321,9 @@ def _normalize_pdf_glossary_cells(
         rect = _get_pdf_elem_rect(elements[index])
         if rect.y0 <= header_bottom or rect.y0 >= body_bottom:
             continue
-        if abs(rect.x0 - left_x) <= 18.0:
+        if abs(rect.x0 - left_x) <= GLOSSARY.term_alignment:
             left_candidates.append(index)
-        if abs(rect.x0 - right_x) <= 30.0:
+        if abs(rect.x0 - right_x) <= GLOSSARY.definition_alignment:
             right_candidates.append(index)
 
     row_starts = []
@@ -315,7 +344,7 @@ def _normalize_pdf_glossary_cells(
     for y_value in sorted(row_starts):
         if not clustered_starts or y_value - clustered_starts[-1] > 3.0:
             clustered_starts.append(y_value)
-    if len(clustered_starts) < 4:
+    if len(clustered_starts) < GLOSSARY.min_aligned_rows:
         return False
 
     replacements = {}
@@ -380,7 +409,7 @@ def _mark_pdf_glossary_term_elements(
         for index, element in enumerate(elements or [])
         if element.get("type") == ElementType.TEXT
     ]
-    if len(text_indices) < 8:
+    if len(text_indices) < GLOSSARY.min_text_elements:
         return set()
     header_bottom = _pdf_glossary_header_bottom(elements, text_indices, page_rect)
     if header_bottom is None:
@@ -418,7 +447,7 @@ def _pdf_glossary_header_bottom(
     ]
     return max(
         (_get_pdf_elem_rect(elements[index]).y1 for index in header_indices),
-        default=page_rect.y0 + page_rect.height * 0.12,
+        default=page_rect.y0 + page_rect.height * GLOSSARY.header_fallback_share,
     )
 
 
@@ -434,7 +463,7 @@ def _pdf_glossary_row_pair(
     left_plain = _collapsed_plain_text(left.get("content", ""))
     if (
         not left_plain
-        or len(left_plain) > 80
+        or len(left_plain) > GLOSSARY.term_max_chars
         or not left_plain[:1].islower()
         or not _looks_like_translatable_english(left_plain)
         or _looks_like_pdf_proper_name_label(left_plain)
@@ -443,9 +472,9 @@ def _pdf_glossary_row_pair(
     left_rect = _get_pdf_elem_rect(left)
     left_center_y = (left_rect.y0 + left_rect.y1) / 2.0
     if (
-        left_rect.width > page_width * 0.38
-        or left_center_y < page_rect.y0 + page_height * 0.16
-        or left_center_y > page_rect.y0 + page_height * 0.90
+        left_rect.width > page_width * GLOSSARY.term_max_width_share
+        or left_center_y < page_rect.y0 + page_height * GLOSSARY.body_top_share
+        or left_center_y > page_rect.y0 + page_height * GLOSSARY.body_bottom_share
     ):
         return None
 
@@ -456,17 +485,17 @@ def _pdf_glossary_row_pair(
         right = elements[right_index]
         right_plain = _collapsed_plain_text(right.get("content", ""))
         if (
-            len(right_plain) < 24
+            len(right_plain) < GLOSSARY.definition_min_chars
             or not _looks_like_translatable_english(right_plain)
             or _is_disclaimer_block(right_plain)
         ):
             continue
         right_rect = _get_pdf_elem_rect(right)
         horizontal_gap = right_rect.x0 - left_rect.x1
-        if horizontal_gap < max(12.0, page_width * 0.03):
+        if horizontal_gap < max(GLOSSARY.min_column_gap, page_width * GLOSSARY.min_column_gap_share):
             continue
         vertical_overlap = min(left_rect.y1, right_rect.y1) - max(left_rect.y0, right_rect.y0)
-        row_tolerance = max(5.0, float(left.get("fontsize", 0.0)) * 0.85)
+        row_tolerance = max(GLOSSARY.row_tolerance_min, float(left.get("fontsize", 0.0)) * GLOSSARY.row_tolerance_em)
         if vertical_overlap <= 0 and abs(right_rect.y0 - left_rect.y0) > row_tolerance:
             continue
         candidate = (horizontal_gap, abs(right_rect.y0 - left_rect.y0), right_index, right_rect)
@@ -484,9 +513,10 @@ def _pdf_glossary_aligned_columns(row_pairs) -> list[tuple[float, float]]:
         aligned_count = sum(
             1
             for _, _, other_left_x, other_right_x in row_pairs
-            if abs(other_left_x - left_x) <= 18.0 and abs(other_right_x - right_x) <= 30.0
+            if abs(other_left_x - left_x) <= GLOSSARY.term_alignment
+            and abs(other_right_x - right_x) <= GLOSSARY.definition_alignment
         )
-        if aligned_count >= 4:
+        if aligned_count >= GLOSSARY.min_aligned_rows:
             valid_columns.append((left_x, right_x))
     return valid_columns
 
@@ -507,10 +537,12 @@ def _mark_pdf_glossary_column_cells(
             continue
         rect = _get_pdf_elem_rect(element)
         center_y = (rect.y0 + rect.y1) / 2.0
-        if center_y <= header_bottom or center_y > page_rect.y0 + page_height * 0.90:
+        if center_y <= header_bottom or center_y > page_rect.y0 + page_height * GLOSSARY.body_bottom_share:
             continue
-        aligned_left = any(abs(float(rect.x0) - left_x) <= 18.0 for left_x, _ in valid_columns)
-        aligned_right = any(abs(float(rect.x0) - right_x) <= 30.0 for _, right_x in valid_columns)
+        aligned_left = any(abs(float(rect.x0) - left_x) <= GLOSSARY.term_alignment for left_x, _ in valid_columns)
+        aligned_right = any(
+            abs(float(rect.x0) - right_x) <= GLOSSARY.definition_alignment for _, right_x in valid_columns
+        )
         semantic_cross_reference = bool(re.match(r"(?i)^see\b", plain))
         proper_name = _looks_like_pdf_proper_name_label(plain)
 
