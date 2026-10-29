@@ -382,7 +382,26 @@ def _mark_pdf_glossary_term_elements(
     ]
     if len(text_indices) < 8:
         return set()
+    header_bottom = _pdf_glossary_header_bottom(elements, text_indices, page_rect)
+    if header_bottom is None:
+        return set()
+    row_pairs = [
+        pair
+        for left_index in text_indices
+        if (pair := _pdf_glossary_row_pair(elements, text_indices, left_index, page_rect))
+    ]
+    valid_columns = _pdf_glossary_aligned_columns(row_pairs)
+    if not valid_columns:
+        return set()
+    return _mark_pdf_glossary_column_cells(
+        elements, text_indices, valid_columns, header_bottom, page_rect
+    )
 
+
+def _pdf_glossary_header_bottom(
+    elements: list[dict], text_indices: list[int], page_rect: fitz.Rect
+) -> float | None:
+    """Bottom of the Term/Meaning header row, or ``None`` without both headers."""
     normalized_by_index = {
         index: _collapsed_plain_text(elements[index].get("content", "")).casefold()
         for index in text_indices
@@ -391,140 +410,114 @@ def _mark_pdf_glossary_term_elements(
     has_term_header = any(map(_is_pdf_glossary_term_header, normalized_cells))
     has_meaning_header = any(map(_is_pdf_glossary_meaning_header, normalized_cells))
     if not (has_term_header and has_meaning_header):
-        return set()
+        return None
     header_indices = [
         index
         for index, cell in normalized_by_index.items()
         if _is_pdf_glossary_term_header(cell) or _is_pdf_glossary_meaning_header(cell)
     ]
-    glossary_header_bottom = max(
+    return max(
         (_get_pdf_elem_rect(elements[index]).y1 for index in header_indices),
         default=page_rect.y0 + page_rect.height * 0.12,
     )
 
+
+def _pdf_glossary_row_pair(
+    elements: list[dict], text_indices: list[int], left_index: int, page_rect: fitz.Rect
+) -> tuple[int, int, float, float] | None:
+    """Pair a lower-case term cell with the nearest definition to its right."""
     page_width = max(page_rect.width, 1.0)
     page_height = max(page_rect.height, 1.0)
-    row_pairs = []
-    for left_index in text_indices:
-        left = elements[left_index]
-        if left.get("layout_class") != LayoutClass.TABLE:
+    left = elements[left_index]
+    if left.get("layout_class") != LayoutClass.TABLE:
+        return None
+    left_plain = _collapsed_plain_text(left.get("content", ""))
+    if (
+        not left_plain
+        or len(left_plain) > 80
+        or not left_plain[:1].islower()
+        or not _looks_like_translatable_english(left_plain)
+        or _looks_like_pdf_proper_name_label(left_plain)
+    ):
+        return None
+    left_rect = _get_pdf_elem_rect(left)
+    left_center_y = (left_rect.y0 + left_rect.y1) / 2.0
+    if (
+        left_rect.width > page_width * 0.38
+        or left_center_y < page_rect.y0 + page_height * 0.16
+        or left_center_y > page_rect.y0 + page_height * 0.90
+    ):
+        return None
+
+    best = None
+    for right_index in text_indices:
+        if right_index == left_index:
             continue
-        left_plain = _collapsed_plain_text(left.get("content", ""))
+        right = elements[right_index]
+        right_plain = _collapsed_plain_text(right.get("content", ""))
         if (
-            not left_plain
-            or len(left_plain) > 80
-            or not left_plain[:1].islower()
-            or not _looks_like_translatable_english(left_plain)
-            or _looks_like_pdf_proper_name_label(left_plain)
+            len(right_plain) < 24
+            or not _looks_like_translatable_english(right_plain)
+            or _is_disclaimer_block(right_plain)
         ):
             continue
-
-        left_rect = _get_pdf_elem_rect(left)
-        left_center_y = (left_rect.y0 + left_rect.y1) / 2.0
-        if (
-            left_rect.width > page_width * 0.38
-            or left_center_y < page_rect.y0 + page_height * 0.16
-            or left_center_y > page_rect.y0 + page_height * 0.90
-        ):
+        right_rect = _get_pdf_elem_rect(right)
+        horizontal_gap = right_rect.x0 - left_rect.x1
+        if horizontal_gap < max(12.0, page_width * 0.03):
             continue
+        vertical_overlap = min(left_rect.y1, right_rect.y1) - max(left_rect.y0, right_rect.y0)
+        row_tolerance = max(5.0, float(left.get("fontsize", 0.0)) * 0.85)
+        if vertical_overlap <= 0 and abs(right_rect.y0 - left_rect.y0) > row_tolerance:
+            continue
+        candidate = (horizontal_gap, abs(right_rect.y0 - left_rect.y0), right_index, right_rect)
+        if best is None or candidate[:2] < best[:2]:
+            best = candidate
+    if best is None:
+        return None
+    return left_index, best[2], float(left_rect.x0), float(best[3].x0)
 
-        best = None
-        for right_index in text_indices:
-            if right_index == left_index:
-                continue
-            right = elements[right_index]
-            right_plain = _collapsed_plain_text(right.get("content", ""))
-            if (
-                len(right_plain) < 24
-                or not _looks_like_translatable_english(right_plain)
-                or _is_disclaimer_block(right_plain)
-            ):
-                continue
-            right_rect = _get_pdf_elem_rect(right)
-            horizontal_gap = right_rect.x0 - left_rect.x1
-            if horizontal_gap < max(12.0, page_width * 0.03):
-                continue
-            vertical_overlap = min(left_rect.y1, right_rect.y1) - max(
-                left_rect.y0, right_rect.y0
-            )
-            row_tolerance = max(
-                5.0,
-                float(left.get("fontsize", 0.0)) * 0.85,
-            )
-            if (
-                vertical_overlap <= 0
-                and abs(right_rect.y0 - left_rect.y0) > row_tolerance
-            ):
-                continue
-            candidate = (
-                horizontal_gap,
-                abs(right_rect.y0 - left_rect.y0),
-                right_index,
-                right_rect,
-            )
-            if best is None or candidate[:2] < best[:2]:
-                best = candidate
 
-        if best is not None:
-            row_pairs.append(
-                (
-                    left_index,
-                    best[2],
-                    float(left_rect.x0),
-                    float(best[3].x0),
-                )
-            )
-
+def _pdf_glossary_aligned_columns(row_pairs) -> list[tuple[float, float]]:
+    """Column x-positions shared by at least four term/definition pairs."""
     valid_columns = []
-    for left_index, _, left_x, right_x in row_pairs:
+    for _left_index, _right_index, left_x, right_x in row_pairs:
         aligned_count = sum(
             1
             for _, _, other_left_x, other_right_x in row_pairs
-            if abs(other_left_x - left_x) <= 18.0
-            and abs(other_right_x - right_x) <= 30.0
+            if abs(other_left_x - left_x) <= 18.0 and abs(other_right_x - right_x) <= 30.0
         )
         if aligned_count >= 4:
             valid_columns.append((left_x, right_x))
+    return valid_columns
 
-    if not valid_columns:
-        return set()
 
+def _mark_pdf_glossary_column_cells(
+    elements: list[dict],
+    text_indices: list[int],
+    valid_columns: list[tuple[float, float]],
+    header_bottom: float,
+    page_rect: fitz.Rect,
+) -> set[int]:
+    page_height = max(page_rect.height, 1.0)
     marked = set()
     for index in text_indices:
         element = elements[index]
         plain = _collapsed_plain_text(element.get("content", ""))
-        if (
-            not plain
-            or not _looks_like_translatable_english(plain)
-            or _is_disclaimer_block(plain)
-        ):
+        if not plain or not _looks_like_translatable_english(plain) or _is_disclaimer_block(plain):
             continue
         rect = _get_pdf_elem_rect(element)
         center_y = (rect.y0 + rect.y1) / 2.0
-        if center_y <= glossary_header_bottom or center_y > page_rect.y0 + page_height * 0.90:
+        if center_y <= header_bottom or center_y > page_rect.y0 + page_height * 0.90:
             continue
-
-        aligned_left = any(
-            abs(float(rect.x0) - left_x) <= 18.0
-            for left_x, _ in valid_columns
-        )
-        aligned_right = any(
-            abs(float(rect.x0) - right_x) <= 30.0
-            for _, right_x in valid_columns
-        )
-        semantic_cross_reference = bool(
-            re.match(r"(?i)^see\b", plain)
-        )
+        aligned_left = any(abs(float(rect.x0) - left_x) <= 18.0 for left_x, _ in valid_columns)
+        aligned_right = any(abs(float(rect.x0) - right_x) <= 30.0 for _, right_x in valid_columns)
+        semantic_cross_reference = bool(re.match(r"(?i)^see\b", plain))
         proper_name = _looks_like_pdf_proper_name_label(plain)
 
         # Include split left-cell continuations and terms whose definitions
         # are too short to qualify as a row-pair anchor (for example
         # ``trades`` and ``liquidity`` in ASIC Report 452).
-        if (
-            aligned_left
-            and plain[:1].islower()
-            and not proper_name
-        ):
+        if aligned_left and plain[:1].islower() and not proper_name:
             element["glossary_term_hint"] = True
             marked.add(index)
             continue
