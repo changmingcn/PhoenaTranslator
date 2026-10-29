@@ -939,6 +939,167 @@ def _cross_page_unterminated_fragment_tail(
     return plain, " ".join(str(rich).split())
 
 
+def _cross_page_by_reading_order(elements):
+    return sorted(
+        enumerate(elements),
+        key=lambda item: (item[1].get("y", 0.0), item[1].get("x", 0.0)),
+    )
+
+
+def _cross_page_source_body(info, page_rect, dominant_fontsize):
+    """Return ``(index, element, plain)`` of a page's last body paragraph."""
+    body_indices = [
+        (index, elem)
+        for index, elem in _cross_page_by_reading_order(info["elements"])
+        if _is_cross_page_body_elem(
+            elem,
+            page_rect,
+            dominant_fontsize,
+            allow_superscript_markers=True,
+        )
+    ]
+    if not body_indices:
+        return None
+    last_idx, last_elem = body_indices[-1]
+    source_plain = _collapsed_plain_text(last_elem.get("content", ""))
+    if not source_plain or _looks_like_right_aligned_signoff(last_elem, page_rect):
+        return None
+    return last_idx, last_elem, source_plain
+
+
+def _cross_page_destination_bodies(info, next_info, next_page_rect, dominant_fontsize):
+    """Body elements of the next page in reading order, page furniture excluded."""
+    return [
+        (index, elem)
+        for index, elem in _cross_page_by_reading_order(next_info["elements"])
+        if _is_cross_page_body_elem(
+            elem,
+            next_page_rect,
+            dominant_fontsize,
+            allow_superscript_markers=True,
+            allow_short_text=True,
+            allowed_layout_classes=("body", "scattered"),
+        )
+        and not _is_cross_page_non_body_context(
+            elem,
+            next_info["elements"],
+            dominant_fontsize,
+            previous_page_elements=info["elements"],
+        )
+    ]
+
+
+def _cross_page_destination_rejected(
+    page_num, first_idx, first_elem, next_info, next_page_rect, dominant_fontsize,
+    *, source_dangling,
+) -> bool:
+    """Guards that keep a next-page opener on its own page."""
+    if _cross_page_destination_has_local_predecessor(
+        first_idx,
+        next_info["elements"],
+        dominant_fontsize,
+    ):
+        log.warning(
+            "Page %s: kept lowercase body fragment on page %s because "
+            "an adjacent local line owns the continuation",
+            page_num + 2,
+            page_num + 2,
+        )
+        return True
+    if (
+        not source_dangling
+        and _cross_page_tail_start_acceptable(
+            first_elem.get("content", ""),
+            source_dangling=False,
+        )
+        and not _cross_page_weak_destination_is_near_page_start(
+            first_elem,
+            next_page_rect,
+        )
+    ):
+        log.warning(
+            "Page %s: rejected mid-page lowercase orphan-tail candidate "
+            "after a complete source sentence on page %s",
+            page_num + 2,
+            page_num + 1,
+        )
+        return True
+    # Inline-math protection records are element-scoped.  Moving text out of
+    # this element would leave records pointing at content the residual no
+    # longer holds (deterministic validation failure -> source fallback)
+    # while the moved tail travels unprotected.
+    return bool(first_elem.get("inline_math_fragments"))
+
+
+def _cross_page_whole_fragment(
+    first_elem, next_body_elements, first_idx, source_plain,
+    *, source_dangling, source_last_word,
+):
+    """Return ``(plain, rich, unterminated)`` when the opener is all tail."""
+    fragment = _cross_page_whole_fragment_tail(
+        first_elem,
+        source_dangling=source_dangling,
+    )
+    unterminated = False
+    if fragment is None:
+        fragment = _cross_page_unterminated_fragment_tail(
+            first_elem,
+            next_body_elements,
+            first_idx,
+            source_dangling=source_dangling,
+            source_last_word=source_last_word,
+        )
+        unterminated = fragment is not None
+    # The audit invariant "source original must not already end with the
+    # tail" guards against double absorption; enforcing it here keeps
+    # producer and auditor aligned instead of failing the task later.
+    if fragment is None or _cross_page_source_already_ends_with_tail(source_plain, fragment[0]):
+        return None
+    return fragment[0], fragment[1], unterminated
+
+
+def _cross_page_leading_tail(first_elem, source_plain, *, source_dangling):
+    """Return ``(tail, tail_rich, rest, rest_rich)`` split off the opener.
+
+    The element already passed the destination-body filter; do not reapply a
+    stricter short-text / heading-shape heuristic here and accidentally
+    reject the very first body sentence selected by that filter.
+    """
+    first_plain = _collapsed_plain_text(first_elem.get("content", ""))
+    if not _cross_page_tail_start_acceptable(first_plain, source_dangling=source_dangling):
+        return None
+    split = _find_leading_sentence_tail(first_plain, CROSS_PAGE_ABSORBED_TAIL_MAX_CHARS)
+    if split is None:
+        return None
+    tail_plain, rest = split
+    if _cross_page_source_already_ends_with_tail(source_plain, tail_plain):
+        return None  # same double-absorption guard as the whole-fragment path
+    if rest and not _carry_fragment_is_prose(rest):
+        # The residual is only redacted when it re-renders as a translation; a
+        # non-prose remainder keeps its source ink -- including the moved
+        # tail's leading line -- visible on the next page while the tail also
+        # renders translated on this page.
+        return None
+    tail_rich, rest_rich = tail_plain, rest
+    rich = first_elem.get("rich_content")
+    if rich is not None and str(rich).strip() != str(first_elem.get("content", "")).strip():
+        rich_split = _split_cross_page_rich_prefix(str(rich), tail_plain, rest)
+        if rich_split is None:
+            return None
+        tail_rich, rest_rich = rich_split
+    return tail_plain, tail_rich, rest, rest_rich
+
+
+def _append_cross_page_tail(last_elem, tail_plain, tail_rich) -> None:
+    """Append a carried tail without rewriting the source's existing markup."""
+    source_content = last_elem["content"].rstrip()
+    last_elem["content"] = source_content + " " + tail_plain
+    if last_elem.get("rich_content"):
+        last_elem["rich_content"] = last_elem["rich_content"].rstrip() + " " + tail_rich
+    elif tail_rich != tail_plain:
+        last_elem["rich_content"] = source_content + " " + tail_rich
+
+
 def _merge_cross_page_sentences(
     page_extractions, total_pages, page_rects=None, audit_log=None
 ) -> int:
@@ -958,33 +1119,6 @@ def _merge_cross_page_sentences(
     page's first and last body text."""
     dominant_fontsize = _cross_page_dominant_fontsize(page_extractions)
     absorbed = 0
-
-    def _record(
-        source_page,
-        source_idx,
-        source_elem,
-        dest_idx,
-        dest_elem,
-        tail,
-        *,
-        source_continuation_reason,
-        unterminated=False,
-    ):
-        if audit_log is None:
-            return
-        audit_log.append(
-            CrossPageMergeDecision(
-                source_page=source_page,
-                source_element=source_idx,
-                destination_element=dest_idx,
-                source_continuation_reason=source_continuation_reason,
-                carried_tail=tail,
-                source_layout=source_elem.get("layout_class"),
-                destination_layout=dest_elem.get("layout_class"),
-                tail_unterminated=unterminated,
-            ).to_audit()
-        )
-
     for page_num in range(total_pages - 1):
         info = page_extractions.get(page_num, {})
         next_info = page_extractions.get(page_num + 1, {})
@@ -992,26 +1126,10 @@ def _merge_cross_page_sentences(
             continue
         page_rect = page_rects.get(page_num) if page_rects else None
         next_page_rect = page_rects.get(page_num + 1) if page_rects else None
-        ordered = sorted(
-            enumerate(info["elements"]),
-            key=lambda item: (item[1].get("y", 0.0), item[1].get("x", 0.0)),
-        )
-        body_indices = [
-            (index, elem)
-            for index, elem in ordered
-            if _is_cross_page_body_elem(
-                elem,
-                page_rect,
-                dominant_fontsize,
-                allow_superscript_markers=True,
-            )
-        ]
-        if not body_indices:
+        source = _cross_page_source_body(info, page_rect, dominant_fontsize)
+        if source is None:
             continue
-        last_idx, last_elem = body_indices[-1]
-        source_plain = _collapsed_plain_text(last_elem.get("content", ""))
-        if not source_plain:
-            continue
+        last_idx, last_elem, source_plain = source
         # Preserve the previous page's signal, then apply it together with the
         # destination opener as an OR. A complete source remains eligible only
         # for a genuine page-top opener; lowercase text may instead be a local
@@ -1021,201 +1139,62 @@ def _merge_cross_page_sentences(
         source_dangling = continuation_decision.source_dangling
         source_words = re.findall(r"[A-Za-z][A-Za-z'’-]*", source_plain)
         source_last_word = source_words[-1] if source_words else ""
-        if _looks_like_right_aligned_signoff(last_elem, page_rect):
-            continue
 
-        next_ordered = sorted(
-            enumerate(next_info["elements"]),
-            key=lambda item: (item[1].get("y", 0.0), item[1].get("x", 0.0)),
+        next_body_elements = _cross_page_destination_bodies(
+            info, next_info, next_page_rect, dominant_fontsize
         )
-        next_body_elements = [
-            (index, elem)
-            for index, elem in next_ordered
-            if _is_cross_page_body_elem(
-                elem,
-                next_page_rect,
-                dominant_fontsize,
-                allow_superscript_markers=True,
-                allow_short_text=True,
-                allowed_layout_classes=("body", "scattered"),
-            )
-            and not _is_cross_page_non_body_context(
-                elem,
-                next_info["elements"],
-                dominant_fontsize,
-                previous_page_elements=info["elements"],
-            )
-        ]
         if not next_body_elements:
             continue
         first_idx, first_elem = next_body_elements[0]
-
-        if _cross_page_destination_has_local_predecessor(
-            first_idx,
-            next_info["elements"],
-            dominant_fontsize,
-        ):
-            log.warning(
-                "Page %s: kept lowercase body fragment on page %s because "
-                "an adjacent local line owns the continuation",
-                page_num + 2,
-                page_num + 2,
-            )
-            continue
-        if (
-            not source_dangling
-            and _cross_page_tail_start_acceptable(
-                first_elem.get("content", ""),
-                source_dangling=False,
-            )
-            and not _cross_page_weak_destination_is_near_page_start(
-                first_elem,
-                next_page_rect,
-            )
-        ):
-            log.warning(
-                "Page %s: rejected mid-page lowercase orphan-tail candidate "
-                "after a complete source sentence on page %s",
-                page_num + 2,
-                page_num + 1,
-            )
-            continue
-
-        if first_elem.get("inline_math_fragments"):
-            # Inline-math protection records are element-scoped.  Moving text
-            # out of this element would leave records pointing at content the
-            # residual no longer holds (deterministic validation failure →
-            # source fallback) while the moved tail travels unprotected.
-            continue
-
-        fragment = _cross_page_whole_fragment_tail(
-            first_elem,
+        if _cross_page_destination_rejected(
+            page_num, first_idx, first_elem, next_info, next_page_rect, dominant_fontsize,
             source_dangling=source_dangling,
-        )
-        fragment_unterminated = False
-        if fragment is None:
-            fragment = _cross_page_unterminated_fragment_tail(
-                first_elem,
-                next_body_elements,
-                first_idx,
-                source_dangling=source_dangling,
-                source_last_word=source_last_word,
-            )
-            fragment_unterminated = fragment is not None
-        if fragment is not None and _cross_page_source_already_ends_with_tail(
-            source_plain,
-            fragment[0],
         ):
-            # The audit invariant "source original must not already end
-            # with the tail" guards against double absorption; enforcing
-            # it here keeps producer and auditor aligned instead of
-            # failing the task later.
-            fragment = None
-        if fragment is not None:
-            tail_plain, tail_rich = fragment
-            last_elem["content"] = (
-                last_elem["content"].rstrip() + " " + tail_plain
-            )
-            if last_elem.get("rich_content"):
-                last_elem["rich_content"] = (
-                    last_elem["rich_content"].rstrip() + " " + tail_rich
-                )
-            elif tail_rich != tail_plain:
-                base = last_elem["content"][: -len(" " + tail_plain)]
-                last_elem["rich_content"] = base + " " + tail_rich
+            continue
+
+        whole = _cross_page_whole_fragment(
+            first_elem, next_body_elements, first_idx, source_plain,
+            source_dangling=source_dangling, source_last_word=source_last_word,
+        )
+        if whole is not None:
+            tail_plain, tail_rich, unterminated = whole
+            _append_cross_page_tail(last_elem, tail_plain, tail_rich)
             first_elem["type"] = ElementType.MERGED_AWAY
-            absorbed += 1
-            log.info(
-                "Page %s: absorbed stranded sentence tail %r from page %s",
-                page_num + 1,
-                tail_plain[:60],
-                page_num + 2,
-            )
-            _record(
-                page_num,
-                last_idx,
-                last_elem,
-                first_idx,
-                first_elem,
-                tail_plain,
-                source_continuation_reason=continuation_decision.audit_value,
-                unterminated=fragment_unterminated,
-            )
-            continue
-
-        # Split the leading tail out of the first body paragraph.  The element
-        # already passed the destination-body filter above; do not reapply a
-        # stricter short-text / heading-shape heuristic here and accidentally
-        # reject the very first body sentence selected by that filter.
-        first_plain = _collapsed_plain_text(first_elem.get("content", ""))
-        if not _cross_page_tail_start_acceptable(
-            first_plain,
-            source_dangling=source_dangling,
-        ):
-            continue
-        rich = first_elem.get("rich_content")
-        split = _find_leading_sentence_tail(
-            first_plain,
-            CROSS_PAGE_ABSORBED_TAIL_MAX_CHARS,
-        )
-        if split is None:
-            continue
-        tail_plain, rest = split
-        if _cross_page_source_already_ends_with_tail(
-            source_plain,
-            tail_plain,
-        ):
-            # Same double-absorption guard as the whole-fragment path.
-            continue
-        if rest and not _carry_fragment_is_prose(rest):
-            # The residual is only redacted when it re-renders as a
-            # translation; a non-prose remainder keeps its source ink —
-            # including the moved tail's leading line — visible on the next
-            # page while the tail also renders translated on this page.
-            continue
-        tail_rich = tail_plain
-        rest_rich = rest
-        if rich is not None and str(rich).strip() != str(
-            first_elem.get("content", "")
-        ).strip():
-            rich_split = _split_cross_page_rich_prefix(
-                str(rich),
-                tail_plain,
-                rest,
-            )
-            if rich_split is None:
-                continue
-            tail_rich, rest_rich = rich_split
-
-        source_content = last_elem["content"].rstrip()
-        last_elem["content"] = source_content + " " + tail_plain
-        if last_elem.get("rich_content"):
-            last_elem["rich_content"] = (
-                last_elem["rich_content"].rstrip() + " " + tail_rich
-            )
-        elif tail_rich != tail_plain:
-            last_elem["rich_content"] = source_content + " " + tail_rich
-        if rest:
-            first_elem["content"] = rest
-            first_elem["rich_content"] = (
-                rest_rich if rest_rich != rest else None
-            )
+            kind = "stranded sentence tail"
         else:
-            first_elem["type"] = ElementType.MERGED_AWAY
+            leading = _cross_page_leading_tail(
+                first_elem, source_plain, source_dangling=source_dangling
+            )
+            if leading is None:
+                continue
+            tail_plain, tail_rich, rest, rest_rich = leading
+            _append_cross_page_tail(last_elem, tail_plain, tail_rich)
+            if rest:
+                first_elem["content"] = rest
+                first_elem["rich_content"] = rest_rich if rest_rich != rest else None
+            else:
+                first_elem["type"] = ElementType.MERGED_AWAY
+            unterminated = False
+            kind = "leading sentence tail"
         absorbed += 1
         log.info(
-            "Page %s: absorbed leading sentence tail %r from page %s",
+            "Page %s: absorbed %s %r from page %s",
             page_num + 1,
+            kind,
             tail_plain[:60],
             page_num + 2,
         )
-        _record(
-            page_num,
-            last_idx,
-            last_elem,
-            first_idx,
-            first_elem,
-            tail_plain,
-            source_continuation_reason=continuation_decision.audit_value,
-        )
+        if audit_log is not None:
+            audit_log.append(
+                CrossPageMergeDecision(
+                    source_page=page_num,
+                    source_element=last_idx,
+                    destination_element=first_idx,
+                    source_continuation_reason=continuation_decision.audit_value,
+                    carried_tail=tail_plain,
+                    source_layout=last_elem.get("layout_class"),
+                    destination_layout=first_elem.get("layout_class"),
+                    tail_unterminated=unterminated,
+                ).to_audit()
+            )
     return absorbed
