@@ -10,7 +10,9 @@ import traceback
 from dataclasses import dataclass
 from typing import Callable
 
-from phoena_translator.pdf.audit import _expand_pdf_fallback_pages_for_accepted_merges
+from phoena_translator.pdf.merge_audit import (
+    _expand_pdf_fallback_pages_for_accepted_merges,
+)
 from phoena_translator.pdf.cache import (
     _append_pdf_source_page_fallback,
     _pdf_layout_cache_path,

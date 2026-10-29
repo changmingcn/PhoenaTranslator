@@ -11,14 +11,18 @@ from typing import Any, Callable
 
 import fitz
 
-from phoena_translator.pdf.audit import (
-    _collect_pdf_formula_expectations,
-    _collect_pdf_superscript_expectations,
-    _collect_pdf_vector_ocr_expectations,
+from phoena_translator.pdf.merge_audit import (
     _expand_pdf_fallback_pages_for_accepted_merges,
+)
+from phoena_translator.pdf.formula_policy import (
     _pdf_formula_protection_fallback_pages,
     _preserve_pdf_formula_mid_sentence_neighbors,
     _preserve_pdf_formula_risk_text_elements,
+)
+from phoena_translator.pdf.audit_expectations import (
+    _collect_pdf_formula_expectations,
+    _collect_pdf_superscript_expectations,
+    _collect_pdf_vector_ocr_expectations,
 )
 from phoena_translator.pdf.cache import (
     _append_pdf_source_page_fallback,

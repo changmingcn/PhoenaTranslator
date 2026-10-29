@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Callable
 
-from phoena_translator.pdf.audit import (
+from phoena_translator.pdf.merge_audit import (
     _expand_pdf_fallback_pages_for_accepted_merges,
     _is_accepted_merge_endpoint,
 )

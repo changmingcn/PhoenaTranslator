@@ -533,7 +533,7 @@ class TestCrossPageOrphanTail:
         assert orphan["type"] == "text"
 
     def test_audit_validator_accepts_and_rejects(self):
-        from phoena_translator.pdf.audit import _validate_pdf_merge_audit
+        from phoena_translator.pdf.merge_audit import _validate_pdf_merge_audit
         from phoena_translator.pdf.semantic_cross_page import (
             _merge_cross_page_sentences,
         )
@@ -574,7 +574,7 @@ def _mid_sentence_fixture_text(content, y0, y1):
 
 class TestFormulaMidSentencePreservation:
     def test_mid_sentence_stub_above_formula_is_preserved(self):
-        from phoena_translator.pdf.audit import (
+        from phoena_translator.pdf.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -595,7 +595,7 @@ class TestFormulaMidSentencePreservation:
         assert stub["skip_translate_reason"] == "formula_risk_preserved"
 
     def test_terminated_intro_above_formula_still_translates(self):
-        from phoena_translator.pdf.audit import (
+        from phoena_translator.pdf.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -614,7 +614,7 @@ class TestFormulaMidSentencePreservation:
         assert "skip_translate_reason" not in intro
 
     def test_distant_formula_does_not_trigger(self):
-        from phoena_translator.pdf.audit import (
+        from phoena_translator.pdf.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -632,7 +632,7 @@ class TestFormulaMidSentencePreservation:
         assert "skip_translate_reason" not in stub
 
     def test_headers_tables_and_rotated_labels_are_not_preserved(self):
-        from phoena_translator.pdf.audit import (
+        from phoena_translator.pdf.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -679,7 +679,7 @@ class TestFormulaMidSentencePreservation:
     # and the third paragraph was a finished sentence whose footnote marker
     # hid the full stop.
     def test_mixed_math_line_does_not_freeze_the_paragraph_above(self):
-        from phoena_translator.pdf.audit import (
+        from phoena_translator.pdf.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -699,7 +699,7 @@ class TestFormulaMidSentencePreservation:
         assert "skip_translate_reason" not in paragraph
 
     def test_footnote_marker_does_not_disguise_a_finished_sentence(self):
-        from phoena_translator.pdf.audit import (
+        from phoena_translator.pdf.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -718,7 +718,7 @@ class TestFormulaMidSentencePreservation:
         assert "skip_translate_reason" not in finished
 
     def test_whole_paragraph_is_too_long_to_be_a_stub(self):
-        from phoena_translator.pdf.audit import (
+        from phoena_translator.pdf.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -739,7 +739,7 @@ class TestFormulaMidSentencePreservation:
         assert "skip_translate_reason" not in paragraph
 
     def test_leading_tail_split_from_first_paragraph(self):
-        from phoena_translator.pdf.audit import _validate_pdf_merge_audit
+        from phoena_translator.pdf.merge_audit import _validate_pdf_merge_audit
         from phoena_translator.pdf.semantic_cross_page import (
             _merge_cross_page_sentences,
         )
@@ -1281,9 +1281,9 @@ class TestCrossPageRichDestination:
     )
 
     def test_leading_sentence_with_superscript_splits_losslessly(self):
-        from phoena_translator.pdf.audit import (
+        from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
+        from phoena_translator.pdf.audit_expectations import (
             _collect_pdf_superscript_expectations,
-            _validate_pdf_orphan_tail_decision,
         )
         from phoena_translator.pdf.inline_markup import _pdf_superscript_signature
         from phoena_translator.pdf.semantic_cross_page import (
@@ -2128,7 +2128,7 @@ class TestTablePreservation:
 
 class TestOrphanTailAuditPolicy:
     def test_shape_check_accepts_digit_tail_without_evidence(self):
-        from phoena_translator.pdf.audit import _validate_pdf_orphan_tail_decision
+        from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
 
         decision = {
             "kind": "cross-page-orphan-tail",
@@ -2143,7 +2143,7 @@ class TestOrphanTailAuditPolicy:
         assert _validate_pdf_orphan_tail_decision(decision, None) is None
 
     def test_shape_check_without_layout_evidence_allows_signal_one(self):
-        from phoena_translator.pdf.audit import _validate_pdf_orphan_tail_decision
+        from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
 
         decision = {
             "kind": "cross-page-orphan-tail",
@@ -2158,7 +2158,7 @@ class TestOrphanTailAuditPolicy:
         assert _validate_pdf_orphan_tail_decision(decision, None) is None
 
     def test_audit_rejects_non_body_destination_with_layout_evidence(self):
-        from phoena_translator.pdf.audit import _validate_pdf_orphan_tail_decision
+        from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
 
         source_text = "The explanation continues across"
         tail = "Results."
@@ -2222,7 +2222,7 @@ def test_complete_source_lowercase_destination_is_absorbed_by_or_policy():
 
 
 def test_orphan_audit_accepts_complete_source_lowercase_decision():
-    from phoena_translator.pdf.audit import _validate_pdf_orphan_tail_decision
+    from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
 
     source_text = "Demand remained stable."
     tail = "the next section discusses a separate result."
@@ -2594,7 +2594,7 @@ def test_cross_page_merge_rejects_complete_source_midpage_lowercase_opener():
 
 
 def test_orphan_audit_rejects_destination_owned_by_local_predecessor():
-    from phoena_translator.pdf.audit import _validate_pdf_orphan_tail_decision
+    from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
 
     tail = "continue to hold and the models have become extremely capable."
     source = {
@@ -3515,9 +3515,7 @@ def test_continuation_decision_is_frozen_and_string_compatible():
 
 
 def test_producer_records_pass_evidence_backed_audit_validation():
-    from phoena_translator.pdf.audit import (
-        _validate_pdf_orphan_tail_decision,
-    )
+    from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
     from phoena_translator.pdf.semantic_cross_page import (
         _merge_cross_page_sentences,
     )
@@ -4267,7 +4265,7 @@ def test_preservation_is_decided_before_cross_page_merging():
 
 
 def test_orphan_audit_still_rejects_a_preserved_endpoint():
-    from phoena_translator.pdf.audit import _validate_pdf_orphan_tail_decision
+    from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
 
     pages, _source, destination, decision, _remainder = (
         _accepted_orphan_tail_fixture()
@@ -4284,7 +4282,7 @@ def test_orphan_audit_still_rejects_a_preserved_endpoint():
 
 
 def test_orphan_audit_accepts_a_destination_that_later_absorbed_its_own_tail():
-    from phoena_translator.pdf.audit import _validate_pdf_orphan_tail_decision
+    from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
 
     pages, _source, destination, decision, remainder = (
         _accepted_orphan_tail_fixture()
@@ -4557,7 +4555,7 @@ def _mid_sentence_page(with_intervening_prose: bool):
 
 
 def test_mid_sentence_stub_running_straight_into_a_formula_is_preserved():
-    from phoena_translator.pdf.audit import (
+    from phoena_translator.pdf.formula_policy import (
         _preserve_pdf_formula_mid_sentence_neighbors,
     )
 
@@ -4572,7 +4570,7 @@ def test_mid_sentence_stub_running_straight_into_a_formula_is_preserved():
 
 
 def test_prose_between_the_stub_and_the_formula_blocks_preservation():
-    from phoena_translator.pdf.audit import (
+    from phoena_translator.pdf.formula_policy import (
         _preserve_pdf_formula_mid_sentence_neighbors,
     )
 

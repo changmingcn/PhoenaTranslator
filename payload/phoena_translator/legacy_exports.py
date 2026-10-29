@@ -408,28 +408,36 @@ from phoena_translator.pdf.rendering import (
     _sanitize_pdf_text_rect,  # noqa: F401 - legacy facade
     _wrap_pdf_latin_runs,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.audit import (
+from phoena_translator.pdf.output_audit import (
     _check_pdf_output_structure,  # noqa: F401 - legacy facade
     _check_pdf_output_structure_serialized as _check_pdf_output_structure_serialized_impl,  # noqa: F401 - legacy facade
-    _collect_pdf_formula_expectations,  # noqa: F401 - legacy facade
-    _collect_pdf_superscript_expectations,  # noqa: F401 - legacy facade
-    _collect_pdf_vector_ocr_expectations,  # noqa: F401 - legacy facade
-    _expand_pdf_fallback_pages_for_accepted_merges,  # noqa: F401 - legacy facade
-    _pdf_formula_protection_fallback_pages,  # noqa: F401 - legacy facade
     _pdf_formula_raster_difference_summary,  # noqa: F401 - legacy facade
     _pdf_glyph_substitution_warnings,  # noqa: F401 - legacy facade
+    _pdf_vector_ocr_page_text,  # noqa: F401 - legacy facade
+    _require_clean_pdf_structure_check,  # noqa: F401 - legacy facade
+    _save_and_validate_pdf_audit,  # noqa: F401 - legacy facade
+    PDFAuditDependencies,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.progress import (
+    _save_pdf_translation_progress as _save_pdf_translation_progress_impl,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.merge_audit import (
+    _expand_pdf_fallback_pages_for_accepted_merges,  # noqa: F401 - legacy facade
+    _validate_pdf_merge_audit,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.formula_policy import (
+    _pdf_formula_protection_fallback_pages,  # noqa: F401 - legacy facade
     _pdf_prose_inline_math_symbol_tolerance,  # noqa: F401 - legacy facade
     _pdf_text_element_formula_audit_symbol_count,  # noqa: F401 - legacy facade
     _pdf_text_element_unprotected_math_symbols,  # noqa: F401 - legacy facade
-    _pdf_vector_ocr_audit_phrases,  # noqa: F401 - legacy facade
-    _pdf_vector_ocr_page_text,  # noqa: F401 - legacy facade
     _preserve_pdf_formula_risk_text_elements,  # noqa: F401 - legacy facade
-    _require_clean_pdf_structure_check,  # noqa: F401 - legacy facade
-    _save_and_validate_pdf_audit,  # noqa: F401 - legacy facade
-    _save_pdf_translation_progress as _save_pdf_translation_progress_impl,  # noqa: F401 - legacy facade
     _summarize_pdf_formula_protection,  # noqa: F401 - legacy facade
-    _validate_pdf_merge_audit,  # noqa: F401 - legacy facade
-    PDFAuditDependencies,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.audit_expectations import (
+    _collect_pdf_formula_expectations,  # noqa: F401 - legacy facade
+    _collect_pdf_superscript_expectations,  # noqa: F401 - legacy facade
+    _collect_pdf_vector_ocr_expectations,  # noqa: F401 - legacy facade
+    _pdf_vector_ocr_audit_phrases,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.pipeline import (
     translate_pdf as _translate_pdf_impl,  # noqa: F401 - legacy facade

@@ -19,10 +19,12 @@ from phoena_translator.pdf.assembly import (
     PDFAssemblyContext,
     assemble_document_pages,
 )
-from phoena_translator.pdf.audit import (
-    _expand_pdf_fallback_pages_for_accepted_merges,
+from phoena_translator.pdf.output_audit import (
     _require_clean_pdf_structure_check,
     _save_and_validate_pdf_audit,
+)
+from phoena_translator.pdf.merge_audit import (
+    _expand_pdf_fallback_pages_for_accepted_merges,
 )
 from phoena_translator.pdf.cache import (
     _append_pdf_source_page_fallback,

@@ -38,13 +38,15 @@ from phoena_translator.llm import (
     LLMSettings,
 )
 from phoena_translator.logging_setup import configure_logging
-from phoena_translator.pdf.audit import (
+from phoena_translator.pdf.output_audit import (
     PDFAuditDependencies,
     _check_pdf_output_structure,
     _check_pdf_output_structure_serialized as _check_pdf_output_structure_serialized_impl,
-    _save_pdf_translation_progress as _save_pdf_translation_progress_impl,
-    _summarize_pdf_formula_protection,
 )
+from phoena_translator.pdf.progress import (
+    _save_pdf_translation_progress as _save_pdf_translation_progress_impl,
+)
+from phoena_translator.pdf.formula_policy import _summarize_pdf_formula_protection
 from phoena_translator.pdf.cache import (
     _load_pdf_cached_page_indices,
     _pdf_source_sha256,

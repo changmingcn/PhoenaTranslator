@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable
 import fitz
-from phoena_translator.pdf.audit import (
+from phoena_translator.pdf.merge_audit import (
     _expand_pdf_fallback_pages_for_accepted_merges,
 )
 from phoena_translator.pdf.cache import (
