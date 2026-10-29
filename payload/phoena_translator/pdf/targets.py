@@ -1921,6 +1921,45 @@ def _pdf_element_sort_key(element: dict) -> tuple[float, float]:
     return element["y"], element.get("x", fallback_x)
 
 
+def _log_page_pass(page, count: int, message: str) -> None:
+    if count:
+        log.info("Page %s: " + message, page.number + 1, count)
+
+
+def _apply_reclassifying_pass(page, elements, page_rect, merge, message):
+    """Run a ``(elements, count)`` pass; reclassify the page if it changed."""
+    elements, count = merge(elements, page_rect)
+    if count:
+        _classify_pdf_page_text_elements(elements, page_rect)
+    _log_page_pass(page, count, message)
+    return elements
+
+
+# Postconditions of the page merge passes: (residual finder, failure text).
+_PAGE_SEMANTIC_INVARIANTS = (
+    (
+        _pdf_strong_continuation_residual_pairs,
+        "semantic paragraph coalescing invariant failed "
+        "({count} unmerged strong continuation pair(s))",
+    ),
+    (
+        lambda elements, _page_rect: _pdf_internal_paragraph_lead_residuals(elements),
+        "semantic paragraph boundary invariant failed "
+        "({count} embedded successor lead(s))",
+    ),
+    (
+        _pdf_reference_continuation_residual_pairs,
+        "reference-entry coalescing invariant failed "
+        "({count} unmerged hanging continuation pair(s))",
+    ),
+    (
+        lambda elements, _page_rect: _pdf_reference_entry_structure_residuals(elements),
+        "reference-entry semantic invariant failed "
+        "({count} element(s) still contain multiple bibliography entries)",
+    ),
+)
+
+
 def _merge_and_validate_pdf_page_semantics(
     page,
     elements: list[dict],
@@ -1936,129 +1975,62 @@ def _merge_and_validate_pdf_page_semantics(
         page_rect,
         table_regions=table_regions,
     )
-    if semantic_table_cell_count:
-        log.info(
-            "Page %s: merged %s wrapped semantic table cell(s)",
-            page.number + 1,
-            semantic_table_cell_count,
-        )
-    elements = _split_pdf_text_elements_into_semantic_fragments(
-        elements,
-        page_rect,
-    )
+    _log_page_pass(page, semantic_table_cell_count, "merged %s wrapped semantic table cell(s)")
+
+    # Line-level coalescing before classification.
+    elements = _split_pdf_text_elements_into_semantic_fragments(elements, page_rect)
     elements.sort(key=_pdf_element_sort_key)
     elements = _merge_pdf_detached_list_marker_elements(elements, page_rect)
     elements = _merge_pdf_wrapped_line_elements(elements, page_rect)
     elements = _merge_pdf_semantic_continuation_elements(elements, page_rect)
     elements = _merge_adjacent_heading_elements(elements)
-    wrapped_math_count = _merge_pdf_wrapped_inline_math_continuation_fragments(
-        elements,
-        page_rect,
+    _log_page_pass(
+        page,
+        _merge_pdf_wrapped_inline_math_continuation_fragments(elements, page_rect),
+        "merged %s wrapped inline-math continuation fragment(s)",
     )
-    if wrapped_math_count:
-        log.info(
-            "Page %s: merged %s wrapped inline-math continuation fragment(s)",
-            page.number + 1,
-            wrapped_math_count,
-        )
 
+    # Post-classification paragraph and bibliography passes.
     _classify_pdf_page_text_elements(elements, page_rect)
-    elements, strong_count = _merge_pdf_strong_continuation_elements(
-        elements,
-        page_rect,
-    )
-    if strong_count:
-        _classify_pdf_page_text_elements(elements, page_rect)
-        log.info(
-            "Page %s: merged %s strong post-classification paragraph "
-            "continuation(s)",
-            page.number + 1,
-            strong_count,
-        )
-    elements, reference_split_count = _split_pdf_reference_entry_elements(
-        elements,
-        page_rect,
-    )
-    if reference_split_count:
-        _classify_pdf_page_text_elements(elements, page_rect)
-        log.info(
-            "Page %s: split %s coupled bibliography entry boundary/boundaries",
-            page.number + 1,
-            reference_split_count,
-        )
-    elements, reference_merge_count = _merge_pdf_reference_entry_elements(
-        elements,
-        page_rect,
-    )
-    if reference_merge_count:
-        _classify_pdf_page_text_elements(elements, page_rect)
-        log.info(
-            "Page %s: merged %s hanging reference continuation(s)",
-            page.number + 1,
-            reference_merge_count,
-        )
+    for merge, message in (
+        (
+            _merge_pdf_strong_continuation_elements,
+            "merged %s strong post-classification paragraph continuation(s)",
+        ),
+        (
+            _split_pdf_reference_entry_elements,
+            "split %s coupled bibliography entry boundary/boundaries",
+        ),
+        (
+            _merge_pdf_reference_entry_elements,
+            "merged %s hanging reference continuation(s)",
+        ),
+    ):
+        elements = _apply_reclassifying_pass(page, elements, page_rect, merge, message)
 
-    strong_residuals = _pdf_strong_continuation_residual_pairs(
-        elements,
-        page_rect,
-    )
-    if strong_residuals:
-        raise RuntimeError(
-            f"Page {page.number + 1}: semantic paragraph coalescing invariant "
-            f"failed ({len(strong_residuals)} unmerged strong continuation "
-            "pair(s))"
-        )
-    paragraph_residuals = _pdf_internal_paragraph_lead_residuals(elements)
-    if paragraph_residuals:
-        raise RuntimeError(
-            f"Page {page.number + 1}: semantic paragraph boundary invariant "
-            f"failed ({len(paragraph_residuals)} embedded successor lead(s))"
-        )
-    reference_residuals = _pdf_reference_continuation_residual_pairs(
-        elements,
-        page_rect,
-    )
-    if reference_residuals:
-        raise RuntimeError(
-            f"Page {page.number + 1}: reference-entry coalescing invariant "
-            f"failed ({len(reference_residuals)} unmerged hanging continuation "
-            "pair(s))"
-        )
-    reference_structure_residuals = _pdf_reference_entry_structure_residuals(
-        elements
-    )
-    if reference_structure_residuals:
-        raise RuntimeError(
-            f"Page {page.number + 1}: reference-entry semantic invariant "
-            f"failed ({len(reference_structure_residuals)} element(s) still "
-            "contain multiple bibliography entries)"
-        )
+    for find_residuals, failure in _PAGE_SEMANTIC_INVARIANTS:
+        residuals = find_residuals(elements, page_rect)
+        if residuals:
+            raise RuntimeError(
+                f"Page {page.number + 1}: " + failure.format(count=len(residuals))
+            )
 
-    entity_count = _mark_pdf_entity_directory_elements(elements)
-    if entity_count:
-        log.info(
-            "Page %s: marked %s aligned entity-directory row(s)",
-            page.number + 1,
-            entity_count,
-        )
-    paragraph_split_count = _split_pdf_formula_adjacent_paragraph_elements(
-        elements,
-        page_rect,
+    # Preservation marks that depend on the final paragraph structure.
+    _log_page_pass(
+        page,
+        _mark_pdf_entity_directory_elements(elements),
+        "marked %s aligned entity-directory row(s)",
     )
-    if paragraph_split_count:
-        log.info(
-            "Page %s: isolated %s formula-adjacent paragraph fragment(s)",
-            page.number + 1,
-            paragraph_split_count,
-        )
-    promoted_count = _promote_pdf_formula_overlaps(elements)
-    if promoted_count:
-        log.info(
-            "Page %s: conservatively preserved %s text element(s) touching "
-            "formula geometry",
-            page.number + 1,
-            promoted_count,
-        )
+    _log_page_pass(
+        page,
+        _split_pdf_formula_adjacent_paragraph_elements(elements, page_rect),
+        "isolated %s formula-adjacent paragraph fragment(s)",
+    )
+    _log_page_pass(
+        page,
+        _promote_pdf_formula_overlaps(elements),
+        "conservatively preserved %s text element(s) touching formula geometry",
+    )
     _mark_pdf_reference_entry_elements(elements)
     return elements
 
