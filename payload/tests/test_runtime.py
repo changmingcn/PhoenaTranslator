@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 import threading
 
+import pytest
+
 from phoena_translator.api_runtime import is_rate_limit_error, strip_think_tags
 from phoena_translator.config import AppConfig, get_app_config
 from phoena_translator.glossary import build_glossary_text
@@ -223,11 +225,20 @@ def test_test_dependency_is_declared_separately():
     ).lower()
 
 
-def test_advanced_internal_types_do_not_expand_legacy_exports():
-    from phoena_translator import legacy_exports
+def test_application_surface_is_the_runtime_with_deprecated_former_globals():
+    from phoena_translator import application
     from phoena_translator.pdf import context
 
     assert "ImmutableElementPolicy" not in context.__all__
-    assert not hasattr(legacy_exports, "ImmutableElementPolicy")
-    assert not hasattr(legacy_exports, "CacheIdentity")
-    assert not hasattr(legacy_exports, "ContinuationDecision")
+    assert sorted(application.__all__) == ["APP_CONFIG", "app", "initialize_runtime", "runtime"]
+    assert application.runtime.config is application.APP_CONFIG
+    with pytest.warns(DeprecationWarning, match="use runtime.tasks.save"):
+        assert application.save_progress == application.runtime.tasks.save
+    with pytest.warns(DeprecationWarning, match="use APP_CONFIG.task_queue_max"):
+        assert application.TASK_QUEUE_MAX == application.APP_CONFIG.task_queue_max
+    with pytest.warns(DeprecationWarning):
+        assert application.UPLOAD_DIR == str(application.APP_CONFIG.upload_dir)
+    # Private names of the removed legacy_exports facade no longer resolve.
+    for name in ("_PDF_FOOTNOTE_MARKER_RE", "_create_chat_completion", "tasks"):
+        with pytest.raises(AttributeError):
+            getattr(application, name)
