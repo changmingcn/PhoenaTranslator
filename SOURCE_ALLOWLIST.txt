@@ -99,10 +99,14 @@ tests/test_golden_pipeline.py
 tests/test_pdf_assembly.py
 tests/test_pdf_core.py
 tests/test_pdf_extract.py
+tests/test_pdf_formula_protection.py
 tests/test_pdf_formulae.py
+tests/test_pdf_list_markers.py
 tests/test_pdf_model.py
+tests/test_pdf_reference_fragments.py
 tests/test_pdf_render.py
 tests/test_pdf_semantics.py
+tests/test_pdf_split_layout.py
 tests/test_pdf_textbox_fit.py
 tests/test_pdf_translate.py
 tests/test_pdf_vector_ocr.py

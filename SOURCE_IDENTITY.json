@@ -3,11 +3,11 @@
   "package_name": "PhoenaTranslator-20261028-epub-tolerant-publish-reinstall",
   "version": "2026.10.28-epub-tolerant-publish",
   "built_at_utc": "2026-10-28T08:16:20.089877+00:00",
-  "source_policy": "modularity refactor of 2026.10.28-epub-tolerant-publish on branch claude/awesome-bell-uwpctk, including the Runtime composition root, removal of the legacy_exports facade and of the former application globals, and characterization tests plus decomposition of the long formula, assembly, textbox and vector-OCR functions; VERSION not yet bumped, not yet deployed",
+  "source_policy": "modularity refactor of 2026.10.28-epub-tolerant-publish on branch claude/awesome-bell-uwpctk, including the Runtime composition root, removal of the legacy_exports facade and of the former application globals, and characterization tests plus decomposition of the long formula, assembly, textbox, vector-OCR, list-marker, formula-protection, split-layout and reference-entry functions; VERSION not yet bumped, not yet deployed",
   "active_release": "/opt/phoena-translator/releases/release-2026.10.28-epub-tolerant-publish",
-  "payload_file_count": 112,
-  "payload_total_bytes": 1679637,
-  "payload_manifest_sha256": "8d0faecd9b64dba17c19d47f4dc4597d4fbdc1fcf4bf4bab7561076ab06177cc",
+  "payload_file_count": 116,
+  "payload_total_bytes": 1706315,
+  "payload_manifest_sha256": "d5700f1c185c2daef6dca892f30a48b66e68ba09c96f95ebba0d1760137e2e29",
   "prior_deployment_content_aggregate_sha256": "17d0ce24ad89a3d426cbd63ab918b348918c0cb5d16cc6bc8e46434b796843e9",
   "supersedes": "PhoenaTranslator-20261023-epub-segments-reinstall",
   "excluded_classes": [
@@ -17,5 +17,5 @@
     "virtual environments and bytecode",
     "fonts, audit evidence, backups and Git metadata"
   ],
-  "validation": "Local regression suite: 454 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including end-to-end golden snapshots of two synthetic PDFs that are identical before and after the refactor, an upload-to-download run through the worker pool, gunicorn app:app serving /api/health and /api/tasks, and scratch differential fuzzing of each decomposed module against its previous version. Not yet validated on the production host or against real documents."
+  "validation": "Local regression suite: 492 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including end-to-end golden snapshots of two synthetic PDFs that are identical before and after the refactor, an upload-to-download run through the worker pool, gunicorn app:app serving /api/health and /api/tasks, and scratch differential fuzzing of each decomposed module against its previous version. Not yet validated on the production host or against real documents."
 }
