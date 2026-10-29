@@ -354,15 +354,15 @@ def test_table_formula_overlap_preserves_existing_precedence(tmp_path):
 
 
 def test_cache_identity_golden_is_unchanged_before_typed_hardening():
-    from phoena_translator.pdf.cache import _pdf_cache_element_identity
+    from phoena_translator.pdf.cache import _pdf_cache_identity
 
     elem = _advanced_native_cache_element()
     assert (
-        _pdf_cache_element_identity(elem)
+        _pdf_cache_identity(elem).digest
         == "bae0777a3fafe1f4df4b694efc7a73fe5921c475cf9fb228963689246bf423ea"
     )
     assert (
-        _pdf_cache_element_identity(elem, _include_empty_vector_fields=True)
+        _pdf_cache_identity(elem, _include_empty_vector_fields=True).digest
         == "2346d344b4cdf203267bfba8ea611261231238a6db3c867b6db185540a76562a"
     )
 
@@ -370,11 +370,7 @@ def test_cache_identity_golden_is_unchanged_before_typed_hardening():
 def test_cache_identity_typed_core_preserves_legacy_digest():
     from dataclasses import FrozenInstanceError
 
-    from phoena_translator.pdf.cache import (
-        CacheIdentity,
-        _pdf_cache_element_identity,
-        _pdf_cache_identity,
-    )
+    from phoena_translator.pdf.cache import CacheIdentity, _pdf_cache_identity
 
     elem = _advanced_native_cache_element()
     identity = _pdf_cache_identity(elem)
@@ -382,7 +378,6 @@ def test_cache_identity_typed_core_preserves_legacy_digest():
 
     assert isinstance(identity, CacheIdentity)
     assert identity.digest == expected
-    assert _pdf_cache_element_identity(elem) == expected
     with pytest.raises(ValueError, match="64 lowercase hexadecimal"):
         CacheIdentity("not-a-cache-digest")
     with pytest.raises(FrozenInstanceError):

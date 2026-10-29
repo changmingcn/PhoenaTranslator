@@ -351,20 +351,6 @@ def _pdf_cache_identity(
     return CacheIdentity(hashlib.sha256(encoded).hexdigest())
 
 
-def _pdf_cache_element_identity(
-    elem: dict,
-    *,
-    _include_empty_vector_fields: bool = False,
-) -> str | None:
-    """Compatibility facade returning the historical 64-character digest."""
-
-    identity = _pdf_cache_identity(
-        elem,
-        _include_empty_vector_fields=_include_empty_vector_fields,
-    )
-    return identity.digest if identity is not None else None
-
-
 def _reconcile_pdf_page_translation_cache(
     elements: list[dict],
     translations: dict,
