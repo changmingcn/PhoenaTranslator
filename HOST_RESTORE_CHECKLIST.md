@@ -23,9 +23,9 @@
 ## 安装与校验
 
 ```bash
-sha256sum -c PhoenaTranslator-20261028-epub-tolerant-publish-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20261028-epub-tolerant-publish-reinstall.tar.gz
-cd PhoenaTranslator-20261028-epub-tolerant-publish-reinstall
+sha256sum -c PhoenaTranslator-20261029-modular-runtime-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261029-modular-runtime-reinstall.tar.gz
+cd PhoenaTranslator-20261029-modular-runtime-reinstall
 ./install.sh --verify-only
 sudo ./install.sh
 ```

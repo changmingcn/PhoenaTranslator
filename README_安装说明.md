@@ -1,16 +1,18 @@
 # PhoenaTranslator 干净重装包
 
-版本：`2026.10.28-epub-tolerant-publish`
+版本：`2026.10.29-modular-runtime`
 
-这是当前已修正翻译程序的恢复安装版。它只包含 59 个源码、测试和依赖文件和安装元数据，不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
+这是当前已修正翻译程序的恢复安装版。它只包含 115 个源码、测试和依赖文件以及安装元数据，不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
 
 ## 相对上一版的变化
 
-- EPUB有界容错发布：重试4次后仍未通过校验的段落不超过上限（20段与需翻译段落的5%取较大者，且不超过需翻译段落的五分之一），整书照常发布，并在任务上标出提示与段落清单；超过上限仍判失败、不出译文。
-- 容错段落分两类：结构完好、只因保留原文中的英文长句（如参考文献的英文篇名）未过质量规则的，接受存疑译文；其余（中文覆盖不足、拒译、占位符错、解释性文字等）保留原文原样标记。结构校验从不放宽。
-- 容错段落不写入检查点，可在已完成任务上点“重试未通过段落”，只重译这些段落（失败的EPUB任务也有同一按钮，不需密码）。
-- 修复三处误判：索引的单字母标题（E、M等）和“A.”这类标签不再送翻译，原样保留；模型丢失或挪动段中零宽锚点（无href的空a/span）时按原文位置补回；保留英文篇名的参考文献条目按质量存疑处理，不再拖垮整本书。
-- 提示词、术语表和段落提取边界未改，上一版的检查点仍可复用。没有新增运行时依赖。
+本版是内部结构重构，翻译、排版和输出行为不变：两份合成 PDF 的端到端黄金快照在重构前后逐字节一致，每个被拆分的模块都与重构前的版本做过随机输入的并排比对。
+
+- 修复：同一任务被并发保存时（例如翻译进度更新与网页续跑同时发生），内存中的任务状态可能比磁盘上的记录旧，网页列表或状态页偶尔显示过期进度。现在磁盘写入与内存更新在同一把任务锁内完成。
+- 运行时由一个组合根统一构建（LLM 网关、任务仓库、工作池、PDF/EPUB 流水线），导入程序不再产生副作用；`gunicorn app:app` 入口、安装方式和配置项不变。
+- 移除旧的兼容入口：`app.py` 不再把 345 个内部函数名转交出去，`phoena_translator.application` 也不再提供旧的模块级全局变量。只影响直接 import 这些内部名字的自定义脚本；网页、API 和安装器不受影响。
+- 长函数拆分为命名步骤，并补齐测试（492 项通过）；删除冗余的 `EXCLUSIONS.md` 与 `payload/SYSTEM_DEPENDENCIES.md`（内容已包含在本说明、`README.md` 与安装器中）。
+- 任务记录、PDF 页面缓存与 EPUB 检查点格式未改，上一版未完成的任务可直接续跑。没有新增运行时依赖。
 
 ## 支持范围
 
@@ -25,9 +27,9 @@
 先在下载目录校验压缩包（校验文件与压缩包应在同一目录）：
 
 ```bash
-sha256sum -c PhoenaTranslator-20261028-epub-tolerant-publish-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20261028-epub-tolerant-publish-reinstall.tar.gz
-cd PhoenaTranslator-20261028-epub-tolerant-publish-reinstall
+sha256sum -c PhoenaTranslator-20261029-modular-runtime-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261029-modular-runtime-reinstall.tar.gz
+cd PhoenaTranslator-20261029-modular-runtime-reinstall
 # 可选的完整预检（需要系统已装 python3）
 ./install.sh --verify-only
 sudo ./install.sh
@@ -89,7 +91,7 @@ journalctl -u phoena-translator -n 100 --no-pager
 
 ## 完整性
 
-- `SOURCE_ALLOWLIST.txt`：59 个源码、测试及依赖清单相对路径。
+- `SOURCE_ALLOWLIST.txt`：115 个源码、测试及依赖清单相对路径。
 - `MANIFEST.sha256`：安装目录中除该清单自身外的每个文件哈希。
 - `verify_release.py`：确定性检查清单闭包、文件类型、排除项、源码语法和常见密钥形态。
 - `SOURCE_IDENTITY.json`：记录生产发布路径、文件数、总字节数和有效载荷清单摘要。

@@ -12,7 +12,7 @@ import sys
 from pathlib import Path, PurePosixPath
 
 
-EXPECTED_SOURCE_COUNT = 116
+EXPECTED_SOURCE_COUNT = 115
 MANIFEST_NAME = "MANIFEST.sha256"
 EXCLUDED_PARTS = {
     ".first-secretary",
