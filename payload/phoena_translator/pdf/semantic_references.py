@@ -30,9 +30,9 @@ log = logging.getLogger("translator")
 from phoena_translator.pdf.semantic_text import (
     _is_heading_like_elem,
     _join_pdf_line_fragments,
-    _pick_pdf_dominant_value,
 )
 from phoena_translator.pdf.model import ElementType, LayoutClass
+from phoena_translator.pdf.semantic_grouping import ParagraphIndent, build_merged_text_element, dominant_group_style, first_and_body_x0, group_adjacent, group_plain_and_rich, group_rect, group_source_lines, merge_groups
 
 
 def _looks_like_pdf_reference_entry_lead(text: str) -> bool:
@@ -503,179 +503,52 @@ def _merge_pdf_reference_entry_elements(
     if not reference_context:
         return elements, 0
 
-    merged_elements: list[dict] = []
-    merge_count = 0
-    index = 0
-    while index < len(elements):
-        first = elements[index]
-        first_plain = _collapsed_plain_text(first.get("content", ""))
-        if not _looks_like_pdf_reference_entry_lead(first_plain):
-            merged_elements.append(first)
-            index += 1
-            continue
-
-        group = [first]
-        cursor = index + 1
-        while cursor < len(elements) and _pdf_reference_entry_elements_can_merge(
-            group,
-            elements[cursor],
-            page_rect,
-        ):
-            group.append(elements[cursor])
-            cursor += 1
-
-        if len(group) < 2:
-            merged_elements.append(first)
-            index += 1
-            continue
-
-        rect = _get_pdf_primary_paragraph_rect(group[0])
-        for elem in group[1:]:
-            rect |= _get_pdf_primary_paragraph_rect(elem)
-        plain = _join_pdf_line_fragments(
-            [
-                _collapsed_plain_text(elem.get("content", ""))
-                for elem in group
-            ]
-        )
-        rich = _join_pdf_line_fragments(
-            [
-                (elem.get("rich_content") or elem.get("content", "")).strip()
-                for elem in group
-            ]
-        )
-        source_lines: list[dict] = []
-        for elem in group:
-            paragraph = next(
-                (
-                    paragraph
-                    for paragraph in (elem.get("paragraphs") or [])
-                    if (paragraph.get("plain") or "").strip()
-                ),
-                {},
-            )
-            lines = [
-                dict(line)
-                for line in (paragraph.get("source_lines") or [])
-                if (line.get("plain") or "").strip()
-            ]
-            if lines:
-                source_lines.extend(lines)
-            else:
-                elem_rect = _get_pdf_primary_paragraph_rect(elem)
-                source_lines.append(
-                    {
-                        "plain": elem.get("content", ""),
-                        "rich": elem.get("rich_content") or elem.get("content", ""),
-                        "bbox": [float(value) for value in elem_rect],
-                    }
-                )
-
-        first_x0 = float(source_lines[0]["bbox"][0])
-        body_x0 = min(
-            (float(line["bbox"][0]) for line in source_lines[1:]),
-            default=first_x0,
-        )
-        fontsize = float(
-            _pick_pdf_dominant_value(
-                [
-                    (
-                        float(elem.get("fontsize", 11.0)),
-                        max(len(_plain_text(elem.get("content", "")).strip()), 1),
-                    )
-                    for elem in group
-                ],
-                11.0,
-            )
-        )
-        hanging_indent = body_x0 - first_x0 >= max(fontsize * 0.50, 3.0)
-        if hanging_indent:
+    def merge(group: list[dict]) -> dict:
+        rect = group_rect(group)
+        plain, rich = group_plain_and_rich(group)
+        source_lines = group_source_lines(group)
+        first_x0, body_x0 = first_and_body_x0(source_lines)
+        style = dominant_group_style(group)
+        fontsize = style["fontsize"]
+        if body_x0 - first_x0 >= max(fontsize * 0.50, 3.0):  # hanging indent
             margin_left = max(0.0, body_x0 - rect.x0)
             text_indent = first_x0 - body_x0
         else:
             margin_left = 0.0
             text_indent = 0.0
-        paragraph = {
-            "plain": plain,
-            "rich": rich,
-            "source_bbox": [float(value) for value in rect],
-            "source_line_bboxes": [
-                [float(value) for value in line["bbox"]] for line in source_lines
-            ],
-            "source_lines": source_lines,
-            "margin_left": min(margin_left, rect.width * 0.35),
-            "text_indent": max(-rect.width * 0.18, text_indent),
-            "gap_before": 0.0,
-            "text_align": "left",
-            "nowrap": None,
-            "first_line_indent": False,
-            "toc_leader": None,
-        }
-        merged = dict(group[0])
-        merged.update(
-            {
-                "y": float(rect.y0),
-                "x": float(rect.x0),
-                "rect": fitz.Rect(rect),
-                "bbox": [
-                    float(rect.x0),
-                    float(rect.y0),
-                    float(rect.x1),
-                    float(rect.y1),
-                ],
-                "render_bbox": _get_pdf_render_bbox(
-                    rect,
-                    page_rect,
-                    [paragraph],
-                    fontsize,
-                ),
-                "content": plain,
-                "rich_content": rich
-                if any(elem.get("rich_content") for elem in group)
-                else None,
-                "paragraphs": [paragraph],
-                "fontsize": fontsize,
-                "line_height": max(
-                    float(elem.get("line_height", fontsize * 1.1)) for elem in group
-                ),
-                "color": int(
-                    _pick_pdf_dominant_value(
-                        [
-                            (
-                                int(elem.get("color", 0)),
-                                max(
-                                    len(_plain_text(elem.get("content", "")).strip()), 1
-                                ),
-                            )
-                            for elem in group
-                        ],
-                        0,
-                    )
-                ),
-                "bold": all(bool(elem.get("bold")) for elem in group),
-                "superscript_runs": [
-                    dict(run)
-                    for elem in group
-                    for run in (elem.get("superscript_runs") or [])
-                ],
-                "inline_math_fragments": [
-                    dict(fragment)
-                    for elem in group
-                    for fragment in (elem.get("inline_math_fragments") or [])
-                ],
-                "merged_visual_line_count": len(source_lines),
-                "source_line_bboxes": [
-                    [float(value) for value in line["bbox"]] for line in source_lines
-                ],
+        return build_merged_text_element(
+            group,
+            page_rect,
+            rect=rect,
+            plain=plain,
+            rich=rich,
+            source_lines=source_lines,
+            indent=ParagraphIndent(
+                margin_left=min(margin_left, rect.width * 0.35),
+                text_indent=max(-rect.width * 0.18, text_indent),
+            ),
+            toc_leader=None,
+            render_fontsize=fontsize,
+            style=style,
+            markers={
                 "reference_entry_merged": len(group),
                 "table_hint": False,
                 "preserve_source_style": False,
-            }
+            },
         )
-        merged_elements.append(merged)
-        merge_count += len(group) - 1
-        index = cursor
-    return merged_elements, merge_count
+
+    return merge_groups(
+        group_adjacent(
+            elements,
+            lambda elem: _looks_like_pdf_reference_entry_lead(
+                _collapsed_plain_text(elem.get("content", ""))
+            ),
+            lambda group, elem: _pdf_reference_entry_elements_can_merge(
+                group, elem, page_rect
+            ),
+        ),
+        merge,
+    )
 
 
 def _pdf_reference_continuation_residual_pairs(

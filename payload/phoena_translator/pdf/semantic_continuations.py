@@ -18,7 +18,6 @@ from phoena_translator.pdf.geometry import (
 )
 from phoena_translator.pdf.math_detection import (
     _looks_like_pdf_list_marker,
-    _plain_text,
     _collapsed_plain_text,
 )
 
@@ -39,9 +38,9 @@ from phoena_translator.pdf.semantic_text import (
     _pdf_source_line_footnote_definition_marker,
     _pdf_text_colors_semantically_compatible,
     _pdf_visual_line_info_from_element,
-    _pick_pdf_dominant_value,
 )
 from phoena_translator.pdf.model import ElementType, LayoutClass
+from phoena_translator.pdf.semantic_grouping import ParagraphIndent, build_merged_text_element, dominant_group_style, first_and_body_x0, group_adjacent, group_plain_and_rich, group_rect, group_source_lines, merge_groups
 
 
 def _pdf_detached_list_marker_target_score(
@@ -369,134 +368,39 @@ def _merge_pdf_semantic_continuation_elements(
     page_rect: fitz.Rect,
 ) -> list[dict]:
     """Join multi-line fragments that belong to one list paragraph."""
-    merged_elements: list[dict] = []
-    index = 0
-    while index < len(elements):
-        first = elements[index]
-        first_plain = _collapsed_plain_text(first.get("content", ""))
-        if not _looks_like_pdf_paragraph_lead(first_plain):
-            merged_elements.append(first)
-            index += 1
-            continue
 
-        group = [first]
-        cursor = index + 1
-        while cursor < len(elements) and _pdf_semantic_continuation_elements_can_merge(
+    def merge(group: list[dict]) -> dict:
+        rect = group_rect(group)
+        plain, rich = group_plain_and_rich(group)
+        source_lines = group_source_lines(group)
+        first_x0, body_x0 = first_and_body_x0(source_lines)
+        return build_merged_text_element(
             group,
-            elements[cursor],
             page_rect,
-        ):
-            group.append(elements[cursor])
-            cursor += 1
-        if len(group) < 2:
-            merged_elements.append(first)
-            index += 1
-            continue
+            rect=rect,
+            plain=plain,
+            rich=rich,
+            source_lines=source_lines,
+            indent=ParagraphIndent(
+                margin_left=min(max(body_x0 - rect.x0, 0.0), rect.width * 0.35),
+                text_indent=max(-rect.width * 0.18, first_x0 - body_x0),
+            ),
+            toc_leader=_parse_pdf_toc_leader(plain),
+            render_fontsize=float(group[0].get("fontsize", 11.0)),
+        )
 
-        merged = dict(first)
-        rect = _get_pdf_primary_paragraph_rect(first)
-        for elem in group[1:]:
-            rect |= _get_pdf_primary_paragraph_rect(elem)
-        plain = _join_pdf_line_fragments(
-            [
+    merged_elements, _ = merge_groups(
+        group_adjacent(
+            elements,
+            lambda elem: _looks_like_pdf_paragraph_lead(
                 _collapsed_plain_text(elem.get("content", ""))
-                for elem in group
-            ]
-        )
-        rich = _join_pdf_line_fragments(
-            [
-                (elem.get("rich_content") or elem.get("content", "")).strip()
-                for elem in group
-            ]
-        )
-        source_lines = []
-        for elem in group:
-            paragraph = next(
-                (
-                    paragraph
-                    for paragraph in (elem.get("paragraphs") or [])
-                    if (paragraph.get("plain") or "").strip()
-                ),
-                {},
-            )
-            lines = [
-                dict(line)
-                for line in (paragraph.get("source_lines") or [])
-                if (line.get("plain") or "").strip()
-            ]
-            if lines:
-                source_lines.extend(lines)
-            else:
-                elem_rect = _get_pdf_primary_paragraph_rect(elem)
-                source_lines.append(
-                    {
-                        "plain": elem.get("content", ""),
-                        "rich": elem.get("rich_content") or elem.get("content", ""),
-                        "bbox": [float(value) for value in elem_rect],
-                    }
-                )
-        first_x0 = float(source_lines[0]["bbox"][0])
-        body_x0 = min(
-            (float(line["bbox"][0]) for line in source_lines[1:]),
-            default=first_x0,
-        )
-        paragraph = {
-            "plain": plain,
-            "rich": rich,
-            "source_bbox": [float(value) for value in rect],
-            "source_line_bboxes": [
-                [float(value) for value in line["bbox"]] for line in source_lines
-            ],
-            "source_lines": source_lines,
-            "margin_left": min(max(body_x0 - rect.x0, 0.0), rect.width * 0.35),
-            "text_indent": max(-rect.width * 0.18, first_x0 - body_x0),
-            "gap_before": 0.0,
-            "text_align": "left",
-            "nowrap": None,
-            "first_line_indent": False,
-            "toc_leader": _parse_pdf_toc_leader(plain),
-        }
-        merged.update(
-            {
-                "y": float(rect.y0),
-                "x": float(rect.x0),
-                "rect": fitz.Rect(rect),
-                "bbox": [
-                    float(rect.x0),
-                    float(rect.y0),
-                    float(rect.x1),
-                    float(rect.y1),
-                ],
-                "render_bbox": _get_pdf_render_bbox(
-                    rect,
-                    page_rect,
-                    [paragraph],
-                    float(merged.get("fontsize", 11.0)),
-                ),
-                "content": plain,
-                "rich_content": rich
-                if any(elem.get("rich_content") for elem in group)
-                else None,
-                "paragraphs": [paragraph],
-                "superscript_runs": [
-                    dict(run)
-                    for elem in group
-                    for run in (elem.get("superscript_runs") or [])
-                ],
-                "inline_math_fragments": [
-                    dict(fragment)
-                    for elem in group
-                    for fragment in (elem.get("inline_math_fragments") or [])
-                ],
-                "merged_visual_line_count": len(source_lines),
-                "source_line_bboxes": [
-                    [float(value) for value in line["bbox"]] for line in source_lines
-                ],
-                "bold": all(bool(elem.get("bold")) for elem in group),
-            }
-        )
-        merged_elements.append(merged)
-        index = cursor
+            ),
+            lambda group, elem: _pdf_semantic_continuation_elements_can_merge(
+                group, elem, page_rect
+            ),
+        ),
+        merge,
+    )
     return merged_elements
 
 
@@ -595,6 +499,94 @@ def _pdf_wrapped_line_elements_can_merge(
     return True
 
 
+def _merge_pdf_wrapped_line_group(group: list[dict], page_rect: fitz.Rect) -> dict | None:
+    """Rebuild one visual-line run as a paragraph element (``None`` if unsafe)."""
+    line_infos = [_pdf_visual_line_info_from_element(elem) for elem in group]
+    merged = _make_pdf_text_element_from_lines(line_infos, page_rect)
+    if merged is None:
+        return None
+
+    plain_text = _join_pdf_line_fragments([line["plain"] for line in line_infos])
+    rich_text = _join_pdf_line_fragments([line["rich"] for line in line_infos])
+    merged_rect = _get_pdf_elem_rect(merged)
+    first_x0 = float(line_infos[0]["x0"])
+    body_x0 = min(
+        (float(line["x0"]) for line in line_infos[1:]),
+        default=first_x0,
+    )
+    hanging_lead = _looks_like_pdf_paragraph_lead(line_infos[0]["plain"])
+    if hanging_lead:
+        margin_left = max(0.0, body_x0 - merged_rect.x0)
+        text_indent = max(-merged_rect.width * 0.18, first_x0 - body_x0)
+    else:
+        margin_left = 0.0
+        text_indent = max(0.0, first_x0 - body_x0)
+
+    paragraph = {
+        "plain": plain_text,
+        "rich": rich_text,
+        "source_bbox": [float(value) for value in merged_rect],
+        "source_line_bboxes": [
+            [
+                float(line["x0"]),
+                float(line["y0"]),
+                float(line["x1"]),
+                float(line["y1"]),
+            ]
+            for line in line_infos
+        ],
+        "source_lines": [
+            {
+                "plain": line.get("plain", ""),
+                "rich": line.get("rich", line.get("plain", "")),
+                "bbox": [
+                    float(line["x0"]),
+                    float(line["y0"]),
+                    float(line["x1"]),
+                    float(line["y1"]),
+                ],
+            }
+            for line in line_infos
+        ],
+        "margin_left": min(margin_left, merged_rect.width * 0.35),
+        "text_indent": min(text_indent, merged_rect.width * 0.25),
+        "gap_before": 0.0,
+        "text_align": "left",
+        "nowrap": None,
+        "first_line_indent": False,
+        "toc_leader": _parse_pdf_toc_leader(plain_text),
+    }
+    merged["content"] = plain_text
+    if any(elem.get("rich_content") for elem in group) or any(
+        elem.get("superscript_runs") for elem in group
+    ):
+        merged["rich_content"] = rich_text
+    else:
+        merged["rich_content"] = None
+    merged["paragraphs"] = [paragraph]
+    merged["render_bbox"] = _get_pdf_render_bbox(
+        merged_rect,
+        page_rect,
+        [paragraph],
+        float(merged.get("fontsize", 11.0)),
+    )
+    pitches = sorted(
+        float(line_infos[pos + 1]["y0"]) - float(line_infos[pos]["y0"])
+        for pos in range(len(line_infos) - 1)
+        if float(line_infos[pos + 1]["y0"]) > float(line_infos[pos]["y0"])
+    )
+    if pitches:
+        merged["line_height"] = max(
+            float(merged.get("line_height", 0.0)),
+            pitches[len(pitches) // 2],
+        )
+    merged["merged_visual_line_count"] = len(group)
+    merged["source_line_bboxes"] = [
+        [float(value) for value in _get_pdf_elem_rect(elem)] for elem in group
+    ]
+    return merged
+
+
 def _merge_pdf_wrapped_line_elements(
     elements: list[dict],
     page_rect: fitz.Rect,
@@ -607,117 +599,16 @@ def _merge_pdf_wrapped_line_elements(
     columns, headings, formulas, and numbered successor paragraphs separate.
     """
     merged_elements = []
-    index = 0
-    while index < len(elements):
-        first = elements[index]
-        if not _pdf_wrapped_line_group_can_start(first, page_rect):
-            merged_elements.append(first)
-            index += 1
-            continue
-
-        group = [first]
-        cursor = index + 1
-        while cursor < len(elements) and _pdf_wrapped_line_elements_can_merge(
-            group,
-            elements[cursor],
-            page_rect,
-        ):
-            group.append(elements[cursor])
-            cursor += 1
-
-        if len(group) < 2:
-            merged_elements.append(first)
-            index += 1
-            continue
-
-        line_infos = [_pdf_visual_line_info_from_element(elem) for elem in group]
-        merged = _make_pdf_text_element_from_lines(line_infos, page_rect)
+    for group in group_adjacent(
+        elements,
+        lambda elem: _pdf_wrapped_line_group_can_start(elem, page_rect),
+        lambda group, elem: _pdf_wrapped_line_elements_can_merge(group, elem, page_rect),
+    ):
+        merged = _merge_pdf_wrapped_line_group(group, page_rect) if len(group) > 1 else None
         if merged is None:
             merged_elements.extend(group)
-            index = cursor
-            continue
-
-        plain_text = _join_pdf_line_fragments([line["plain"] for line in line_infos])
-        rich_text = _join_pdf_line_fragments([line["rich"] for line in line_infos])
-        merged_rect = _get_pdf_elem_rect(merged)
-        first_x0 = float(line_infos[0]["x0"])
-        body_x0 = min(
-            (float(line["x0"]) for line in line_infos[1:]),
-            default=first_x0,
-        )
-        hanging_lead = _looks_like_pdf_paragraph_lead(line_infos[0]["plain"])
-        if hanging_lead:
-            margin_left = max(0.0, body_x0 - merged_rect.x0)
-            text_indent = max(-merged_rect.width * 0.18, first_x0 - body_x0)
         else:
-            margin_left = 0.0
-            text_indent = max(0.0, first_x0 - body_x0)
-
-        paragraph = {
-            "plain": plain_text,
-            "rich": rich_text,
-            "source_bbox": [float(value) for value in merged_rect],
-            "source_line_bboxes": [
-                [
-                    float(line["x0"]),
-                    float(line["y0"]),
-                    float(line["x1"]),
-                    float(line["y1"]),
-                ]
-                for line in line_infos
-            ],
-            "source_lines": [
-                {
-                    "plain": line.get("plain", ""),
-                    "rich": line.get("rich", line.get("plain", "")),
-                    "bbox": [
-                        float(line["x0"]),
-                        float(line["y0"]),
-                        float(line["x1"]),
-                        float(line["y1"]),
-                    ],
-                }
-                for line in line_infos
-            ],
-            "margin_left": min(margin_left, merged_rect.width * 0.35),
-            "text_indent": min(text_indent, merged_rect.width * 0.25),
-            "gap_before": 0.0,
-            "text_align": "left",
-            "nowrap": None,
-            "first_line_indent": False,
-            "toc_leader": _parse_pdf_toc_leader(plain_text),
-        }
-        merged["content"] = plain_text
-        if any(elem.get("rich_content") for elem in group) or any(
-            elem.get("superscript_runs") for elem in group
-        ):
-            merged["rich_content"] = rich_text
-        else:
-            merged["rich_content"] = None
-        merged["paragraphs"] = [paragraph]
-        merged["render_bbox"] = _get_pdf_render_bbox(
-            merged_rect,
-            page_rect,
-            [paragraph],
-            float(merged.get("fontsize", 11.0)),
-        )
-        pitches = sorted(
-            float(line_infos[pos + 1]["y0"]) - float(line_infos[pos]["y0"])
-            for pos in range(len(line_infos) - 1)
-            if float(line_infos[pos + 1]["y0"]) > float(line_infos[pos]["y0"])
-        )
-        if pitches:
-            merged["line_height"] = max(
-                float(merged.get("line_height", 0.0)),
-                pitches[len(pitches) // 2],
-            )
-        merged["merged_visual_line_count"] = len(group)
-        merged["source_line_bboxes"] = [
-            [float(value) for value in _get_pdf_elem_rect(elem)] for elem in group
-        ]
-        merged_elements.append(merged)
-        index = cursor
-
+            merged_elements.append(merged)
     return merged_elements
 
 
@@ -831,91 +722,14 @@ def _merge_pdf_strong_continuation_elements(
     page_rect: fitz.Rect,
 ) -> tuple[list[dict], int]:
     """Merge post-classification strong semantic continuations."""
-    merged_elements: list[dict] = []
-    merge_count = 0
-    index = 0
-    while index < len(elements):
-        first = elements[index]
-        if not _pdf_strong_continuation_element_is_eligible(first):
-            merged_elements.append(first)
-            index += 1
-            continue
 
-        group = [first]
-        cursor = index + 1
-        while cursor < len(elements) and _pdf_strong_continuation_elements_can_merge(
-            group,
-            elements[cursor],
-            page_rect,
-        ):
-            group.append(elements[cursor])
-            cursor += 1
-
-        if len(group) < 2:
-            merged_elements.append(first)
-            index += 1
-            continue
-
-        rect = _get_pdf_primary_paragraph_rect(group[0])
-        for elem in group[1:]:
-            rect |= _get_pdf_primary_paragraph_rect(elem)
-
-        plain = _join_pdf_line_fragments(
-            [
-                _collapsed_plain_text(elem.get("content", ""))
-                for elem in group
-            ]
-        )
-        rich = _join_pdf_line_fragments(
-            [
-                (elem.get("rich_content") or elem.get("content", "")).strip()
-                for elem in group
-            ]
-        )
-        source_lines: list[dict] = []
-        for elem in group:
-            paragraph = next(
-                (
-                    paragraph
-                    for paragraph in (elem.get("paragraphs") or [])
-                    if (paragraph.get("plain") or "").strip()
-                ),
-                {},
-            )
-            lines = [
-                dict(line)
-                for line in (paragraph.get("source_lines") or [])
-                if (line.get("plain") or "").strip()
-            ]
-            if lines:
-                source_lines.extend(lines)
-            else:
-                elem_rect = _get_pdf_primary_paragraph_rect(elem)
-                source_lines.append(
-                    {
-                        "plain": elem.get("content", ""),
-                        "rich": elem.get("rich_content") or elem.get("content", ""),
-                        "bbox": [float(value) for value in elem_rect],
-                    }
-                )
-
-        first_x0 = float(source_lines[0]["bbox"][0])
-        body_x0 = min(
-            (float(line["bbox"][0]) for line in source_lines[1:]),
-            default=first_x0,
-        )
-        fontsize = float(
-            _pick_pdf_dominant_value(
-                [
-                    (
-                        float(elem.get("fontsize", 11.0)),
-                        max(len(_plain_text(elem.get("content", "")).strip()), 1),
-                    )
-                    for elem in group
-                ],
-                11.0,
-            )
-        )
+    def merge(group: list[dict]) -> dict:
+        rect = group_rect(group)
+        plain, rich = group_plain_and_rich(group)
+        source_lines = group_source_lines(group)
+        first_x0, body_x0 = first_and_body_x0(source_lines)
+        style = dominant_group_style(group)
+        fontsize = style["fontsize"]
         hanging_indent = body_x0 - first_x0 >= max(fontsize * 0.50, 3.0)
         first_line_indent = first_x0 - body_x0 >= max(fontsize * 0.50, 3.0)
         if hanging_indent:
@@ -924,92 +738,38 @@ def _merge_pdf_strong_continuation_elements(
         else:
             margin_left = max(0.0, min(first_x0, body_x0) - rect.x0)
             text_indent = max(0.0, first_x0 - body_x0) if first_line_indent else 0.0
-
-        paragraph = {
-            "plain": plain,
-            "rich": rich,
-            "source_bbox": [float(value) for value in rect],
-            "source_line_bboxes": [
-                [float(value) for value in line["bbox"]] for line in source_lines
-            ],
-            "source_lines": source_lines,
-            "margin_left": min(margin_left, rect.width * 0.35),
-            "text_indent": max(
-                -rect.width * 0.18,
-                min(text_indent, rect.width * 0.25),
+        return build_merged_text_element(
+            group,
+            page_rect,
+            rect=rect,
+            plain=plain,
+            rich=rich,
+            source_lines=source_lines,
+            indent=ParagraphIndent(
+                margin_left=min(margin_left, rect.width * 0.35),
+                text_indent=max(-rect.width * 0.18, min(text_indent, rect.width * 0.25)),
+                first_line_indent=first_line_indent,
             ),
-            "gap_before": 0.0,
-            "text_align": "left",
-            "nowrap": None,
-            "first_line_indent": first_line_indent,
-            "toc_leader": _parse_pdf_toc_leader(plain),
-        }
-        merged = dict(group[0])
-        merged.update(
-            {
-                "y": float(rect.y0),
-                "x": float(rect.x0),
-                "rect": fitz.Rect(rect),
-                "bbox": [
-                    float(rect.x0),
-                    float(rect.y0),
-                    float(rect.x1),
-                    float(rect.y1),
-                ],
-                "render_bbox": _get_pdf_render_bbox(
-                    rect,
-                    page_rect,
-                    [paragraph],
-                    fontsize,
-                ),
-                "content": plain,
-                "rich_content": rich
-                if any(elem.get("rich_content") for elem in group)
-                else None,
-                "paragraphs": [paragraph],
-                "fontsize": fontsize,
-                "line_height": max(
-                    float(elem.get("line_height", fontsize * 1.1)) for elem in group
-                ),
-                "color": int(
-                    _pick_pdf_dominant_value(
-                        [
-                            (
-                                int(elem.get("color", 0)),
-                                max(
-                                    len(_plain_text(elem.get("content", "")).strip()), 1
-                                ),
-                            )
-                            for elem in group
-                        ],
-                        0,
-                    )
-                ),
-                "bold": all(bool(elem.get("bold")) for elem in group),
-                "superscript_runs": [
-                    dict(run)
-                    for elem in group
-                    for run in (elem.get("superscript_runs") or [])
-                ],
-                "inline_math_fragments": [
-                    dict(fragment)
-                    for elem in group
-                    for fragment in (elem.get("inline_math_fragments") or [])
-                ],
-                "merged_visual_line_count": len(source_lines),
-                "source_line_bboxes": [
-                    [float(value) for value in line["bbox"]] for line in source_lines
-                ],
+            toc_leader=_parse_pdf_toc_leader(plain),
+            render_fontsize=fontsize,
+            style=style,
+            markers={
                 "strong_semantic_continuation_merged": len(group),
                 "table_hint": False,
                 "preserve_source_style": False,
-            }
+            },
         )
-        merged_elements.append(merged)
-        merge_count += len(group) - 1
-        index = cursor
 
-    return merged_elements, merge_count
+    return merge_groups(
+        group_adjacent(
+            elements,
+            _pdf_strong_continuation_element_is_eligible,
+            lambda group, elem: _pdf_strong_continuation_elements_can_merge(
+                group, elem, page_rect
+            ),
+        ),
+        merge,
+    )
 
 
 def _pdf_strong_continuation_residual_pairs(
