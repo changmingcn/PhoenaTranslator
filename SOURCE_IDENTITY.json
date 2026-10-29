@@ -3,11 +3,11 @@
   "package_name": "PhoenaTranslator-20261028-epub-tolerant-publish-reinstall",
   "version": "2026.10.28-epub-tolerant-publish",
   "built_at_utc": "2026-10-28T08:16:20.089877+00:00",
-  "source_policy": "verified-epub-tolerance-fix-on-active-app",
+  "source_policy": "modularity refactor of 2026.10.28-epub-tolerant-publish on branch claude/awesome-bell-uwpctk; VERSION not yet bumped, not yet deployed",
   "active_release": "/opt/phoena-translator/releases/release-2026.10.28-epub-tolerant-publish",
-  "payload_file_count": 59,
-  "payload_total_bytes": 1340364,
-  "payload_manifest_sha256": "34f6a039c8e20bec54448ec6bc7a7758cf372f983ef35f9a106102610932c794",
+  "payload_file_count": 108,
+  "payload_total_bytes": 1642866,
+  "payload_manifest_sha256": "b2bc4ee9c0c197a713f00903d4758169568cf01abaf2919a3f37270c67c9117b",
   "prior_deployment_content_aggregate_sha256": "17d0ce24ad89a3d426cbd63ab918b348918c0cb5d16cc6bc8e46434b796843e9",
   "supersedes": "PhoenaTranslator-20261023-epub-segments-reinstall",
   "excluded_classes": [
@@ -17,5 +17,5 @@
     "virtual environments and bytecode",
     "fonts, audit evidence, backups and Git metadata"
   ],
-  "validation": "Server regression suite on soft: 321 passed, 2 skipped (release venv libraries, Python 3.13). Engineering review (refuter-t1e) two rounds, second round DEPLOY. Production task e728e0a5 resumed on this release: 2,522 segments reused, 6 re-requested, published with coverage 1.0; output EPUB zip-tested and all 42 XHTML parse."
+  "validation": "Local regression suite: 332 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including end-to-end golden snapshots of two synthetic PDFs that are identical before and after the refactor. Not yet validated on the production host or against real documents."
 }
