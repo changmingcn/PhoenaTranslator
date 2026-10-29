@@ -920,6 +920,7 @@ def _try_htmlbox(
                     box_html,
                     css=css,
                     archive=font_archive,
+                    minimum_scale=PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,
                 )
                 if spare >= 0:
                     scale = float(scale)
@@ -1161,6 +1162,7 @@ def _render_element(
         protected_rects=protected_formula_rects,
         allow_compact_fontsize=compact_fixed_table_label,
         fit_rects=textbox_fit_rects,
+        minimum_scale=PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,
     )
     if not ok:
         if _try_restore_source_element(

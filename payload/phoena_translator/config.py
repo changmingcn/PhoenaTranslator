@@ -8,6 +8,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
+from .claude_models import (  # noqa: F401 - re-exported configuration defaults
+    CLAUDE_CACHE_WRITE_MULTIPLIER,
+    CLAUDE_DEFAULT_MODEL,
+    CLAUDE_DEFAULT_PRICES,
+    CLAUDE_EFFORT_LEVELS,
+    claude_default_prices,
+)
+
 
 def _env_int(
     env: Mapping[str, str],
@@ -45,17 +53,6 @@ def _env_float(
 
 
 LLM_PROVIDERS = ("deepseek", "claude")
-CLAUDE_DEFAULT_MODEL = "claude-opus-5-5"
-CLAUDE_EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
-# USD per 1M tokens: (input, output, cache read). 5-minute cache writes are
-# billed at 1.25x input. Unknown Claude models are priced as Opus 5.5 so the
-# ledger's ``conservative_cost_usd`` never under-reports.
-CLAUDE_DEFAULT_PRICES: dict[str, tuple[float, float, float]] = {
-    "claude-opus-5-5": (4.0, 20.0, 0.20),
-    "claude-sonnet-5-5": (2.0, 10.0, 0.20),
-    "claude-haiku-5-5": (0.10, 0.50, 0.01),
-}
-CLAUDE_CACHE_WRITE_MULTIPLIER = 1.25
 
 
 def _llm_provider(env: Mapping[str, str]) -> str:
@@ -79,13 +76,6 @@ def _claude_effort(env: Mapping[str, str]) -> str | None:
             f"{', '.join(CLAUDE_EFFORT_LEVELS)}"
         )
     return raw
-
-
-def claude_default_prices(model: str) -> tuple[float, float, float]:
-    for family, prices in CLAUDE_DEFAULT_PRICES.items():
-        if model == family or model.startswith(family + "-"):
-            return prices
-    return CLAUDE_DEFAULT_PRICES[CLAUDE_DEFAULT_MODEL]
 
 
 @dataclass(frozen=True)

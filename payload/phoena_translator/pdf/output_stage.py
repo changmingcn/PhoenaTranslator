@@ -437,6 +437,10 @@ def _run_structure_check(context: PDFOutputStageContext) -> dict:
             page_extractions=context.page_extractions,
         )
     except Exception as error:
+        context.logger.exception(
+            f"[{context.task_id}] Output structure checker failed: "
+            f"{type(error).__name__}: {error}"
+        )
         return {
             "status": "error",
             "warning_count": 1,

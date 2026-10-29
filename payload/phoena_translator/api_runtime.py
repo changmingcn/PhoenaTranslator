@@ -240,7 +240,7 @@ def wait_for_api_slot(
         if delay <= 0:
             return
         sleep_for = min(delay, 5.0)
-        logger.info("DeepSeek cooling down for %.1fs after rate limiting", sleep_for)
+        logger.info("LLM API cooling down for %.1fs after rate limiting", sleep_for)
         sleep(sleep_for)
 
 
@@ -256,7 +256,7 @@ def record_rate_limit(
     with state.rate_limit_lock:
         state.resume_after = max(state.resume_after, resume_after)
     logger.warning(
-        "DeepSeek rate limited; pausing new requests for %.1fs: %s",
+        "LLM API rate limited; pausing new requests for %.1fs: %s",
         delay,
         exc,
     )
@@ -384,7 +384,7 @@ def record_completion_usage(
             with path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(record, ensure_ascii=False) + "\n")
     except Exception as exc:
-        logger.warning("Unable to record DeepSeek token usage: %s", exc)
+        logger.warning("Unable to record LLM token usage: %s", exc)
     return record
 
 
@@ -414,7 +414,7 @@ def create_chat_completion(
                 stats = dependencies.record_event("success")
                 if attempt > 0:
                     dependencies.logger.info(
-                        "DeepSeek request recovered after retry; recent API window "
+                        "LLM API request recovered after retry; recent API window "
                         "stats: %s rate-limit, %s transient errors, %s successes "
                         "in %ss",
                         stats["rate_limit_count"],
@@ -431,14 +431,14 @@ def create_chat_completion(
                     if stats["rate_limit_count"] >= policy.rate_limit_burst_threshold:
                         dependencies.record_rate_limit(delay, exc)
                         dependencies.logger.warning(
-                            "DeepSeek rate limit burst detected (%s times in %ss); "
+                            "LLM API rate limit burst detected (%s times in %ss); "
                             "entering slow mode",
                             stats["rate_limit_count"],
                             stats["window_seconds"],
                         )
                     else:
                         dependencies.logger.warning(
-                            "DeepSeek rate limit detected but not bursting yet "
+                            "LLM API rate limit detected but not bursting yet "
                             "(%s/%s in %ss); retrying",
                             stats["rate_limit_count"],
                             policy.rate_limit_burst_threshold,
@@ -451,7 +451,7 @@ def create_chat_completion(
                         3 * (2**attempt), policy.transient_error_max_delay
                     )
                     dependencies.logger.warning(
-                        "DeepSeek transient API error; retrying "
+                        "LLM API transient error; retrying "
                         "(attempt %s/%s, %s transient errors in %ss): %s",
                         attempt + 1,
                         policy.attempts,
@@ -465,5 +465,5 @@ def create_chat_completion(
             dependencies.sleep(retry_delay)
 
     raise RuntimeError(
-        f"DeepSeek API request failed after {policy.attempts} attempts: {last_error}"
+        f"LLM API request failed after {policy.attempts} attempts: {last_error}"
     )

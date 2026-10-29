@@ -17,15 +17,8 @@ from typing import Collection, Mapping, Sequence
 
 from .math_protection import find_xhtml_math_intervals
 from .xhtml import markup_ranges
+from ..prompts import SEGMENT_SYSTEM_PROMPT  # noqa: F401 - re-exported for callers
 
-
-SEGMENT_SYSTEM_PROMPT = """你是专业英文图书中文译者。输入是 JSON 对象，键是稳定段落 ID，值是一个完整语义段落、标题或列表项。
-只输出同一组 ID 对应的 JSON 对象，所有值为中文译文字符串。不得增删或重复 ID，不得输出 Markdown 代码围栏、解释、总结、译者说明或 JSON 之外的任何内容。
-完整翻译所有可见正文、章标题、小标题、目录文字、引文标题及注释说明，不得省略、概括或原文回填。人名、机构专名、编号、URL 和数学公式可以保留。
-参考文献中的书名、论文名、新闻标题、视频标题必须译成中文，包括引号内及斜体标记内的作品标题。它们不是可以整体保留的专名；仅作者、期刊/出版社/媒体名称、网址和编号可保留。不要以“这是参考文献”为由保留英文作品标题。
-形如 [[PH_0000_ABCDEF12]] 的不可变占位符代表本地保留的内联标签、链接、数学或其他原文片段。每个占位符必须逐字保留一次，数量和顺序严格不变；不要输出实际 HTML 标签或转义后的 HTML 实体。
-占位符之间的文字属于同一个段落：综合整段理解后翻译。尤其不要把首字下沉标签内的单个字母与后面的词分开理解。可调整占位符间的译文以保持自然中文，但不能移动占位符。
-只含人名、数字、缩写或 URL 的项可保持原值；有叙述内容的项必须完整译成中文。"""
 
 TOKEN_RE = re.compile(r"\[\[PH_\d{4,}_[0-9A-F]{8}\]\]")
 _WORD_RE = re.compile(r"[A-Za-z]+(?:['’\-][A-Za-z]+)*")

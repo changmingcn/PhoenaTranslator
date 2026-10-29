@@ -8,6 +8,14 @@ from typing import Any, Callable
 
 from openai import OpenAI
 
+from .claude_models import (  # noqa: F401 - re-exported model identities
+    CLAUDE_EFFORT_LEVELS,
+    CLAUDE_HAIKU_5_5,
+    CLAUDE_OPUS_5_5,
+    CLAUDE_SONNET_5_5,
+    claude_model_family,
+)
+
 
 class LLMConfigurationError(RuntimeError):
     """Raised when semantic translation is requested without runtime credentials."""
@@ -95,12 +103,8 @@ class DeepSeekTranslationAdapter:
 # * The SDK's own retries stay off (``max_retries=0``): ``api_runtime`` is the
 #   single retry owner and classifies Anthropic exception classes itself.
 
-CLAUDE_OPUS_5_5 = "claude-opus-5-5"
-CLAUDE_SONNET_5_5 = "claude-sonnet-5-5"
-CLAUDE_HAIKU_5_5 = "claude-haiku-5-5"
 CLAUDE_FALLBACK_BETA = "server-side-fallback-2026-07-01"
 CLAUDE_FALLBACK_FAMILIES = frozenset({CLAUDE_OPUS_5_5, CLAUDE_SONNET_5_5})
-CLAUDE_EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
 # ``between_tools`` / ``disabled`` thinking is a 400 above effort ``high``.
 CLAUDE_THINKING_OFF_EFFORTS = frozenset({"low", "medium", "high"})
 # Thinking tokens count toward ``max_tokens``; never send less than this.
@@ -121,14 +125,6 @@ class ClaudeResponseError(RuntimeError):
         super().__init__(message)
         self.stop_reason = stop_reason
         self.model = model
-
-
-def claude_model_family(model: str) -> str:
-    """Return the known 5.5 family id for ``model`` (or ``""`` if unknown)."""
-    for family in (CLAUDE_OPUS_5_5, CLAUDE_SONNET_5_5, CLAUDE_HAIKU_5_5):
-        if model == family or model.startswith(family + "-"):
-            return family
-    return ""
 
 
 @dataclass(frozen=True)

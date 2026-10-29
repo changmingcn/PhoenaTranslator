@@ -114,10 +114,7 @@ def _retry_with_source_pages(
         "pages": new_pages,
         "reason": str(error),
     }
-    try:
-        _save_pdf_audit(context.task_id, context.pdf_audit)
-    except Exception:
-        pass
+    _save_recovery_audit(context)
     context.logger.warning(
         f"[{context.task_id}] Reassembling with exact source page(s) {new_pages} "
         f"after {stage} failure; translation caches stay intact"
@@ -145,10 +142,7 @@ def _record_repair_cleanup_failure(
     if page_number is not None:
         entry["page"] = int(page_number)
     context.pdf_audit["auto_repair_cleanup_error"] = entry
-    try:
-        _save_pdf_audit(context.task_id, context.pdf_audit)
-    except Exception:
-        pass
+    _save_recovery_audit(context)
     page_suffix = f" for page {page_number}" if page_number is not None else ""
     context.logger.error(
         f"[{context.task_id}] Structural repair cannot remove {target}"
@@ -204,10 +198,7 @@ def _retry_structural_repair(
         "pages": repair_pages,
         "reason": str(error),
     }
-    try:
-        _save_pdf_audit(context.task_id, context.pdf_audit)
-    except Exception:
-        pass
+    _save_recovery_audit(context)
     context.logger.warning(
         f"[{context.task_id}] Rebuilding structurally mismatched page(s) "
         f"{repair_pages} once before failing the task"
@@ -218,6 +209,17 @@ def _retry_structural_repair(
         structure_retry=context.structure_retry + 1,
         reason="single-structural-repair",
     )
+
+
+def _save_recovery_audit(context: PDFRecoveryContext) -> None:
+    """Persist the audit best-effort: recovery must surface the original error."""
+    try:
+        _save_pdf_audit(context.task_id, context.pdf_audit)
+    except Exception as save_error:
+        context.logger.warning(
+            f"[{context.task_id}] Could not persist recovery audit: "
+            f"{type(save_error).__name__}: {save_error}"
+        )
 
 
 def _task_record(context: PDFRecoveryContext) -> dict:
@@ -237,10 +239,7 @@ def _trim_recovery_memory(context: PDFRecoveryContext) -> None:
                 "reason": str(cleanup_error)[:1000],
             }
         )
-        try:
-            _save_pdf_audit(context.task_id, context.pdf_audit)
-        except Exception:
-            pass
+        _save_recovery_audit(context)
         context.logger.warning(
             f"[{context.task_id}] Recovery memory cleanup failed without "
             f"masking {context.pdf_audit.get('failure_type', 'the primary error')}: "
@@ -256,10 +255,7 @@ def recover_pdf_failure(
 
     context.pdf_audit["failed_at"] = time.time()
     context.pdf_audit["failure_type"] = type(error).__name__
-    try:
-        _save_pdf_audit(context.task_id, context.pdf_audit)
-    except Exception:
-        pass
+    _save_recovery_audit(context)
     _trim_recovery_memory(context)
 
     decision = _retry_with_source_pages(context, error)

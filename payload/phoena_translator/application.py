@@ -61,7 +61,7 @@ from phoena_translator.pdf.translation import (
     PDFTranslationDependencies,
     translate_text as _translate_text_impl,
 )
-from phoena_translator.prompts import SYSTEM_PROMPT_TEXT
+from phoena_translator.prompts import SYSTEM_PROMPT_TEXT, with_glossary
 from phoena_translator.task_store import TaskStore
 from phoena_translator.task_runtime import (
     TaskPersistenceDependencies,
@@ -302,14 +302,7 @@ def build_glossary(all_text: str, task_id: str = "") -> str:
         return ""
 
 
-def _make_prompt_with_glossary(base_prompt: str, glossary: str) -> str:
-    """Inject glossary into a system prompt."""
-    if not glossary:
-        return base_prompt
-    return (
-        base_prompt
-        + f"\n\n以下是本书的统一术语表，请严格按此翻译专有名词：\n{glossary}"
-    )
+_make_prompt_with_glossary = with_glossary
 
 
 def translate_text(text: str, system_prompt: str = None, retries: int = 4) -> str:
@@ -398,7 +391,7 @@ def resume_interrupted_tasks() -> None:
 
 
 # Number of per-document translation worker threads used to prepare and dispatch
-# page/chunk work. Actual DeepSeek request concurrency is capped separately.
+# page/chunk work. Actual LLM request concurrency is capped separately.
 TRANSLATION_WORKERS = APP_CONFIG.translation_workers
 
 # Number of documents processed at once. Keep this low on small VPS instances:

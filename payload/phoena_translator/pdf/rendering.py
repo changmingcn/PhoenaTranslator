@@ -191,6 +191,7 @@ def _insert_pdf_htmlbox_at_readable_scale(
     *,
     css: str,
     archive,
+    minimum_scale: float = PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,
 ) -> tuple[float, float]:
     """Attempt the final HTML fit without ever committing unreadable text."""
     return page.insert_htmlbox(
@@ -198,7 +199,7 @@ def _insert_pdf_htmlbox_at_readable_scale(
         box_html,
         css=css,
         archive=archive,
-        scale_low=PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,
+        scale_low=minimum_scale,
     )
 
 
@@ -215,6 +216,7 @@ def _insert_pdf_textbox_with_fit(
     protected_rects: list | None = None,
     allow_compact_fontsize: bool = False,
     fit_rects: list | None = None,
+    minimum_scale: float = PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,
 ) -> tuple[bool, str, float | None]:
     """Insert text with PyMuPDF's textbox API, checking the no-draw return path.
 
@@ -297,10 +299,10 @@ def _insert_pdf_textbox_with_fit(
     scales = tuple(
         scale
         for scale in (1.0, 0.92, 0.84, 0.76, 0.68, 0.60)
-        if scale + 1e-9 >= PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE
+        if scale + 1e-9 >= minimum_scale
     )
     minimum_fontsize = (
-        max(base_fontsize * PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE, 1.0)
+        max(base_fontsize * minimum_scale, 1.0)
         if allow_compact_fontsize
         else 5.5
     )
@@ -336,7 +338,7 @@ def _insert_pdf_textbox_with_fit(
         fallback_fontsize = max(min(base_fontsize, 8.0), 5.5)
         if (
             fallback_fontsize / max(base_fontsize, 1.0)
-            < PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE
+            < minimum_scale
         ):
             return (
                 False,

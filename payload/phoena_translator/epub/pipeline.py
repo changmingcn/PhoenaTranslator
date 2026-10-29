@@ -19,7 +19,6 @@ from typing import Any
 
 from .archive import ArchiveLimits, package_epub, safe_extract_epub
 from .segments import (
-    SEGMENT_SYSTEM_PROMPT,
     BatchValidation,
     TextSegment,
     batch_segments,
@@ -28,7 +27,7 @@ from .segments import (
     parse_translation_response,
     validate_segment_translation,
 )
-from ..prompts import PROMPT_RULE_BLOCKS
+from ..prompts import PROMPT_RULE_BLOCKS, SEGMENT_SYSTEM_PROMPT
 from ..storage_layout import epub_checkpoint_path
 from .xhtml import DEFAULT_CHUNK_MAX_BYTES
 
