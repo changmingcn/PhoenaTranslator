@@ -12,13 +12,13 @@ from phoena_translator.pdf.merge_audit import (
     _expand_pdf_fallback_pages_for_accepted_merges,
     _is_accepted_merge_endpoint,
 )
-from phoena_translator.pdf.cache import (
+from phoena_translator.pdf.cache import _save_pdf_page_translation_cache
+from phoena_translator.pdf.source_fallbacks import (
     _append_pdf_source_page_fallback,
     _exclude_pdf_audit_expectations_for_element,
     _exclude_pdf_audit_expectations_for_source_pages,
     _pdf_source_page_fallback_entry,
     _record_pdf_element_source_fallback,
-    _save_pdf_page_translation_cache,
 )
 from phoena_translator.pdf.context import PDFPageTranslationContext
 from phoena_translator.pdf.page_translation import translate_page

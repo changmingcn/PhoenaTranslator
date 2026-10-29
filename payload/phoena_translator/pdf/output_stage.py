@@ -26,13 +26,12 @@ from phoena_translator.pdf.output_audit import (
 from phoena_translator.pdf.merge_audit import (
     _expand_pdf_fallback_pages_for_accepted_merges,
 )
-from phoena_translator.pdf.cache import (
+from phoena_translator.pdf.cache import _load_pdf_layout_cache, _save_pdf_layout_cache
+from phoena_translator.pdf.source_fallbacks import (
     _append_pdf_source_page_fallback,
     _exclude_pdf_audit_expectations_for_source_pages,
-    _load_pdf_layout_cache,
     _pdf_source_page_fallback_entry,
     _replace_pdf_pages_with_source,
-    _save_pdf_layout_cache,
 )
 from phoena_translator.pdf.fonts import (
     _collect_pdf_font_chars,

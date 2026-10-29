@@ -25,16 +25,19 @@ from phoena_translator.pdf.audit_expectations import (
     _collect_pdf_vector_ocr_expectations,
 )
 from phoena_translator.pdf.cache import (
-    _append_pdf_source_page_fallback,
-    _exclude_pdf_audit_expectations_for_source_pages,
     _load_pdf_cached_page_indices,
     _load_pdf_page_translation_cache,
     _pdf_page_cache_path,
-    _pdf_source_page_fallback_entry,
     _pdf_source_sha256,
     _reconcile_pdf_page_translation_cache,
     _save_pdf_audit,
     _save_pdf_page_translation_cache,
+    _discard_pdf_page_translation_cache,
+)
+from phoena_translator.pdf.source_fallbacks import (
+    _append_pdf_source_page_fallback,
+    _exclude_pdf_audit_expectations_for_source_pages,
+    _pdf_source_page_fallback_entry,
 )
 from phoena_translator.pdf.context import ImmutableElementPolicy
 from phoena_translator.pdf.extraction import _is_skip_page
@@ -369,10 +372,7 @@ def _bind_and_reconcile_caches(
             info.pop("cached", None)
             info.pop("cached_seed", None)
             result.completed_indices.discard(page_num)
-            try:
-                os.unlink(_pdf_page_cache_path(context.task_id, page_num))
-            except FileNotFoundError:
-                pass
+            _discard_pdf_page_translation_cache(context.task_id, page_num)
             continue
         info["cached"] = reconciled
         if repaired:

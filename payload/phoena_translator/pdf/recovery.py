@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
 import time
 import traceback
@@ -14,11 +13,13 @@ from phoena_translator.pdf.merge_audit import (
     _expand_pdf_fallback_pages_for_accepted_merges,
 )
 from phoena_translator.pdf.cache import (
-    _append_pdf_source_page_fallback,
-    _pdf_layout_cache_path,
-    _pdf_page_cache_path,
-    _pdf_source_page_fallback_entry,
     _save_pdf_audit,
+    _discard_pdf_page_translation_cache,
+    _discard_pdf_layout_cache,
+)
+from phoena_translator.pdf.source_fallbacks import (
+    _append_pdf_source_page_fallback,
+    _pdf_source_page_fallback_entry,
 )
 from phoena_translator.pdf.errors import (
     PDFPageExtractionError,
@@ -174,9 +175,7 @@ def _retry_structural_repair(
         return None
     for page_number in repair_pages:
         try:
-            os.unlink(_pdf_page_cache_path(context.task_id, page_number - 1))
-        except FileNotFoundError:
-            pass
+            _discard_pdf_page_translation_cache(context.task_id, page_number - 1)
         except OSError as cleanup_error:
             _record_repair_cleanup_failure(
                 context,
@@ -186,9 +185,7 @@ def _retry_structural_repair(
             )
             return None
     try:
-        os.unlink(_pdf_layout_cache_path(context.task_id))
-    except FileNotFoundError:
-        pass
+        _discard_pdf_layout_cache(context.task_id)
     except OSError as cleanup_error:
         _record_repair_cleanup_failure(
             context,

@@ -397,9 +397,6 @@ from phoena_translator.pdf.batch_codec import (
     _pdf_batch_segment_records_from_source,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.cache import (
-    _append_pdf_source_page_fallback,  # noqa: F401 - legacy facade
-    _exclude_pdf_audit_expectations_for_element,  # noqa: F401 - legacy facade
-    _exclude_pdf_audit_expectations_for_source_pages,  # noqa: F401 - legacy facade
     _json_safe_pdf_layout,  # noqa: F401 - legacy facade
     _load_pdf_cached_page_indices,  # noqa: F401 - legacy facade
     _load_pdf_layout_cache,  # noqa: F401 - legacy facade
@@ -408,15 +405,20 @@ from phoena_translator.pdf.cache import (
     _pdf_cache_element_identity,  # noqa: F401 - legacy facade
     _pdf_layout_cache_path,  # noqa: F401 - legacy facade
     _pdf_page_cache_path,  # noqa: F401 - legacy facade
-    _pdf_source_page_fallback_entry,  # noqa: F401 - legacy facade
     _pdf_source_sha256,  # noqa: F401 - legacy facade
     _reconcile_pdf_page_translation_cache,  # noqa: F401 - legacy facade
-    _record_pdf_element_source_fallback,  # noqa: F401 - legacy facade
-    _replace_pdf_pages_with_source,  # noqa: F401 - legacy facade
     _save_pdf_audit,  # noqa: F401 - legacy facade
     _save_pdf_layout_cache,  # noqa: F401 - legacy facade
     _save_pdf_page_translation_cache,  # noqa: F401 - legacy facade
     configure_pdf_cache_progress_dir,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.source_fallbacks import (
+    _append_pdf_source_page_fallback,  # noqa: F401 - legacy facade
+    _exclude_pdf_audit_expectations_for_element,  # noqa: F401 - legacy facade
+    _exclude_pdf_audit_expectations_for_source_pages,  # noqa: F401 - legacy facade
+    _pdf_source_page_fallback_entry,  # noqa: F401 - legacy facade
+    _record_pdf_element_source_fallback,  # noqa: F401 - legacy facade
+    _replace_pdf_pages_with_source,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.fonts import (
     _collect_pdf_font_chars,  # noqa: F401 - legacy facade
