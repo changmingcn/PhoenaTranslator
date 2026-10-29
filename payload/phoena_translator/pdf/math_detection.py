@@ -22,6 +22,13 @@ from phoena_translator.math_text import (
     unicode_math_symbol_count as _unicode_math_symbol_count,
 )
 
+from phoena_translator.pdf.placeholders import (
+    mint_placeholder_token,
+    placeholder_record,
+    protect_anchored_matches,
+    record_original_intact,
+    restore_anchored_tokens,
+)
 from phoena_translator.pdf.types import (
     PDF_BATCH_SEGMENT_RE,
     PDF_FORMULA_GUARD_PADDING,
@@ -973,91 +980,25 @@ def _protect_pdf_superscript_fragments(text: str) -> tuple[str, list[dict]]:
     matches = list(re.finditer(r"(?is)<sup>.*?</sup>", normalized))
     if not matches:
         return normalized, []
-
-    records = []
-    pieces = []
-    cursor = 0
-    for index, match in enumerate(matches):
-        original = match.group(0)
-        digest = hashlib.sha256(
-            f"{index}:{match.start()}:{match.end()}:".encode("ascii")
-            + original.encode("utf-8")
-        ).hexdigest().upper()[:16]
-        token = f"PHOENA_SUP_{index:04d}_{digest}"
-        while token in normalized:
-            digest = hashlib.sha256(
-                (digest + original).encode("utf-8")
-            ).hexdigest().upper()[:16]
-            token = f"PHOENA_SUP_{index:04d}_{digest}"
-        pieces.append(normalized[cursor:match.start()])
-        pieces.append(token)
-        source_prefix = normalized[:match.start()]
-        source_suffix = normalized[match.end():]
-        if not source_prefix.strip():
-            anchor = "prefix"
-            separator_match = re.match(r"\s*", source_suffix)
-            anchor_separator = separator_match.group(0) if separator_match else ""
-        elif not source_suffix.strip():
-            anchor = "suffix"
-            separator_match = re.search(r"\s*$", source_prefix)
-            anchor_separator = separator_match.group(0) if separator_match else ""
-        else:
-            anchor = "inline"
-            anchor_separator = ""
-        records.append({
-            "token": token,
-            "original": original,
-            "sha256": hashlib.sha256(original.encode("utf-8")).hexdigest(),
-            "anchor": anchor,
-            "anchor_separator": anchor_separator,
-        })
-        cursor = match.end()
-    pieces.append(normalized[cursor:])
-    return "".join(pieces), records
+    return protect_anchored_matches(normalized, matches, "SUP")
 
 
 def _restore_pdf_superscript_fragments(
     translated_text: str,
     records: list[dict],
 ) -> str | None:
-    """Restore protected PDF superscripts only after exact token validation."""
+    """Restore protected PDF superscripts only after exact token validation.
+
+    Models frequently move a leading footnote marker to the end of a Chinese
+    sentence even when they preserve its opaque token exactly; the shared
+    restorer re-anchors such source-edge markers.
+    """
     if not records:
         return translated_text
-    expected_tokens = [record["token"] for record in records]
-    observed_tokens = PDF_SUPERSCRIPT_PLACEHOLDER_RE.findall(
-        translated_text or ""
+    restored = restore_anchored_tokens(
+        translated_text, records, PDF_SUPERSCRIPT_PLACEHOLDER_RE
     )
-    if observed_tokens != expected_tokens:
-        return None
-    restored = translated_text or ""
-
-    # Models frequently move a leading footnote marker to the end of a
-    # Chinese sentence even when they preserve its opaque token exactly.
-    # Token-count validation alone cannot detect that layout corruption.
-    # Re-anchor only source-edge superscripts; ordinary inline/ordinal markers
-    # retain the model's surrounding word order.
-    for record in records:
-        token = record["token"]
-        anchor = record.get("anchor")
-        separator = record.get("anchor_separator", "")
-        if anchor == "prefix" and not restored.lstrip().startswith(token):
-            without = restored.replace(token, "", 1).lstrip()
-            restored = token + separator + without
-        elif anchor == "suffix" and not restored.rstrip().endswith(token):
-            without = restored.replace(token, "", 1).rstrip()
-            restored = without + separator + token
-
-    for record in records:
-        original = record.get("original", "")
-        if hashlib.sha256(original.encode("utf-8")).hexdigest() != record.get("sha256"):
-            return None
-        token = record["token"]
-        if restored.count(token) != 1:
-            return None
-        restored = restored.replace(token, original, 1)
-    if PDF_SUPERSCRIPT_PLACEHOLDER_RE.search(restored):
-        return None
-    return _normalize_pdf_translation(restored)
+    return None if restored is None else _normalize_pdf_translation(restored)
 
 
 def _protect_pdf_inline_math_fragments(
@@ -1088,22 +1029,9 @@ def _protect_pdf_inline_math_fragments(
             # the post-translation element validator will reject any change.
             continue
         end = start + len(original)
-        digest = hashlib.sha256(
-            f"{index}:{start}:{end}:".encode("ascii")
-            + original.encode("utf-8")
-        ).hexdigest().upper()[:16]
-        token = f"PHOENA_IMATH_{index:04d}_{digest}"
-        while token in protected:
-            digest = hashlib.sha256(
-                (digest + original).encode("utf-8")
-            ).hexdigest().upper()[:16]
-            token = f"PHOENA_IMATH_{index:04d}_{digest}"
+        token = mint_placeholder_token("IMATH", index, start, end, original, protected)
         protected = protected[:start] + token + protected[end:]
-        records.append({
-            "token": token,
-            "original": original,
-            "sha256": hashlib.sha256(original.encode("utf-8")).hexdigest(),
-        })
+        records.append(placeholder_record(token, original))
         cursor = start + len(token)
     return protected, records
 
@@ -1127,9 +1055,9 @@ def _restore_pdf_inline_math_fragments(
         return translated_text
     restored = translated_text or ""
     for record in records:
-        original = record.get("original", "")
-        if hashlib.sha256(original.encode("utf-8")).hexdigest() != record.get("sha256"):
+        if not record_original_intact(record):
             return None
+        original = record.get("original", "")
         token = record["token"]
         if restored.count(token) == 1:
             restored = restored.replace(token, original, 1)
@@ -1171,89 +1099,22 @@ def _protect_pdf_identifier_fragments(text: str) -> tuple[str, list[dict]]:
     matches = list(_PRESERVED_IDENTIFIER_RE.finditer(protected))
     if not matches:
         return protected, []
-
-    records = []
-    pieces = []
-    cursor = 0
-    for index, match in enumerate(matches):
-        original = match.group(0)
-        digest = hashlib.sha256(
-            f"{index}:{match.start()}:{match.end()}:".encode("ascii")
-            + original.encode("utf-8")
-        ).hexdigest().upper()[:16]
-        token = f"PHOENA_ID_{index:04d}_{digest}"
-        while token in protected:
-            digest = hashlib.sha256(
-                (digest + original).encode("utf-8")
-            ).hexdigest().upper()[:16]
-            token = f"PHOENA_ID_{index:04d}_{digest}"
-        pieces.append(protected[cursor:match.start()])
-        pieces.append(token)
-        source_prefix = protected[:match.start()]
-        source_suffix = protected[match.end():]
-        if not source_prefix.strip():
-            anchor = "prefix"
-            separator_match = re.match(r"\s*", source_suffix)
-            anchor_separator = separator_match.group(0) if separator_match else ""
-        elif not source_suffix.strip():
-            anchor = "suffix"
-            separator_match = re.search(r"\s*$", source_prefix)
-            anchor_separator = separator_match.group(0) if separator_match else ""
-        else:
-            anchor = "inline"
-            anchor_separator = ""
-        records.append({
-            "token": token,
-            "original": original,
-            "sha256": hashlib.sha256(original.encode("utf-8")).hexdigest(),
-            "anchor": anchor,
-            "anchor_separator": anchor_separator,
-        })
-        cursor = match.end()
-    pieces.append(protected[cursor:])
-    return "".join(pieces), records
+    return protect_anchored_matches(protected, matches, "ID")
 
 
 def _restore_pdf_identifier_fragments(
     translated_text: str,
     records: list[dict],
 ) -> str | None:
-    """Restore protected identifiers after exact count/order validation."""
+    """Restore protected identifiers after exact count/order validation.
+
+    Source-edge identifiers stay at the same edge: for URL footnotes and
+    bibliography entries moving the token changes the semantic association
+    even though its bytes remain intact.
+    """
     if not records:
         return translated_text
-    expected_tokens = [record["token"] for record in records]
-    observed_tokens = PDF_IDENTIFIER_PLACEHOLDER_RE.findall(
-        translated_text or ""
-    )
-    if observed_tokens != expected_tokens:
-        return None
-    restored = translated_text or ""
-
-    # Keep source-edge identifiers at the same edge.  This matters for URL
-    # footnotes and bibliography entries, where moving the token changes the
-    # semantic association even though its bytes remain intact.
-    for record in records:
-        token = record["token"]
-        anchor = record.get("anchor")
-        separator = record.get("anchor_separator", "")
-        if anchor == "prefix" and not restored.lstrip().startswith(token):
-            without = restored.replace(token, "", 1).lstrip()
-            restored = token + separator + without
-        elif anchor == "suffix" and not restored.rstrip().endswith(token):
-            without = restored.replace(token, "", 1).rstrip()
-            restored = without + separator + token
-
-    for record in records:
-        original = record.get("original", "")
-        if hashlib.sha256(original.encode("utf-8")).hexdigest() != record.get("sha256"):
-            return None
-        token = record["token"]
-        if restored.count(token) != 1:
-            return None
-        restored = restored.replace(token, original, 1)
-    if PDF_IDENTIFIER_PLACEHOLDER_RE.search(restored):
-        return None
-    return restored
+    return restore_anchored_tokens(translated_text, records, PDF_IDENTIFIER_PLACEHOLDER_RE)
 
 
 def _pdf_inline_math_fragments_preserved(
