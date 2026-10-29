@@ -18,13 +18,13 @@ from phoena_translator.pdf.superscripts import (
 from phoena_translator.pdf.placeholders import (
     _select_pdf_inline_math_fragments_for_text,
 )
-from phoena_translator.pdf.inline_markup import _normalize_pdf_translation
 from phoena_translator.pdf.text_shape import (
     _looks_like_pdf_list_marker,
     _plain_text,
     _collapsed_plain_text,
 )
 from phoena_translator.pdf.model import ElementType, SkipReason
+from phoena_translator.pdf.toc import _parse_pdf_toc_leader
 
 
 DISCLAIMER_PATTERNS = re.compile(
@@ -245,39 +245,6 @@ def _merge_pdf_list_marker_clusters(clusters: list[list[dict]]) -> list[list[dic
     merged.append(_make_pdf_space_span(clusters[0][-1], clusters[1][0]))
     merged.extend(clusters[1])
     return [merged] + clusters[2:]
-
-
-def _parse_pdf_toc_leader(text: str) -> dict | None:
-    plain = _collapsed_plain_text(text)
-    if not plain:
-        return None
-
-    match = re.match(
-        r"^(?P<label>.+?)\s*(?:[.\u2024\u2025\u2026\u00b7·]{6,})\s*(?P<page>(?:\d{1,4}|[ivxlcdmIVXLCDM]{1,12}|[A-Za-z]-?\d{1,4}))\s*$",
-        plain,
-    )
-    if not match:
-        return None
-
-    label = match.group("label").strip()
-    page = match.group("page").strip()
-    if not label or not page:
-        return None
-    return {"label": label, "page": page}
-
-
-def _strip_pdf_toc_label(text: str, page_ref: str) -> str:
-    plain = _collapsed_plain_text(_normalize_pdf_translation(text))
-    if not plain:
-        return ""
-
-    plain = re.sub(
-        rf"\s*(?:[.\u2024\u2025\u2026\u00b7·]{{3,}}\s*)?{re.escape(page_ref)}\s*$",
-        "",
-        plain,
-    ).strip()
-    plain = re.sub(r"[.\u2024\u2025\u2026\u00b7·]{3,}\s*$", "", plain).strip()
-    return plain
 
 
 def _looks_like_split_layout_line(

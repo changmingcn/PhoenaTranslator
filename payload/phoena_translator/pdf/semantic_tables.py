@@ -12,10 +12,8 @@ from phoena_translator.pdf.geometry import (
     _get_pdf_source_ink_rect,
 )
 from phoena_translator.pdf.text_shape import _collapsed_plain_text
-from phoena_translator.pdf.semantic_text import (
-    _join_pdf_line_fragments,
-    _parse_pdf_toc_leader,
-)
+from phoena_translator.pdf.semantic_text import _join_pdf_line_fragments
+from phoena_translator.pdf.toc import _parse_pdf_toc_leader
 from phoena_translator.pdf.model import ElementType
 
 log = logging.getLogger("translator")

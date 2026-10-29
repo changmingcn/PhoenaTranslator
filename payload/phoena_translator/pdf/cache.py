@@ -30,7 +30,7 @@ from phoena_translator.pdf.deterministic_labels import (
     _translate_pdf_deterministic_labels,
 )
 from phoena_translator.pdf.translation_targets import _pdf_element_requires_translation
-from phoena_translator.pdf.translation import (
+from phoena_translator.pdf.translation_validation import (
     _pdf_element_translation_needs_retry,
 )
 from phoena_translator.pdf.geometry import _get_pdf_elem_rect

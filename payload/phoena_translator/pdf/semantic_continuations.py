@@ -26,12 +26,12 @@ from phoena_translator.pdf.semantic_text import (
     _join_pdf_line_fragments,
     _looks_like_pdf_paragraph_lead,
     _make_pdf_text_element_from_lines,
-    _parse_pdf_toc_leader,
     _pdf_element_footnote_definition_marker,
     _pdf_source_line_footnote_definition_marker,
     _pdf_text_colors_semantically_compatible,
     _pdf_visual_line_info_from_element,
 )
+from phoena_translator.pdf.toc import _parse_pdf_toc_leader
 from phoena_translator.pdf.model import ElementType, LayoutClass
 from phoena_translator.pdf.semantic_grouping import ParagraphIndent, build_merged_text_element, dominant_group_style, first_and_body_x0, group_adjacent, group_plain_and_rich, group_rect, group_source_lines, merge_groups
 

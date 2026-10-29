@@ -22,7 +22,7 @@ from phoena_translator.pdf.cache import (
 )
 from phoena_translator.pdf.context import PDFPageTranslationContext
 from phoena_translator.pdf.page_translation import translate_page
-from phoena_translator.pdf.translation import _validate_pdf_page_translations
+from phoena_translator.pdf.translation_validation import _validate_pdf_page_translations
 from phoena_translator.pdf.errors import (
     PDFPageTranslationError,
     PDFTranslationIntegrityError,

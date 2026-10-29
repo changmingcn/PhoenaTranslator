@@ -1015,7 +1015,9 @@ class TestRefusalMetaGate:
     SOURCE = "Discussion of policy implications"
 
     def test_chinese_refusal_needs_retry(self):
-        from phoena_translator.pdf.translation import _short_translation_needs_retry
+        from phoena_translator.pdf.translation_validation import (
+            _short_translation_needs_retry,
+        )
 
         assert _short_translation_needs_retry(
             self.SOURCE, "抱歉，我无法翻译此内容"
@@ -1025,7 +1027,9 @@ class TestRefusalMetaGate:
         )
 
     def test_meta_preamble_needs_retry(self):
-        from phoena_translator.pdf.translation import _short_translation_needs_retry
+        from phoena_translator.pdf.translation_validation import (
+            _short_translation_needs_retry,
+        )
 
         assert _short_translation_needs_retry(
             self.SOURCE, "好的，以下是译文：政策含义的讨论"
@@ -1035,7 +1039,9 @@ class TestRefusalMetaGate:
         )
 
     def test_ordinary_translation_passes(self):
-        from phoena_translator.pdf.translation import _short_translation_needs_retry
+        from phoena_translator.pdf.translation_validation import (
+            _short_translation_needs_retry,
+        )
 
         assert not _short_translation_needs_retry(
             self.SOURCE, "政策含义的讨论"
@@ -4607,7 +4613,7 @@ class TestCitationApparatusRetryExemption:
     ]
 
     def test_authors_and_year_returned_unchanged_is_accepted(self):
-        from phoena_translator.pdf.translation import (
+        from phoena_translator.pdf.translation_validation import (
             _short_translation_needs_retry,
         )
 
@@ -4615,7 +4621,7 @@ class TestCitationApparatusRetryExemption:
             assert not _short_translation_needs_retry(source, source), source
 
     def test_translatable_content_still_drives_the_retry_ladder(self):
-        from phoena_translator.pdf.translation import (
+        from phoena_translator.pdf.translation_validation import (
             _short_translation_needs_retry,
         )
 
@@ -4623,7 +4629,7 @@ class TestCitationApparatusRetryExemption:
             assert _short_translation_needs_retry(source, source), source
 
     def test_quoted_title_word_count_gates_the_exemption(self):
-        from phoena_translator.pdf.translation import (
+        from phoena_translator.pdf.translation_validation import (
             _pdf_citation_apparatus_only,
             _pdf_quoted_title_word_count,
         )
@@ -4775,7 +4781,7 @@ class TestStructuredIdentifierRowExemption:
             assert not _looks_like_pdf_structured_identifier_row(text), text
 
     def test_echo_of_identifier_row_is_accepted(self):
-        from phoena_translator.pdf.translation import (
+        from phoena_translator.pdf.translation_validation import (
             _short_translation_needs_retry,
             _translation_part_needs_retry,
         )
@@ -4785,7 +4791,7 @@ class TestStructuredIdentifierRowExemption:
             assert not _translation_part_needs_retry(row, row), row
 
     def test_prose_echo_still_drives_the_retry_ladder(self):
-        from phoena_translator.pdf.translation import (
+        from phoena_translator.pdf.translation_validation import (
             _short_translation_needs_retry,
         )
 
@@ -4972,7 +4978,7 @@ class TestContactLineAndDateLabelExemption:
             assert not _looks_like_pdf_contact_line(text), text
 
     def test_contact_echo_is_accepted_by_the_verdict(self):
-        from phoena_translator.pdf.translation import (
+        from phoena_translator.pdf.translation_validation import (
             _short_translation_needs_retry,
         )
 

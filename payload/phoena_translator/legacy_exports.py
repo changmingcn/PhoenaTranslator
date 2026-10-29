@@ -216,7 +216,6 @@ from phoena_translator.pdf.semantic_text import (
     _normalize_pdf_drop_cap_lines,  # noqa: F401 - legacy facade
     _normalize_pdf_footnote_alignment,  # noqa: F401 - legacy facade
     _normalize_watermark_text,  # noqa: F401 - legacy facade
-    _parse_pdf_toc_leader,  # noqa: F401 - legacy facade
     _pdf_element_footnote_definition_marker,  # noqa: F401 - legacy facade
     _pdf_element_prefers_single_line_heading,  # noqa: F401 - legacy facade
     _pdf_source_line_footnote_definition_marker,  # noqa: F401 - legacy facade
@@ -227,6 +226,9 @@ from phoena_translator.pdf.semantic_text import (
     _should_keep_pdf_lines_separate,  # noqa: F401 - legacy facade
     _split_pdf_disjoint_line_segments,  # noqa: F401 - legacy facade
     _split_pdf_text_elements_into_semantic_fragments,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.toc import (
+    _parse_pdf_toc_leader,  # noqa: F401 - legacy facade
     _strip_pdf_toc_label,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.semantic_cross_page import (
@@ -326,13 +328,7 @@ from phoena_translator.pdf.cache import (
     PDF_LAYOUT_SEMANTICS_VERSION,  # noqa: F401 - legacy facade
     PDF_PAGE_CACHE_SCHEMA_VERSION,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.translation import (
-    PDF_BATCH_SEPARATOR,  # noqa: F401 - legacy facade
-    PDF_MAX_TRANSLATION_EXPANSION_RATIO,  # noqa: F401 - legacy facade
-    PDF_MAX_TRANSLATION_EXPANSION_SLACK,  # noqa: F401 - legacy facade
-    _PDF_MIXED_TRANSLATION_ENGLISH_RUN_RE,  # noqa: F401 - legacy facade
-    _PDF_REFERENCE_TRANSLATION_YEAR_RE,  # noqa: F401 - legacy facade
-    _PDF_TOC_ENTRY_RE,  # noqa: F401 - legacy facade
+from phoena_translator.pdf.leak_audit import (
     _PDF_UNTRANSLATED_LEAK_CJK_RE,  # noqa: F401 - legacy facade
     _PDF_UNTRANSLATED_LEAK_LONE_WORD_RE,  # noqa: F401 - legacy facade
     _PDF_UNTRANSLATED_LEAK_NEIGHBOR_AFTER_RE,  # noqa: F401 - legacy facade
@@ -341,19 +337,40 @@ from phoena_translator.pdf.translation import (
     _PDF_UNTRANSLATED_LEAK_SYMBOL_WORDS,  # noqa: F401 - legacy facade
     _PDF_UNTRANSLATED_LEAK_UNIT_WORDS,  # noqa: F401 - legacy facade
     _PDF_UNTRANSLATED_LEAK_WORD_RE,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.translation_validation import (
+    PDF_MAX_TRANSLATION_EXPANSION_RATIO,  # noqa: F401 - legacy facade
+    PDF_MAX_TRANSLATION_EXPANSION_SLACK,  # noqa: F401 - legacy facade
+    _PDF_MIXED_TRANSLATION_ENGLISH_RUN_RE,  # noqa: F401 - legacy facade
+    _PDF_REFERENCE_TRANSLATION_YEAR_RE,  # noqa: F401 - legacy facade
     _PDF_WORK_TITLE_QUOTE_CHARS,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.toc import (
+    _PDF_TOC_ENTRY_RE,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.batch_codec import (
+    PDF_BATCH_SEPARATOR,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.settings import (
     PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.translation import (
-    _build_pdf_batch_segment_envelope,  # noqa: F401 - legacy facade
-    _has_chinese,  # noqa: F401 - legacy facade
-    _looks_like_pdf_toc_leader_block,  # noqa: F401 - legacy facade
-    _parse_pdf_batch_segment_envelope,  # noqa: F401 - legacy facade
-    _pdf_batch_segment_records_from_source,  # noqa: F401 - legacy facade
-    _pdf_batch_translation_candidate_is_valid,  # noqa: F401 - legacy facade
+    translate_text as _translate_text_impl,  # noqa: F401 - legacy facade
+    PDFTranslationDependencies,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.page_translation import (
+    _pdf_vector_ocr_translation_hint,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.assembly import (
+    _split_pdf_translated_paragraphs,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.leak_audit import (
     _pdf_collect_untranslated_english_leaks,  # noqa: F401 - legacy facade
+    _pdf_untranslated_english_leak_runs,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.translation_validation import (
+    _has_chinese,  # noqa: F401 - legacy facade
+    _pdf_batch_translation_candidate_is_valid,  # noqa: F401 - legacy facade
     _pdf_element_translation_needs_retry,  # noqa: F401 - legacy facade
     _pdf_english_run_looks_like_proper_name,  # noqa: F401 - legacy facade
     _pdf_has_untranslated_citation_label,  # noqa: F401 - legacy facade
@@ -361,18 +378,23 @@ from phoena_translator.pdf.translation import (
     _pdf_number_anchor_plain_text,  # noqa: F401 - legacy facade
     _pdf_reference_entry_translation_needs_retry,  # noqa: F401 - legacy facade
     _pdf_semantic_number_anchor_preserved,  # noqa: F401 - legacy facade
-    _pdf_toc_entries,  # noqa: F401 - legacy facade
-    _pdf_toc_trailing_text,  # noqa: F401 - legacy facade
     _pdf_toc_translation_needs_retry,  # noqa: F401 - legacy facade
-    _pdf_untranslated_english_leak_runs,  # noqa: F401 - legacy facade
-    _pdf_vector_ocr_translation_hint,  # noqa: F401 - legacy facade
     _short_translation_needs_retry,  # noqa: F401 - legacy facade
     _split_pdf_reference_entry_translation_parts,  # noqa: F401 - legacy facade
-    _split_pdf_translated_paragraphs,  # noqa: F401 - legacy facade
     _translation_part_needs_retry,  # noqa: F401 - legacy facade
     _validate_pdf_page_translations,  # noqa: F401 - legacy facade
-    translate_text as _translate_text_impl,  # noqa: F401 - legacy facade
-    PDFTranslationDependencies,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.toc import (
+    _pdf_toc_entries,  # noqa: F401 - legacy facade
+    _pdf_toc_trailing_text,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.translation_validation import (
+    _looks_like_pdf_toc_leader_block,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.batch_codec import (
+    _build_pdf_batch_segment_envelope,  # noqa: F401 - legacy facade
+    _parse_pdf_batch_segment_envelope,  # noqa: F401 - legacy facade
+    _pdf_batch_segment_records_from_source,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.cache import (
     _append_pdf_source_page_fallback,  # noqa: F401 - legacy facade

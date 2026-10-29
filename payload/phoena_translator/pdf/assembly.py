@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import html
 import logging
 from dataclasses import dataclass
@@ -44,16 +45,11 @@ from phoena_translator.pdf.rendering import (
     _resolve_pdf_render_style,
     _restore_pdf_source_text_element,
 )
-from phoena_translator.pdf.semantic_text import (
-    _derive_pdf_page_layout_styles,
-    _strip_pdf_toc_label,
-)
+from phoena_translator.pdf.semantic_text import _derive_pdf_page_layout_styles
+from phoena_translator.pdf.toc import _strip_pdf_toc_label
 from phoena_translator.pdf.deterministic_labels import _translate_pdf_fixed_short_label
-from phoena_translator.pdf.translation import (
-    _pdf_collect_untranslated_english_leaks,
-    _pdf_toc_entries,
-    _split_pdf_translated_paragraphs,
-)
+from phoena_translator.pdf.leak_audit import _pdf_collect_untranslated_english_leaks
+from phoena_translator.pdf.toc import _pdf_toc_entries
 from phoena_translator.pdf.errors import PDFPageRenderError
 from phoena_translator.pdf.model import (
     ElementType,
@@ -1382,3 +1378,29 @@ def assemble_document_pages(context: PDFAssemblyContext) -> None:
 
 
 __all__ = ["PDFAssemblyContext", "assemble_document_pages"]
+
+
+def _split_pdf_translated_paragraphs(text: str, expected_count: int) -> list[str]:
+    normalized = _normalize_pdf_translation(text)
+    paragraphs = [p.strip() for p in re.split(r'\n\s*\n+', normalized) if p.strip()]
+
+    if expected_count <= 1:
+        if not paragraphs and normalized.strip():
+            return [re.sub(r'\s+', ' ', normalized).strip()]
+        return [re.sub(r'\s+', ' ', p).strip() for p in paragraphs] or [""]
+
+    if len(paragraphs) != expected_count:
+        line_paragraphs = [re.sub(r'\s+', ' ', p).strip() for p in normalized.splitlines() if p.strip()]
+        if len(line_paragraphs) == expected_count:
+            paragraphs = line_paragraphs
+
+    paragraphs = [re.sub(r'\s+', ' ', p).strip() for p in paragraphs if p.strip()]
+    if not paragraphs:
+        paragraphs = [re.sub(r'\s+', ' ', normalized).strip()] if normalized.strip() else [""]
+
+    if len(paragraphs) < expected_count:
+        paragraphs.extend([""] * (expected_count - len(paragraphs)))
+    elif len(paragraphs) > expected_count:
+        paragraphs = paragraphs[:expected_count - 1] + [" ".join(paragraphs[expected_count - 1:]).strip()]
+
+    return paragraphs

@@ -8,7 +8,6 @@ batch parsing, and integrity checks remain local Python operations.
 from __future__ import annotations
 
 import re
-
 from phoena_translator.pdf.context import PDFPageTranslationContext
 from phoena_translator.pdf.placeholders import (
     _protect_pdf_identifier_fragments,
@@ -24,7 +23,7 @@ from phoena_translator.pdf.inline_markup import (
     _pdf_inline_math_fragments_preserved,
     _restore_pdf_superscript_markup,
 )
-from phoena_translator.pdf.text_shape import _plain_text
+from phoena_translator.pdf.text_shape import _collapsed_plain_text, _plain_text
 from phoena_translator.pdf.semantic_text import _is_disclaimer_block
 from phoena_translator.pdf.deterministic_labels import (
     _translate_pdf_deterministic_labels,
@@ -35,15 +34,18 @@ from phoena_translator.pdf.translation_targets import (
     _pdf_element_requires_translation,
     _pdf_translation_language_views,
 )
-from phoena_translator.pdf.translation import (
-    _build_pdf_batch_segment_envelope,
-    _looks_like_pdf_toc_leader_block,
-    _parse_pdf_batch_segment_envelope,
+from phoena_translator.pdf.translation_validation import (
     _pdf_element_translation_needs_retry,
     _pdf_mixed_translation_has_untranslated_english_run,
-    _pdf_vector_ocr_translation_hint,
     _split_pdf_reference_entry_translation_parts,
     _validate_pdf_page_translations,
+)
+from phoena_translator.pdf.translation_validation import (
+    _looks_like_pdf_toc_leader_block,
+)
+from phoena_translator.pdf.batch_codec import (
+    _build_pdf_batch_segment_envelope,
+    _parse_pdf_batch_segment_envelope,
 )
 from phoena_translator.pdf.model import ElementType
 
@@ -565,3 +567,21 @@ def translate_page(
 
 
 __all__ = ["translate_page"]
+
+
+def _pdf_vector_ocr_translation_hint(source_text: str) -> str:
+    """Return whole-unit and source-conditioned terminology instructions."""
+    hint = (
+        "\n\n这是从同一个图框或图表标签中恢复出的完整语义单元。"
+        "必须一次完整翻译整个输入，不得按视觉行拆分、遗漏或重排；"
+        "必须保留输入中的空行分段数量和项目符号结构。"
+    )
+    if re.search(
+        r"(?i)\bdriver\s+reviews?\b",
+        _collapsed_plain_text(source_text),
+    ):
+        hint += (
+            "本报告中的 driver review(s) 是对 drivers of change（变化驱动因素）"
+            "的专题综述，必须译为“驱动因素综述”，不得译成“司机审查”或“驾驶员审查”。"
+        )
+    return hint
