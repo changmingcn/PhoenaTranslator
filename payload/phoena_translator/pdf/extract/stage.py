@@ -494,12 +494,7 @@ def enforce_formula_protection(
     context.pdf_audit["vector_ocr_expectations"] = _collect_pdf_vector_ocr_expectations(
         result.page_extractions
     )
-    summarize = context.summarize_formula_protection
-    context.pdf_audit["formula_protection"] = summarize(
-        context.pdf_audit["formula_expectations"],
-        result.total_pages,
-        result.page_extractions,
-    )
+    _summarize_formula_protection(context, result)
     while (
         context.pdf_audit["formula_protection"].get("translation_queue_check") != "ok"
     ):
@@ -508,95 +503,117 @@ def enforce_formula_protection(
                 "PDF formula protection audit found an unprotected math symbol "
                 "or a protected region eligible for translation"
             )
-        current = context.pdf_audit["formula_protection"]
-        direct_pages = _pdf_formula_protection_fallback_pages(
-            current,
-            result.page_extractions,
-        )
-        fallback_pages = _expand_pdf_fallback_pages_for_accepted_merges(
-            direct_pages,
-            context.pdf_audit["merge_decisions"],
-        )
-        existing = {
-            int(entry.get("page", 0) or 0)
-            for entry in context.pdf_audit["source_page_fallbacks"]
-        }
-        new_pages = [
-            page
-            for page in fallback_pages
-            if page not in existing
-            and "elements" in result.page_extractions.get(page - 1, {})
-        ]
-        if not new_pages:
-            raise RuntimeError(
-                "PDF formula protection audit remained non-clean after all "
-                "localizable pages were preserved from source"
-            )
-        context.pdf_audit.setdefault(
-            "formula_protection_before_source_fallback",
-            current,
-        )
-        context.pdf_audit.setdefault(
-            "formula_protection_source_fallback_rounds",
-            [],
-        ).append(
-            {
-                "direct_pages": direct_pages,
-                "expanded_pages": sorted(set(fallback_pages) - set(direct_pages)),
-                "source_pages": new_pages,
-            }
-        )
-        for page_number in new_pages:
-            details = (current.get("per_page") or {}).get(str(page_number), {})
-            if page_number in direct_pages:
-                reason = (
-                    "formula protection preflight: "
-                    f"{int(details.get('unprotected_math_symbols_in_text', 0) or 0)} "
-                    "unprotected math symbol(s) in translatable text; "
-                    f"{int(details.get('formula_queue_entries', 0) or 0)} "
-                    "protected region(s) eligible for translation"
-                )
-            else:
-                reason = (
-                    "formula protection preflight expanded to preserve an accepted "
-                    "cross-page merge linked to warning page(s) "
-                    + ", ".join(str(page) for page in direct_pages)
-                )
-            entry = _pdf_source_page_fallback_entry(
-                page_number,
-                "formula-protection",
-                reason,
-                error_type="PDFFormulaProtectionWarning",
-            )
-            _append_pdf_source_page_fallback(
-                context.pdf_audit["source_page_fallbacks"],
-                entry,
-            )
-            result.page_extractions[page_number - 1] = {"source_page_fallback": entry}
-            result.completed_indices.add(page_number - 1)
-        _exclude_pdf_audit_expectations_for_source_pages(
-            context.pdf_audit,
-            new_pages,
-        )
-        context.pdf_audit["formula_protection"] = summarize(
-            context.pdf_audit["formula_expectations"],
-            result.total_pages,
-            result.page_extractions,
-        )
-        context.save_translation_progress(
-            context.task_id,
-            result.completed_indices,
-            result.total_pages,
-            "公式风险页已保留为英文原页，继续翻译和组装...",
-            context.pdf_audit["source_page_fallbacks"],
-        )
-        context.logger.warning(
-            f"[{context.task_id}] Formula protection preflight preserved exact "
-            f"source page(s) {new_pages}; continuing document delivery"
-        )
+        _preserve_formula_warning_pages(context, result)
     context.pdf_audit["total_pages"] = result.total_pages
     context.pdf_audit["phase1_checkpointed_at"] = time.time()
     _save_pdf_audit(context.task_id, context.pdf_audit)
+
+
+def _summarize_formula_protection(
+    context: PDFExtractionStageContext,
+    result: PDFExtractionResult,
+) -> None:
+    context.pdf_audit["formula_protection"] = context.summarize_formula_protection(
+        context.pdf_audit["formula_expectations"],
+        result.total_pages,
+        result.page_extractions,
+    )
+
+
+def _preserve_formula_warning_pages(
+    context: PDFExtractionStageContext,
+    result: PDFExtractionResult,
+) -> None:
+    """Replace the current warning pages with exact source pages, then re-audit."""
+    current = context.pdf_audit["formula_protection"]
+    direct_pages = _pdf_formula_protection_fallback_pages(
+        current,
+        result.page_extractions,
+    )
+    fallback_pages = _expand_pdf_fallback_pages_for_accepted_merges(
+        direct_pages,
+        context.pdf_audit["merge_decisions"],
+    )
+    existing = {
+        int(entry.get("page", 0) or 0)
+        for entry in context.pdf_audit["source_page_fallbacks"]
+    }
+    new_pages = [
+        page
+        for page in fallback_pages
+        if page not in existing
+        and "elements" in result.page_extractions.get(page - 1, {})
+    ]
+    if not new_pages:
+        raise RuntimeError(
+            "PDF formula protection audit remained non-clean after all "
+            "localizable pages were preserved from source"
+        )
+    context.pdf_audit.setdefault(
+        "formula_protection_before_source_fallback",
+        current,
+    )
+    context.pdf_audit.setdefault(
+        "formula_protection_source_fallback_rounds",
+        [],
+    ).append(
+        {
+            "direct_pages": direct_pages,
+            "expanded_pages": sorted(set(fallback_pages) - set(direct_pages)),
+            "source_pages": new_pages,
+        }
+    )
+    for page_number in new_pages:
+        entry = _pdf_source_page_fallback_entry(
+            page_number,
+            "formula-protection",
+            _formula_fallback_reason(current, page_number, direct_pages),
+            error_type="PDFFormulaProtectionWarning",
+        )
+        _append_pdf_source_page_fallback(
+            context.pdf_audit["source_page_fallbacks"],
+            entry,
+        )
+        result.page_extractions[page_number - 1] = {"source_page_fallback": entry}
+        result.completed_indices.add(page_number - 1)
+    _exclude_pdf_audit_expectations_for_source_pages(
+        context.pdf_audit,
+        new_pages,
+    )
+    _summarize_formula_protection(context, result)
+    context.save_translation_progress(
+        context.task_id,
+        result.completed_indices,
+        result.total_pages,
+        "公式风险页已保留为英文原页，继续翻译和组装...",
+        context.pdf_audit["source_page_fallbacks"],
+    )
+    context.logger.warning(
+        f"[{context.task_id}] Formula protection preflight preserved exact "
+        f"source page(s) {new_pages}; continuing document delivery"
+    )
+
+
+def _formula_fallback_reason(
+    summary: dict,
+    page_number: int,
+    direct_pages: list[int],
+) -> str:
+    """Why ``page_number`` is delivered as its exact source page."""
+    if page_number not in direct_pages:
+        return (
+            "formula protection preflight expanded to preserve an accepted "
+            "cross-page merge linked to warning page(s) "
+            + ", ".join(str(page) for page in direct_pages)
+        )
+    details = (summary.get("per_page") or {}).get(str(page_number), {})
+    return (
+        "formula protection preflight: "
+        f"{int(details.get('unprotected_math_symbols_in_text', 0) or 0)} "
+        "unprotected math symbol(s) in translatable text; "
+        f"{int(details.get('formula_queue_entries', 0) or 0)} "
+        "protected region(s) eligible for translation"
+    )
 
 
 def enforce_table_preservation(
