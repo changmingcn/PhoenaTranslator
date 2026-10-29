@@ -34,6 +34,7 @@ from phoena_translator.pdf.math_detection import (
     _looks_like_pdf_list_marker,
     _pdf_superscript_signature,
     _plain_text,
+    _collapsed_plain_text,
 )
 
 log = logging.getLogger("translator")
@@ -66,7 +67,7 @@ def _split_pdf_formula_adjacent_paragraph_elements(
         elem for elem in elements or [] if elem.get("type") == "formula_image"
     ]
     protected_rects = [
-        fitz.Rect(elem.get("bbox", elem.get("rect"))) for elem in formula_elements
+        _get_pdf_elem_rect(elem) for elem in formula_elements
     ]
     if not protected_rects:
         return 0
@@ -331,8 +332,8 @@ def _pdf_wrapped_math_continuation_pair_can_merge(
     if bool(previous.get("bold")) != bool(current.get("bold")):
         return False
 
-    p_plain = re.sub(r"\s+", " ", _plain_text(previous.get("content", ""))).strip()
-    f_plain = re.sub(r"\s+", " ", _plain_text(current.get("content", ""))).strip()
+    p_plain = _collapsed_plain_text(previous.get("content", ""))
+    f_plain = _collapsed_plain_text(current.get("content", ""))
     if len(p_plain) < 40 or not f_plain or len(f_plain) > 90:
         return False
     f_paragraphs = [
@@ -579,12 +580,12 @@ def _merge_pdf_wrapped_inline_math_continuation_fragments(
     if not elements:
         return 0
     protected_rects = [
-        fitz.Rect(elem.get("bbox", elem.get("rect")))
+        _get_pdf_elem_rect(elem)
         for elem in elements
         if elem.get("type") == "formula_image"
     ]
     blocker_rects = [
-        fitz.Rect(elem.get("bbox", elem.get("rect")))
+        _get_pdf_elem_rect(elem)
         for elem in elements
         if elem.get("type") in {"table_image", "image"}
     ]
@@ -636,13 +637,13 @@ def _promote_pdf_formula_overlaps(
     """
     formulas = [elem for elem in elements or [] if elem.get("type") == "formula_image"]
     protected_rects = [
-        fitz.Rect(elem.get("bbox", elem.get("rect"))) for elem in formulas
+        _get_pdf_elem_rect(elem) for elem in formulas
     ]
     promoted = 0
     for elem in elements or []:
         if elem.get("type") != "text":
             continue
-        layout_rect = fitz.Rect(elem.get("bbox", elem.get("rect")))
+        layout_rect = _get_pdf_elem_rect(elem)
         # Recovered table cells intentionally carry a larger render rectangle
         # so Chinese can wrap within the original cell.  Formula protection,
         # however, must classify the source glyphs rather than that available
@@ -668,7 +669,7 @@ def _promote_pdf_formula_overlaps(
         if has_recorded_source_lines and not any(
             _pdf_rect_intersects_protected(
                 source_rect,
-                [fitz.Rect(formula.get("bbox", formula.get("rect")))],
+                [_get_pdf_elem_rect(formula)],
                 padding,
             )
             for source_rect in _get_pdf_source_ink_rects(elem)
@@ -691,14 +692,14 @@ def _promote_pdf_formula_overlaps(
         # still subtracts the immutable formula rectangles from redaction and
         # trims the insertion rectangle before drawing, so formula pixels stay
         # protected.
-        plain = re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+        plain = _collapsed_plain_text(elem.get("content", ""))
         prose_words = re.findall(r"[A-Za-z]{3,}", plain)
         rect_area = max(rect.get_area(), 1.0)
         actual_intersections = []
         shallow_edge_only = True
         shallow_limit = max(float(elem.get("fontsize", 0.0)) * 0.35, 3.0)
         for formula in touching:
-            protected = fitz.Rect(formula.get("bbox", formula.get("rect")))
+            protected = _get_pdf_elem_rect(formula)
             intersection = rect & protected
             if intersection.is_empty or intersection.get_area() <= 0:
                 continue

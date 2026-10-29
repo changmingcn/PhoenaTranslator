@@ -22,6 +22,7 @@ from phoena_translator.pdf.geometry import (
 from phoena_translator.pdf.math_detection import (
     _normalize_pdf_translation,
     _plain_text,
+    _collapsed_plain_text,
 )
 from phoena_translator.pdf.types import (
     PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,
@@ -102,7 +103,7 @@ def _expand_pdf_htmlbox_rect(
     aggressive: bool = False,
 ) -> fitz.Rect:
     expanded = fitz.Rect(rect)
-    plain = re.sub(r"\s+", " ", _plain_text(text)).strip()
+    plain = _collapsed_plain_text(text)
     compact = re.sub(r"\s+", "", plain)
     if not compact:
         return expanded
@@ -557,9 +558,7 @@ def _insert_pdf_rotated_textbox_with_fit(
     protected_rects: list | None = None,
 ) -> tuple[bool, str]:
     """Draw one translated non-horizontal label in its native direction."""
-    fallback_text = re.sub(
-        r"\s+", " ", _plain_text(_normalize_pdf_translation(text or ""))
-    ).strip()
+    fallback_text = _collapsed_plain_text(_normalize_pdf_translation(text or ""))
     if not fallback_text:
         return False, "empty rotated text"
     rotation = int(rotation or 0) % 360

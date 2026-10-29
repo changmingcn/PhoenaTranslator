@@ -43,6 +43,7 @@ from phoena_translator.pdf.math_detection import (
     _pdf_formula_region_signature,
     _pdf_line_math_evidence,
     _plain_text,
+    _collapsed_plain_text,
     _propagate_pdf_math_line_context,
     _restore_pdf_superscript_markup,
 )
@@ -116,11 +117,7 @@ def _mark_pdf_glossary_term_elements(
         return set()
 
     normalized_by_index = {
-        index: re.sub(
-            r"\s+",
-            " ",
-            _plain_text(elements[index].get("content", "")),
-        ).strip().casefold()
+        index: _collapsed_plain_text(elements[index].get("content", "")).casefold()
         for index in text_indices
     }
     normalized_cells = set(normalized_by_index.values())
@@ -156,9 +153,7 @@ def _mark_pdf_glossary_term_elements(
         left = elements[left_index]
         if left.get("layout_class") != "table":
             continue
-        left_plain = re.sub(
-            r"\s+", " ", _plain_text(left.get("content", ""))
-        ).strip()
+        left_plain = _collapsed_plain_text(left.get("content", ""))
         if (
             not left_plain
             or len(left_plain) > 80
@@ -182,9 +177,7 @@ def _mark_pdf_glossary_term_elements(
             if right_index == left_index:
                 continue
             right = elements[right_index]
-            right_plain = re.sub(
-                r"\s+", " ", _plain_text(right.get("content", ""))
-            ).strip()
+            right_plain = _collapsed_plain_text(right.get("content", ""))
             if (
                 len(right_plain) < 24
                 or not _looks_like_translatable_english(right_plain)
@@ -243,9 +236,7 @@ def _mark_pdf_glossary_term_elements(
     marked = set()
     for index in text_indices:
         element = elements[index]
-        plain = re.sub(
-            r"\s+", " ", _plain_text(element.get("content", ""))
-        ).strip()
+        plain = _collapsed_plain_text(element.get("content", ""))
         if (
             not plain
             or not _looks_like_translatable_english(plain)
@@ -315,7 +306,7 @@ def _classify_pdf_page_text_elements(elements: list[dict], page_rect: fitz.Rect)
     short_mid_candidates = []
     for idx in text_indices:
         elem = elements[idx]
-        plain = re.sub(r'\s+', ' ', _plain_text(elem.get("content", ""))).strip()
+        plain = _collapsed_plain_text(elem.get("content", ""))
         if not plain or _is_disclaimer_block(plain) or elem.get("skip_translate_reason") == "watermark":
             continue
 
@@ -344,7 +335,7 @@ def _classify_pdf_page_text_elements(elements: list[dict], page_rect: fitz.Rect)
     classifications = {}
     for idx in text_indices:
         elem = elements[idx]
-        plain = re.sub(r'\s+', ' ', _plain_text(elem.get("content", ""))).strip()
+        plain = _collapsed_plain_text(elem.get("content", ""))
         rect = _get_pdf_elem_rect(elem)
         center_y = ((rect.y0 + rect.y1) / 2.0 - page_rect.y0) / page_height
         width_ratio = rect.width / page_width
@@ -426,7 +417,7 @@ def _is_preserved_nonlinguistic_text(text: str) -> bool:
     identifier to occupy the entire element sends that block to the model even
     though every meaningful byte must be preserved.
     """
-    plain = re.sub(r'\s+', ' ', _plain_text(text)).strip()
+    plain = _collapsed_plain_text(text)
     if not plain:
         return False
 
@@ -458,12 +449,8 @@ def _pdf_translation_language_views(
     are removed, while a separate Counter equality keeps them byte-exact and
     prevents additions, losses or substitutions.
     """
-    source_plain = re.sub(
-        r"\s+", " ", _plain_text(source_text or "")
-    ).strip()
-    translated_plain = re.sub(
-        r"\s+", " ", _plain_text(translated_text or "")
-    ).strip()
+    source_plain = _collapsed_plain_text(source_text or "")
+    translated_plain = _collapsed_plain_text(translated_text or "")
     source_identifiers = Counter(
         match.group(0)
         for match in _PRESERVED_IDENTIFIER_RE.finditer(source_plain)
@@ -492,7 +479,7 @@ def _is_preserved_short_citation(text: str) -> bool:
     is limited to short author/year footnotes such as ``29 Hasbrouck & Saar
     (2011).`` so genuine English prose continues to fail closed.
     """
-    plain = re.sub(r"\s+", " ", _plain_text(text)).strip()
+    plain = _collapsed_plain_text(text)
     if not plain or len(plain) > 180:
         return False
 
@@ -546,7 +533,7 @@ def _is_preserved_short_citation(text: str) -> bool:
 
 def _looks_like_translatable_english(text: str) -> bool:
     """Return True if the block is English prose worth translating."""
-    plain = re.sub(r'\s+', ' ', _plain_text(text)).strip()
+    plain = _collapsed_plain_text(text)
     if not plain:
         return False
     if (
@@ -575,7 +562,7 @@ def _looks_like_translatable_english(text: str) -> bool:
 
 def _looks_like_tiny_pdf_label(text: str) -> bool:
     """Detect chart/table labels where translation cost outweighs value."""
-    plain = re.sub(r'\s+', ' ', _plain_text(text)).strip()
+    plain = _collapsed_plain_text(text)
     if not plain:
         return False
 
@@ -617,7 +604,7 @@ def _looks_like_pdf_structured_identifier_row(text: str) -> bool:
     carry a digit so all-caps directive lines (``PLEASE SEE PAGE 37.``)
     still fail closed.
     """
-    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    plain = _collapsed_plain_text(text or "")
     if not plain or len(plain) > 80:
         return False
     if re.search(r"[a-z]", plain):
@@ -672,7 +659,7 @@ def _pdf_full_date_label_translation(text: str) -> str | None:
     ``day month year`` / ``month day, year`` elements qualify; partial dates
     and dates inside prose keep going to the model.
     """
-    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip().rstrip(".")
+    plain = _collapsed_plain_text(text or "").rstrip(".")
     match = _PDF_DATE_DMY_RE.fullmatch(plain)
     if match:
         day, month_word, year = match.group(1), match.group(2), match.group(3)
@@ -697,7 +684,7 @@ def _looks_like_pdf_contact_line(text: str) -> bool:
     word (beyond name connectors and organization suffixes) disqualifies the
     line, and without a phone-number token this rule never fires.
     """
-    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    plain = _collapsed_plain_text(text or "")
     if not plain or len(plain) > 120:
         return False
     residue = _PRESERVED_IDENTIFIER_RE.sub(" ", plain)
@@ -733,7 +720,7 @@ def _looks_like_pdf_translatable_short_label(text: str) -> bool:
     ordinary phrases (``Price manipulation``) from title-cased personal names
     (``Kevin Houstoun``), ignoring name-safe connectors such as ``of``.
     """
-    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    plain = _collapsed_plain_text(text or "")
     if not plain or len(plain) > 100:
         return False
 
@@ -910,9 +897,7 @@ def _pdf_element_is_multiline_display_title(elem: dict) -> bool:
     ):
         return False
 
-    plain = re.sub(
-        r"\s+", " ", _plain_text(elem.get("content", ""))
-    ).strip().rstrip(".;:")
+    plain = _collapsed_plain_text(elem.get("content", "")).rstrip(".;:")
     words = [
         word.rstrip(".")
         for word in _SHORT_CITATION_WORD_RE.findall(plain)
@@ -951,7 +936,7 @@ def _looks_like_pdf_entity_directory_row(text: str) -> bool:
     A caller must additionally establish page-level directory language and a
     sufficiently long, aligned run of peer rows.
     """
-    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    plain = _collapsed_plain_text(text or "")
     if not plain or len(plain) > 90 or _PRESERVED_IDENTIFIER_RE.search(plain):
         return False
     # A detached one-letter footnote marker is part of several company rows
@@ -1101,7 +1086,7 @@ def _pdf_element_requires_translation(elem: dict) -> bool:
     text = elem.get("content", "")
     if _is_disclaimer_block(text) or not _looks_like_translatable_english(text):
         return False
-    plain = re.sub(r"\s+", " ", _plain_text(text)).strip()
+    plain = _collapsed_plain_text(text)
     if (
         elem.get("layout_class") in {"table", "scattered"}
         and not elem.get("bold")
@@ -1183,7 +1168,7 @@ def _translate_pdf_fixed_short_label(text: str) -> str:
     translated deterministically, provided the *whole* element matches.
     """
     raw = text or ""
-    plain = re.sub(r"\s+", " ", _plain_text(raw)).strip()
+    plain = _collapsed_plain_text(raw)
     replacement = PDF_FIXED_SHORT_LABEL_TRANSLATIONS.get(plain.casefold())
     if replacement is not None:
         return _restore_pdf_superscript_markup(raw, replacement)
@@ -1609,13 +1594,13 @@ def _pdf_bold_run_in_wraps_into_mixed_line(
         match = re.match(r"(?is)^<b\b[^>]*>(.*?)</b>", rich_remainder)
         if match is None:
             break
-        fragment = re.sub(r"\s+", " ", _plain_text(match.group(1))).strip()
+        fragment = _collapsed_plain_text(match.group(1))
         if fragment:
             bold_fragments.append(fragment)
         rich_remainder = rich_remainder[match.end():].lstrip()
 
     bold_prefix = " ".join(bold_fragments).strip()
-    regular_suffix = re.sub(r"\s+", " ", _plain_text(rich_remainder)).strip()
+    regular_suffix = _collapsed_plain_text(rich_remainder)
     if (
         not bold_prefix
         or not regular_suffix

@@ -18,7 +18,7 @@ from phoena_translator.pdf.math_detection import (
     _pdf_inline_markup_preserved,
     _pdf_inline_math_fragments_preserved,
     _pdf_signature_number,
-    _plain_text,
+    _collapsed_plain_text,
 )
 from phoena_translator.pdf.targets import (
     _pdf_element_requires_translation,
@@ -32,6 +32,7 @@ from phoena_translator.pdf.types import (
 from phoena_translator.pdf.translation import (
     _pdf_element_translation_needs_retry,
 )
+from phoena_translator.pdf.geometry import _get_pdf_elem_rect
 
 log = logging.getLogger("translator")
 
@@ -226,7 +227,7 @@ def _pdf_cache_identity(
         return None
 
     try:
-        bbox = fitz.Rect(elem.get("bbox", elem.get("rect")))
+        bbox = _get_pdf_elem_rect(elem)
         normalized_bbox = [
             _pdf_signature_number(value)
             for value in (bbox.x0, bbox.y0, bbox.x1, bbox.y1)
@@ -558,7 +559,7 @@ def _record_pdf_element_source_fallback(
         "reason": str(reason or "unspecified element failure")[:500],
     }
     if source_text:
-        entry["source_text"] = re.sub(r"\s+", " ", _plain_text(source_text)).strip()[:160]
+        entry["source_text"] = _collapsed_plain_text(source_text)[:160]
     audit.setdefault("element_source_fallbacks", []).append(entry)
     return entry
 

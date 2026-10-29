@@ -21,6 +21,7 @@ from phoena_translator.pdf.geometry import (
 )
 from phoena_translator.pdf.math_detection import (
     _plain_text,
+    _collapsed_plain_text,
     _select_pdf_inline_math_fragments_for_text,
 )
 
@@ -41,7 +42,7 @@ def _looks_like_pdf_reference_entry_lead(text: str) -> bool:
     also occurs in ordinary prose), so require an uppercase initial and
     author-like punctuation before a nearby four-digit year.
     """
-    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    plain = _collapsed_plain_text(text or "")
     if len(plain) < 18:
         return False
     if not plain[0].isalpha() or not plain[0].isupper():
@@ -88,7 +89,7 @@ def _pdf_citation_separator_pipe_count(text: str) -> int:
     pipe-shaped math symbols, whitespace-delimited separators, and a short
     title-cased institutional publisher after every separator.
     """
-    plain = re.sub(r"\s+", " ", _plain_text(text)).strip()
+    plain = _collapsed_plain_text(text)
     lead = re.match(r"^(?P<number>\d{1,3})\s+\S", plain)
     if not lead:
         return 0
@@ -158,12 +159,7 @@ def _pdf_reference_entry_lead_counts(
         if elem.get("type") == "text"
     ]
     normalized_texts = [
-        re.sub(
-            r"\s+",
-            " ",
-            _plain_text(elem.get("content", "")),
-        )
-        .strip()
+        _collapsed_plain_text(elem.get("content", ""))
         .lower()
         for _, elem in text_elements
     ]
@@ -455,8 +451,8 @@ def _pdf_reference_entry_elements_can_merge(
         if len(paragraphs) != 1 or paragraphs[0].get("toc_leader"):
             return False
 
-    first_plain = re.sub(r"\s+", " ", _plain_text(first.get("content", ""))).strip()
-    current_plain = re.sub(r"\s+", " ", _plain_text(current.get("content", ""))).strip()
+    first_plain = _collapsed_plain_text(first.get("content", ""))
+    current_plain = _collapsed_plain_text(current.get("content", ""))
     if not _looks_like_pdf_reference_entry_lead(first_plain) or not current_plain:
         return False
 
@@ -511,7 +507,7 @@ def _merge_pdf_reference_entry_elements(
     index = 0
     while index < len(elements):
         first = elements[index]
-        first_plain = re.sub(r"\s+", " ", _plain_text(first.get("content", ""))).strip()
+        first_plain = _collapsed_plain_text(first.get("content", ""))
         if not _looks_like_pdf_reference_entry_lead(first_plain):
             merged_elements.append(first)
             index += 1
@@ -537,7 +533,7 @@ def _merge_pdf_reference_entry_elements(
             rect |= _get_pdf_primary_paragraph_rect(elem)
         plain = _join_pdf_line_fragments(
             [
-                re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+                _collapsed_plain_text(elem.get("content", ""))
                 for elem in group
             ]
         )

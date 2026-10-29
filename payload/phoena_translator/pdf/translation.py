@@ -23,6 +23,7 @@ from phoena_translator.pdf.math_detection import (
     _pdf_inline_markup_preserved,
     _pdf_inline_math_fragments_preserved,
     _plain_text,
+    _collapsed_plain_text,
 )
 from phoena_translator.pdf.semantics import _looks_like_pdf_reference_entry_lead
 from phoena_translator.pdf.targets import (
@@ -176,7 +177,7 @@ def _pdf_number_anchor_plain_text(text: str) -> str:
         lambda match: " " + _plain_text(match.group(1)) + " ",
         text or "",
     )
-    return re.sub(r"\s+", " ", _plain_text(separated)).strip()
+    return _collapsed_plain_text(separated)
 
 
 _PDF_REFUSAL_META_RE = re.compile(
@@ -222,7 +223,7 @@ def _short_translation_needs_retry(source_text: str, translated_text: str) -> bo
     if not _looks_like_translatable_english(source_text):
         return False
 
-    translated_plain = re.sub(r'\s+', ' ', _plain_text(translated_text)).strip()
+    translated_plain = _collapsed_plain_text(translated_text)
     source_language, translated_language, identifiers_preserved = (
         _pdf_translation_language_views(source_text, translated_text)
     )
@@ -561,7 +562,7 @@ def _split_pdf_reference_entry_translation_parts(
     transliterations that happen to satisfy the generic Chinese-count gate.
     """
     normalized = _normalize_pdf_translation(text or "")
-    plain = re.sub(r"\s+", " ", _plain_text(normalized)).strip()
+    plain = _collapsed_plain_text(normalized)
     if not _looks_like_pdf_reference_entry_lead(plain):
         return None
     year_match = _PDF_REFERENCE_TRANSLATION_YEAR_RE.search(normalized[:240])
@@ -670,10 +671,8 @@ def _pdf_element_translation_needs_retry(
     if not _pdf_inline_math_fragments_preserved(elem, translated_text):
         return True
     if elem.get("vector_ocr"):
-        source_plain = re.sub(r"\s+", " ", _plain_text(source_text)).strip()
-        translated_plain = re.sub(
-            r"\s+", " ", _plain_text(translated_text)
-        ).strip()
+        source_plain = _collapsed_plain_text(source_text)
+        translated_plain = _collapsed_plain_text(translated_text)
         if (
             re.search(r"(?i)\bdriver\s+reviews?\b", source_plain)
             and re.search(r"司机|驾驶员", translated_plain)
@@ -697,9 +696,7 @@ def _pdf_element_translation_needs_retry(
             ):
                 return True
     if elem.get("glossary_term_hint") or elem.get("glossary_definition_hint"):
-        translated_plain = re.sub(
-            r"\s+", " ", _plain_text(translated_text)
-        ).strip()
+        translated_plain = _collapsed_plain_text(translated_text)
         return not _has_chinese(translated_plain)
     return False
 
@@ -713,7 +710,7 @@ def _pdf_vector_ocr_translation_hint(source_text: str) -> str:
     )
     if re.search(
         r"(?i)\bdriver\s+reviews?\b",
-        re.sub(r"\s+", " ", _plain_text(source_text)).strip(),
+        _collapsed_plain_text(source_text),
     ):
         hint += (
             "本报告中的 driver review(s) 是对 drivers of change（变化驱动因素）"
@@ -724,7 +721,7 @@ def _pdf_vector_ocr_translation_hint(source_text: str) -> str:
 
 def _pdf_toc_entries(text: str) -> list[tuple[str, str]]:
     """Return ordered ``(label, page)`` entries from a dotted-leader block."""
-    plain = re.sub(r"\s+", " ", _plain_text(text)).strip()
+    plain = _collapsed_plain_text(text)
     entries = []
     cursor = 0
     for match in _PDF_TOC_ENTRY_RE.finditer(plain):
@@ -736,7 +733,7 @@ def _pdf_toc_entries(text: str) -> list[tuple[str, str]]:
 
 
 def _pdf_toc_trailing_text(text: str) -> str:
-    plain = re.sub(r"\s+", " ", _plain_text(text)).strip()
+    plain = _collapsed_plain_text(text)
     matches = list(_PDF_TOC_ENTRY_RE.finditer(plain))
     return plain[matches[-1].end():].strip() if matches else plain
 
@@ -774,7 +771,7 @@ def _pdf_toc_translation_needs_retry(
     for (source_label, _), (translated_label, _) in zip(source_entries, translated_entries):
         if not _looks_like_translatable_english(source_label):
             continue
-        translated_plain = re.sub(r"\s+", " ", _plain_text(translated_label)).strip()
+        translated_plain = _collapsed_plain_text(translated_label)
         if not translated_plain:
             return True
         cn_chars = len(re.findall(r"[\u4e00-\u9fff]", translated_plain))
@@ -782,9 +779,7 @@ def _pdf_toc_translation_needs_retry(
         minimum_cn_chars = max(1, math.ceil(source_alpha_chars * 0.12))
         if cn_chars < minimum_cn_chars:
             return True
-        if translated_plain.casefold() == re.sub(
-            r"\s+", " ", _plain_text(source_label)
-        ).strip().casefold():
+        if translated_plain.casefold() == _collapsed_plain_text(source_label).casefold():
             return True
         source_words = set(re.findall(
             r"[A-Za-z][A-Za-z0-9'/-]*",
@@ -816,7 +811,7 @@ def _translation_part_needs_retry(source_text: str, translated_text: str) -> boo
     if not _looks_like_translatable_english(source_text):
         return False
 
-    translated_plain = re.sub(r'\s+', ' ', _plain_text(translated_text)).strip()
+    translated_plain = _collapsed_plain_text(translated_text)
     if not translated_plain:
         return True
     if _pdf_has_untranslated_citation_label(source_text, translated_text):

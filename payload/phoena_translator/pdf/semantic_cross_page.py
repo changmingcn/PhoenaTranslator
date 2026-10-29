@@ -16,6 +16,7 @@ from phoena_translator.pdf.geometry import (
 from phoena_translator.pdf.math_detection import (
     _pdf_superscript_signature,
     _plain_text,
+    _collapsed_plain_text,
 )
 
 log = logging.getLogger("translator")
@@ -36,7 +37,7 @@ def _looks_like_right_aligned_signoff(elem: dict, page_rect: fitz.Rect | None) -
     if page_rect is None:
         return False
 
-    rect = fitz.Rect(elem.get("bbox", elem.get("rect")))
+    rect = _get_pdf_elem_rect(elem)
     page_width = max(page_rect.width, 1.0)
     right_gap = max(0.0, page_rect.x1 - rect.x1)
     left_ratio = (rect.x0 - page_rect.x0) / page_width
@@ -162,7 +163,7 @@ def _is_cross_page_body_elem(
     if not allow_heading_shape and fontsize >= dominant_fontsize * 1.18:
         return False
     if page_rect is not None:
-        rect = fitz.Rect(elem.get("bbox", elem.get("rect")))
+        rect = _get_pdf_elem_rect(elem)
         height = max(page_rect.height, 1.0)
         if rect.y1 <= page_rect.y0 + 0.08 * height:
             return False
@@ -230,7 +231,7 @@ def _cross_page_text_line_count(elem: dict) -> int:
 
 
 def _cross_page_normalized_label(text: str) -> str:
-    return re.sub(r"\s+", " ", _plain_text(text or "")).strip().casefold()
+    return _collapsed_plain_text(text or "").casefold()
 
 
 def _is_cross_page_non_body_context(
@@ -311,7 +312,7 @@ def _is_cross_page_non_body_context(
     ):
         return False
     try:
-        candidate_rect = fitz.Rect(elem.get("bbox", elem.get("rect")))
+        candidate_rect = _get_pdf_elem_rect(elem)
     except (TypeError, ValueError, AssertionError):
         return False
     band = max(float(dominant_fontsize), 1.0) * 6.0
@@ -321,7 +322,7 @@ def _is_cross_page_non_body_context(
         if other is elem or other.get("type") != "text":
             continue
         try:
-            other_rect = fitz.Rect(other.get("bbox", other.get("rect")))
+            other_rect = _get_pdf_elem_rect(other)
         except (TypeError, ValueError, AssertionError):
             continue
         if (
@@ -375,7 +376,7 @@ def _cross_page_continuation_decision(text: str) -> ContinuationDecision:
     the historical two-signal OR policy: a dangling source OR a next-page
     body opener whose first alphabetic character is not capitalized.
     """
-    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    plain = _collapsed_plain_text(text or "")
     boundary_text = _strip_trailing_footnote_marker(plain)
     if not _ends_with_sentence_boundary(boundary_text):
         return ContinuationDecision(SourceContinuationEvidence.DANGLING)
@@ -602,11 +603,7 @@ def _cross_page_destination_has_local_predecessor(
     for index, previous in enumerate(page_elements):
         if index == resolved_index or previous.get("type") != "text":
             continue
-        previous_text = re.sub(
-            r"\s+",
-            " ",
-            _plain_text(previous.get("content", "")),
-        ).strip()
+        previous_text = _collapsed_plain_text(previous.get("content", ""))
         if (
             len(previous_text) < 20
             or _ends_with_sentence_boundary(
@@ -761,7 +758,7 @@ def _split_cross_page_rich_prefix(
     expected_plain = tail_plain + ((" " + rest_plain) if rest_plain else "")
     if (
         not normalized_rich
-        or re.sub(r"\s+", " ", _plain_text(normalized_rich)).strip()
+        or _collapsed_plain_text(normalized_rich)
         != expected_plain
     ):
         return None
@@ -807,8 +804,8 @@ def _split_cross_page_rich_prefix(
     tail_rich = normalized_rich[:cursor].rstrip()
     rest_rich = normalized_rich[cursor:].lstrip()
     if (
-        re.sub(r"\s+", " ", _plain_text(tail_rich)).strip() != tail_plain
-        or re.sub(r"\s+", " ", _plain_text(rest_rich)).strip() != rest_plain
+        _collapsed_plain_text(tail_rich) != tail_plain
+        or _collapsed_plain_text(rest_rich) != rest_plain
         or (
             _pdf_superscript_signature(tail_rich)
             + _pdf_superscript_signature(rest_rich)
@@ -848,7 +845,7 @@ def _cross_page_whole_fragment_tail(
     ]
     if len(paragraphs) > 1:
         return None
-    plain = re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+    plain = _collapsed_plain_text(elem.get("content", ""))
     if not plain or len(plain) > CROSS_PAGE_ORPHAN_TAIL_MAX_CHARS:
         return None
     if not _cross_page_tail_start_acceptable(
@@ -904,7 +901,7 @@ def _cross_page_unterminated_fragment_tail(
     ]
     if len(paragraphs) > 1:
         return None
-    plain = re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+    plain = _collapsed_plain_text(elem.get("content", ""))
     if not plain or len(plain) > CROSS_PAGE_UNTERMINATED_TAIL_MAX_CHARS:
         return None
     if _ends_with_sentence_boundary(_strip_trailing_footnote_marker(plain)):
@@ -1013,9 +1010,7 @@ def _merge_cross_page_sentences(
         if not body_indices:
             continue
         last_idx, last_elem = body_indices[-1]
-        source_plain = re.sub(
-            r"\s+", " ", _plain_text(last_elem.get("content", ""))
-        ).strip()
+        source_plain = _collapsed_plain_text(last_elem.get("content", ""))
         if not source_plain:
             continue
         # Preserve the previous page's signal, then apply it together with the
@@ -1153,9 +1148,7 @@ def _merge_cross_page_sentences(
         # already passed the destination-body filter above; do not reapply a
         # stricter short-text / heading-shape heuristic here and accidentally
         # reject the very first body sentence selected by that filter.
-        first_plain = re.sub(
-            r"\s+", " ", _plain_text(first_elem.get("content", ""))
-        ).strip()
+        first_plain = _collapsed_plain_text(first_elem.get("content", ""))
         if not _cross_page_tail_start_acceptable(
             first_plain,
             source_dangling=source_dangling,

@@ -30,6 +30,7 @@ from phoena_translator.pdf.math_detection import (
     _pdf_span_has_lexical_text,
     _pdf_superscript_signature,
     _plain_text,
+    _collapsed_plain_text,
 )
 from phoena_translator.pdf.extraction import _pdf_vector_ocr_normalized_match_text
 from phoena_translator.pdf.targets import _pdf_element_requires_translation
@@ -95,11 +96,7 @@ def _collect_pdf_superscript_expectations(page_extractions: dict) -> list[dict]:
                     if isinstance(paragraph, dict)
                 ),
             ).strip()
-            live_plain = re.sub(
-                r"\s+",
-                " ",
-                _plain_text(elem.get("content") or ""),
-            ).strip()
+            live_plain = _collapsed_plain_text(elem.get("content") or "")
             if original_plain != live_plain:
                 # Cross-page absorption deliberately keeps ``paragraphs`` as
                 # immutable pre-merge evidence for the merge auditor. Marker
@@ -144,7 +141,7 @@ def _collect_pdf_formula_expectations(page_extractions: dict) -> list[dict]:
         for elem_idx, elem in enumerate(info.get("elements", [])):
             if elem.get("type") != "formula_image":
                 continue
-            bbox = fitz.Rect(elem.get("bbox", elem.get("rect")))
+            bbox = _get_pdf_elem_rect(elem)
             signature = {
                 key: value
                 for key, value in (elem.get("math_signature") or {}).items()
@@ -263,7 +260,7 @@ def _pdf_prose_inline_math_symbol_tolerance(elem: dict) -> int:
     Genuine formula fragments contain few long prose words and keep a zero
     tolerance, so they are still preserved as exact source.
     """
-    plain = re.sub(r"\s+", " ", _plain_text(elem.get("content") or "")).strip()
+    plain = _collapsed_plain_text(elem.get("content") or "")
     prose_words = len(re.findall(r"[A-Za-z]{4,}", plain))
     if prose_words < 4:
         return 0
@@ -319,9 +316,7 @@ def _preserve_pdf_formula_risk_text_elements(page_extractions: dict) -> list[dic
                 "page": int(page_num) + 1,
                 "element": elem_index,
                 "unprotected_math_symbols": int(unprotected),
-                "text": re.sub(
-                    r"\s+", " ", _plain_text(elem.get("content") or "")
-                ).strip()[:120],
+                "text": _collapsed_plain_text(elem.get("content") or "")[:120],
             })
     return preserved
 
@@ -386,9 +381,7 @@ def _preserve_pdf_formula_mid_sentence_neighbors(
                 > dominant_fontsize * 1.15
             ):
                 continue
-            plain = re.sub(
-                r"\s+", " ", _plain_text(elem.get("content") or "")
-            ).strip()
+            plain = _collapsed_plain_text(elem.get("content") or "")
             # A footnote marker rides on the last character, so a finished
             # sentence ("... the USD/JPY spot market.18") reads as a stub to a
             # test that looks at the final glyph.  Strip the marker for the
@@ -752,7 +745,7 @@ def _pdf_merge_start_evidence(
 
 
 def _normalized_audit_text(text: str) -> str:
-    return re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    return _collapsed_plain_text(text or "")
 
 
 def _pdf_tails_absorbed_as_merge_source(

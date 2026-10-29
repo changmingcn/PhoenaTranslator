@@ -536,6 +536,11 @@ def _plain_text(text: str) -> str:
     )
 
 
+def _collapsed_plain_text(text: str) -> str:
+    """Return ``_plain_text`` with whitespace runs collapsed and ends trimmed."""
+    return re.sub(r"\s+", " ", _plain_text(text)).strip()
+
+
 def _pdf_span_origin_y(span: dict) -> float:
     origin = span.get("origin")
     if isinstance(origin, (list, tuple)) and len(origin) >= 2:
@@ -792,17 +797,13 @@ def _pdf_source_line_leading_superscript_footnote_marker(
     marker = re.sub(
         r"\s+", "", _plain_text(html.unescape(match.group("marker")))
     )
-    body = re.sub(
-        r"\s+", " ", _plain_text(html.unescape(match.group("body")))
-    ).strip()
+    body = _collapsed_plain_text(html.unescape(match.group("body")))
     if (
         not _PDF_LEADING_SUPERSCRIPT_FOOTNOTE_MARKER_RE.fullmatch(marker)
         or len(body) < 4
     ):
         return None
-    plain = re.sub(
-        r"\s+", " ", _plain_text(line.get("plain", ""))
-    ).strip()
+    plain = _collapsed_plain_text(line.get("plain", ""))
     if not re.match(rf"^{re.escape(marker)}\s+", plain):
         return None
     return marker

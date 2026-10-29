@@ -27,6 +27,7 @@ from phoena_translator.pdf.math_detection import (
     _normalize_pdf_translation,
     _pdf_source_line_leading_superscript_footnote_marker,
     _plain_text,
+    _collapsed_plain_text,
     _select_pdf_inline_math_fragments_for_text,
 )
 
@@ -34,7 +35,7 @@ log = logging.getLogger("translator")
 
 
 def _is_pdf_translatable_disclaimer_label(text: str) -> bool:
-    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    plain = _collapsed_plain_text(text or "")
     normalized = plain.rstrip(" \t\r\n:;,.!?").casefold()
     return normalized in _PDF_TRANSLATABLE_DISCLAIMER_LABELS
 
@@ -143,7 +144,7 @@ def _pdf_source_line_footnote_definition_marker(
     superscript_marker = _pdf_source_line_leading_superscript_footnote_marker(line)
     if superscript_marker:
         return superscript_marker
-    plain = re.sub(r"\s+", " ", _plain_text((line or {}).get("plain", ""))).strip()
+    plain = _collapsed_plain_text((line or {}).get("plain", ""))
     match = re.match(
         r"^(?P<marker>[*\u2020\u2021\u00a7\u00b6]{1,3})\s+(?P<body>\S.*)$",
         plain,
@@ -173,7 +174,7 @@ def _looks_like_pdf_paragraph_lead(text: str) -> bool:
     first line of one semantic paragraph; its indented following lines belong
     to the same translation and render box.
     """
-    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    plain = _collapsed_plain_text(text or "")
     numbered_match = _PDF_NUMBERED_PARAGRAPH_LEAD_RE.match(plain)
     if numbered_match and re.fullmatch(
         r"\((?:18|19|20)\d{2}\)",
@@ -221,7 +222,7 @@ def _merge_pdf_list_marker_clusters(clusters: list[list[dict]]) -> list[list[dic
 
 
 def _parse_pdf_toc_leader(text: str) -> dict | None:
-    plain = re.sub(r"\s+", " ", _plain_text(text)).strip()
+    plain = _collapsed_plain_text(text)
     if not plain:
         return None
 
@@ -240,7 +241,7 @@ def _parse_pdf_toc_leader(text: str) -> dict | None:
 
 
 def _strip_pdf_toc_label(text: str, page_ref: str) -> str:
-    plain = re.sub(r"\s+", " ", _plain_text(_normalize_pdf_translation(text))).strip()
+    plain = _collapsed_plain_text(_normalize_pdf_translation(text))
     if not plain:
         return ""
 
@@ -416,7 +417,7 @@ def _split_pdf_disjoint_line_segments(
 
 
 def _pdf_has_terminal_sentence_boundary(text: str) -> bool:
-    plain = re.sub(r"\s+", " ", _plain_text(text or "")).strip()
+    plain = _collapsed_plain_text(text or "")
     return bool(re.search(r"[.!?。！？][\"'’”）)\]]*$", plain))
 
 
@@ -1161,7 +1162,7 @@ def _is_pdf_single_visual_line_element(elem: dict) -> bool:
     ]
     if len(paragraphs) != 1 or paragraphs[0].get("toc_leader"):
         return False
-    plain = re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+    plain = _collapsed_plain_text(elem.get("content", ""))
     if not plain or "\n" in (elem.get("content") or ""):
         return False
     rect = _get_pdf_elem_rect(elem)
@@ -1178,7 +1179,7 @@ def _pdf_visual_line_info_from_element(elem: dict) -> dict:
         if (paragraph.get("plain") or "").strip()
     ]
     paragraph = paragraphs[0] if paragraphs else {}
-    plain = re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+    plain = _collapsed_plain_text(elem.get("content", ""))
     rich = elem.get("rich_content") or paragraph.get("rich") or plain
     return {
         "plain": plain,
@@ -1258,9 +1259,7 @@ def _rebase_pdf_split_paragraph_layout(
         (float(line["bbox"][0]) for line in source_lines[1:]),
         default=first_x0,
     )
-    first_plain = re.sub(
-        r"\s+", " ", _plain_text(source_lines[0].get("plain", ""))
-    ).strip()
+    first_plain = _collapsed_plain_text(source_lines[0].get("plain", ""))
     is_hanging_lead = len(source_lines) > 1 and (
         _looks_like_pdf_list_marker(first_plain)
         or _looks_like_pdf_paragraph_lead(first_plain)
@@ -1331,7 +1330,7 @@ def _split_pdf_text_elements_into_semantic_fragments(
             continue
 
         for paragraph in paragraphs:
-            plain = re.sub(r"\s+", " ", _plain_text(paragraph.get("plain", ""))).strip()
+            plain = _collapsed_plain_text(paragraph.get("plain", ""))
             rich = (paragraph.get("rich") or plain).strip()
             if not plain:
                 continue
@@ -1495,7 +1494,7 @@ def _looks_light_gray(color_int: int) -> bool:
 
 
 def _normalize_watermark_text(text: str) -> str:
-    plain = re.sub(r"\s+", " ", _plain_text(text)).strip().casefold()
+    plain = _collapsed_plain_text(text).casefold()
     return re.sub(r"\s+", " ", plain)
 
 
@@ -1537,7 +1536,7 @@ def _pdf_element_prefers_single_line_heading(elem: dict, page_rect: fitz.Rect) -
     if len(paragraphs) != 1:
         return False
 
-    plain = re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+    plain = _collapsed_plain_text(elem.get("content", ""))
     if not plain or len(plain) > 96:
         return False
 
@@ -1639,7 +1638,7 @@ def _mark_watermark_elements(page_extractions, page_rects, total_pages: int):
             if len(norm_text) < 4 or len(norm_text) > 120:
                 continue
 
-            rect = fitz.Rect(elem.get("bbox", elem.get("rect")))
+            rect = _get_pdf_elem_rect(elem)
             cx = ((rect.x0 + rect.x1) / 2) / max(page_rect.width, 1)
             cy = ((rect.y0 + rect.y1) / 2) / max(page_rect.height, 1)
             area_ratio = (rect.width * rect.height) / page_area

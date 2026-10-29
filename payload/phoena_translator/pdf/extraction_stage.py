@@ -34,8 +34,8 @@ from phoena_translator.pdf.cache import (
 )
 from phoena_translator.pdf.context import ImmutableElementPolicy
 from phoena_translator.pdf.extraction import _is_skip_page
-from phoena_translator.pdf.geometry import _pdf_page_extraction_rect
-from phoena_translator.pdf.math_detection import _plain_text
+from phoena_translator.pdf.geometry import _get_pdf_elem_rect, _pdf_page_extraction_rect
+from phoena_translator.pdf.math_detection import _collapsed_plain_text
 from phoena_translator.pdf.semantic_cross_page import (
     _cross_page_dominant_fontsize,
 )
@@ -609,7 +609,7 @@ def _pdf_element_is_body_prose(elem: dict, dominant_fontsize: float) -> bool:
     """
     if elem.get("type") != "text":
         return False
-    plain = re.sub(r"\s+", " ", _plain_text(elem.get("content") or "")).strip()
+    plain = _collapsed_plain_text(elem.get("content") or "")
     words = len(re.findall(r"[A-Za-z][A-Za-z'’-]*", plain))
     if words < 8:
         return False
@@ -626,7 +626,7 @@ def _pdf_element_is_body_prose(elem: dict, dominant_fontsize: float) -> bool:
         8.0,
     )
     try:
-        rect = fitz.Rect(elem.get("bbox", elem.get("rect")))
+        rect = _get_pdf_elem_rect(elem)
     except Exception:
         return False
     return rect.height > line_height * 1.6
@@ -645,7 +645,7 @@ def _pdf_element_in_page_footer_band(elem: dict, page_rect) -> bool:
     if height <= 0.0:
         return False
     try:
-        rect = fitz.Rect(elem.get("bbox", elem.get("rect")))
+        rect = _get_pdf_elem_rect(elem)
     except Exception:
         return False
     if rect.is_empty:
@@ -730,7 +730,7 @@ def _mark_pdf_table_preserved_elements(
                 }
             )
             try:
-                rect = fitz.Rect(elem.get("bbox", elem.get("rect")))
+                rect = _get_pdf_elem_rect(elem)
             except Exception:
                 continue
             if not rect.is_empty:
@@ -776,7 +776,7 @@ def _mark_pdf_table_preserved_elements(
                     if _pdf_element_in_page_footer_band(elem, page_rect):
                         continue
                     try:
-                        rect = fitz.Rect(elem.get("bbox", elem.get("rect")))
+                        rect = _get_pdf_elem_rect(elem)
                     except Exception:
                         continue
                     if rect.is_empty:

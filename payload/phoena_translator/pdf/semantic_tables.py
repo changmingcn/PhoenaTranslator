@@ -14,6 +14,7 @@ from phoena_translator.pdf.geometry import (
 )
 from phoena_translator.pdf.math_detection import (
     _plain_text,
+    _collapsed_plain_text,
 )
 from phoena_translator.pdf.semantic_text import (
     _join_pdf_line_fragments,
@@ -48,7 +49,7 @@ def _merge_pdf_table_cell_group(
         rect = fitz.Rect(source_rect)
 
     plain_parts = [
-        re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+        _collapsed_plain_text(elem.get("content", ""))
         for elem in ordered
     ]
     plain_parts = [part for part in plain_parts if part]
@@ -881,8 +882,7 @@ def _normalize_pdf_glossary_cells(
         if element.get("type") == "text"
     ]
     normalized = {
-        index: re.sub(r"\s+", " ", _plain_text(elements[index].get("content", "")))
-        .strip()
+        index: _collapsed_plain_text(elements[index].get("content", ""))
         .casefold()
         for index in text_indices
     }

@@ -19,6 +19,7 @@ from phoena_translator.pdf.geometry import (
 from phoena_translator.pdf.math_detection import (
     _looks_like_pdf_list_marker,
     _plain_text,
+    _collapsed_plain_text,
 )
 
 log = logging.getLogger("translator")
@@ -59,10 +60,8 @@ def _pdf_detached_list_marker_target_score(
         ):
             return None
 
-    marker_plain = re.sub(r"\s+", " ", _plain_text(marker.get("content", ""))).strip()
-    candidate_plain = re.sub(
-        r"\s+", " ", _plain_text(candidate.get("content", ""))
-    ).strip()
+    marker_plain = _collapsed_plain_text(marker.get("content", ""))
+    candidate_plain = _collapsed_plain_text(candidate.get("content", ""))
     if (
         not _looks_like_pdf_list_marker(marker_plain)
         or not candidate_plain
@@ -131,9 +130,7 @@ def _merge_pdf_detached_list_marker_elements(
     merged_elements = list(elements)
     removed_indices: set[int] = set()
     for marker_index, marker in enumerate(merged_elements):
-        marker_plain = re.sub(
-            r"\s+", " ", _plain_text(marker.get("content", ""))
-        ).strip()
+        marker_plain = _collapsed_plain_text(marker.get("content", ""))
         if (
             marker.get("type") != "text"
             or not _looks_like_pdf_list_marker(marker_plain)
@@ -168,9 +165,7 @@ def _merge_pdf_detached_list_marker_elements(
         target_rect = _get_pdf_primary_paragraph_rect(target)
         merged_rect = marker_rect | target_rect
 
-        target_plain = re.sub(
-            r"\s+", " ", _plain_text(target.get("content", ""))
-        ).strip()
+        target_plain = _collapsed_plain_text(target.get("content", ""))
         target_rich = (target.get("rich_content") or target.get("content", "")).strip()
         marker_rich = (marker.get("rich_content") or marker.get("content", "")).strip()
         merged_plain = f"{marker_plain} {target_plain}".strip()
@@ -316,8 +311,8 @@ def _pdf_semantic_continuation_elements_can_merge(
         ):
             return False
 
-    first_plain = re.sub(r"\s+", " ", _plain_text(first.get("content", ""))).strip()
-    current_plain = re.sub(r"\s+", " ", _plain_text(current.get("content", ""))).strip()
+    first_plain = _collapsed_plain_text(first.get("content", ""))
+    current_plain = _collapsed_plain_text(current.get("content", ""))
     if (
         not _looks_like_pdf_paragraph_lead(first_plain)
         or not current_plain
@@ -377,7 +372,7 @@ def _merge_pdf_semantic_continuation_elements(
     index = 0
     while index < len(elements):
         first = elements[index]
-        first_plain = re.sub(r"\s+", " ", _plain_text(first.get("content", ""))).strip()
+        first_plain = _collapsed_plain_text(first.get("content", ""))
         if not _looks_like_pdf_paragraph_lead(first_plain):
             merged_elements.append(first)
             index += 1
@@ -403,7 +398,7 @@ def _merge_pdf_semantic_continuation_elements(
             rect |= _get_pdf_primary_paragraph_rect(elem)
         plain = _join_pdf_line_fragments(
             [
-                re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+                _collapsed_plain_text(elem.get("content", ""))
                 for elem in group
             ]
         )
@@ -507,7 +502,7 @@ def _merge_pdf_semantic_continuation_elements(
 def _pdf_wrapped_line_group_can_start(elem: dict, page_rect: fitz.Rect) -> bool:
     if not _is_pdf_single_visual_line_element(elem) or _is_heading_like_elem(elem):
         return False
-    plain = re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+    plain = _collapsed_plain_text(elem.get("content", ""))
     words = re.findall(r"[A-Za-z][A-Za-z0-9'/-]*", plain)
     rect = _get_pdf_elem_rect(elem)
     numbered_body = _looks_like_pdf_paragraph_lead(plain) and len(words) >= 6
@@ -526,7 +521,7 @@ def _pdf_wrapped_line_elements_can_merge(
     if not _is_pdf_single_visual_line_element(previous):
         return False
 
-    current_plain = re.sub(r"\s+", " ", _plain_text(current.get("content", ""))).strip()
+    current_plain = _collapsed_plain_text(current.get("content", ""))
     if (
         not current_plain
         or _looks_like_pdf_paragraph_lead(current_plain)
@@ -536,7 +531,7 @@ def _pdf_wrapped_line_elements_can_merge(
     ):
         return False
 
-    first_plain = re.sub(r"\s+", " ", _plain_text(group[0].get("content", ""))).strip()
+    first_plain = _collapsed_plain_text(group[0].get("content", ""))
     if not _looks_like_pdf_paragraph_lead(first_plain) and len(first_plain) < 45:
         return False
 
@@ -768,11 +763,9 @@ def _pdf_strong_continuation_elements_can_merge(
     ):
         return False
 
-    first_plain = re.sub(r"\s+", " ", _plain_text(first.get("content", ""))).strip()
-    previous_plain = re.sub(
-        r"\s+", " ", _plain_text(previous.get("content", ""))
-    ).strip()
-    current_plain = re.sub(r"\s+", " ", _plain_text(current.get("content", ""))).strip()
+    first_plain = _collapsed_plain_text(first.get("content", ""))
+    previous_plain = _collapsed_plain_text(previous.get("content", ""))
+    current_plain = _collapsed_plain_text(current.get("content", ""))
     if (
         len(first_plain) < 35
         or len(previous_plain) < 8
@@ -868,7 +861,7 @@ def _merge_pdf_strong_continuation_elements(
 
         plain = _join_pdf_line_fragments(
             [
-                re.sub(r"\s+", " ", _plain_text(elem.get("content", ""))).strip()
+                _collapsed_plain_text(elem.get("content", ""))
                 for elem in group
             ]
         )
@@ -1073,9 +1066,7 @@ def _pdf_internal_paragraph_lead_residuals(
             for line_index, line in enumerate(source_lines):
                 marker = _pdf_source_line_footnote_definition_marker(line)
                 if marker and superscript_footnote_seen:
-                    plain = re.sub(
-                        r"\s+", " ", _plain_text(line.get("plain", ""))
-                    ).strip()
+                    plain = _collapsed_plain_text(line.get("plain", ""))
                     residuals.append((element_index, line_index, plain[:80]))
                 superscript_footnote_seen = bool(superscript_footnote_seen or marker)
         # Multiple bullets or numbered instructions are legitimate inside one
@@ -1094,7 +1085,7 @@ def _pdf_internal_paragraph_lead_residuals(
                 if (line.get("plain") or "").strip()
             ]
             for line_index, line in enumerate(source_lines[1:], start=1):
-                plain = re.sub(r"\s+", " ", _plain_text(line.get("plain", ""))).strip()
+                plain = _collapsed_plain_text(line.get("plain", ""))
                 if _looks_like_pdf_paragraph_lead(plain):
                     residuals.append((element_index, line_index, plain[:80]))
     return residuals

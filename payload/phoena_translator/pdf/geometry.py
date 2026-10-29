@@ -351,8 +351,7 @@ def _get_pdf_render_bbox(block_rect, page_rect, paragraphs: list[dict], fontsize
 
 
 def _get_pdf_elem_rect(elem: dict) -> fitz.Rect:
-    bbox = elem.get("bbox", elem.get("rect"))
-    return fitz.Rect(bbox) if isinstance(bbox, list) else fitz.Rect(bbox)
+    return fitz.Rect(elem.get("bbox", elem.get("rect")))
 
 
 def _line_overlaps_pdf_table_rects(line_bbox, table_rects: list[fitz.Rect]) -> bool:

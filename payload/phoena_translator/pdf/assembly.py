@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import html
 import logging
-import re
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -22,6 +21,7 @@ from phoena_translator.pdf.cache import (
     _replace_pdf_pages_with_source,
 )
 from phoena_translator.pdf.geometry import (
+    _get_pdf_elem_rect,
     _get_pdf_source_ink_rects,
     _pdf_page_extraction_rect,
     _subtract_pdf_protected_rects,
@@ -30,6 +30,7 @@ from phoena_translator.pdf.math_detection import (
     _normalize_pdf_translation,
     _pdf_superscript_signature,
     _plain_text,
+    _collapsed_plain_text,
 )
 from phoena_translator.pdf.rendering import (
     _build_htmlbox_rect_ladder,
@@ -308,7 +309,7 @@ def _prepare_page(
         if elem.get("skip_translate_reason") == "watermark"
     }
     protected_formula_rects = [
-        fitz.Rect(elem.get("bbox", elem.get("rect")))
+        _get_pdf_elem_rect(elem)
         for elem in elements
         if elem.get("type") == "formula_image"
     ]
@@ -1058,7 +1059,7 @@ def _render_element(
             protected_formula_rects,
             i,
             elem,
-            fitz.Rect(elem.get("bbox", elem.get("rect"))),
+            _get_pdf_elem_rect(elem),
             fontsize,
             (r_val / 255.0, g_val / 255.0, b_val / 255.0),
             lh,
@@ -1126,7 +1127,7 @@ def _render_element(
                 protected_formula_rects,
                 i,
                 elem,
-                fitz.Rect(elem.get("bbox", elem.get("rect"))),
+                _get_pdf_elem_rect(elem),
                 fontsize,
                 (r_val / 255.0, g_val / 255.0, b_val / 255.0),
                 lh,
@@ -1137,11 +1138,7 @@ def _render_element(
         log.warning(f"[{task_id}] Page {page_num + 1} elem {i}: empty textbox fallback")
         return
 
-    source_plain = re.sub(
-        r"\s+",
-        " ",
-        _plain_text(elem.get("rich_content") or elem.get("content", "")),
-    ).strip()
+    source_plain = _collapsed_plain_text(elem.get("rich_content") or elem.get("content", ""))
     fixed_short_label = _plain_text(
         _translate_pdf_fixed_short_label(source_plain)
     ).strip()
@@ -1173,7 +1170,7 @@ def _render_element(
             protected_formula_rects,
             i,
             elem,
-            fitz.Rect(elem.get("bbox", elem.get("rect"))),
+            _get_pdf_elem_rect(elem),
             fontsize,
             (r_val / 255.0, g_val / 255.0, b_val / 255.0),
             lh,
