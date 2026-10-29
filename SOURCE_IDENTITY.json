@@ -3,11 +3,11 @@
   "package_name": "PhoenaTranslator-20261028-epub-tolerant-publish-reinstall",
   "version": "2026.10.28-epub-tolerant-publish",
   "built_at_utc": "2026-10-28T08:16:20.089877+00:00",
-  "source_policy": "modularity refactor of 2026.10.28-epub-tolerant-publish on branch claude/awesome-bell-uwpctk; VERSION not yet bumped, not yet deployed",
+  "source_policy": "modularity refactor of 2026.10.28-epub-tolerant-publish on branch claude/awesome-bell-uwpctk, including the Runtime composition root and removal of the legacy_exports facade; VERSION not yet bumped, not yet deployed",
   "active_release": "/opt/phoena-translator/releases/release-2026.10.28-epub-tolerant-publish",
   "payload_file_count": 108,
-  "payload_total_bytes": 1642866,
-  "payload_manifest_sha256": "b2bc4ee9c0c197a713f00903d4758169568cf01abaf2919a3f37270c67c9117b",
+  "payload_total_bytes": 1611511,
+  "payload_manifest_sha256": "62d46b925e0439e77d028e2a6ce24131cd3e57da34695ff4e42dc1f72210dd71",
   "prior_deployment_content_aggregate_sha256": "17d0ce24ad89a3d426cbd63ab918b348918c0cb5d16cc6bc8e46434b796843e9",
   "supersedes": "PhoenaTranslator-20261023-epub-segments-reinstall",
   "excluded_classes": [
@@ -17,5 +17,5 @@
     "virtual environments and bytecode",
     "fonts, audit evidence, backups and Git metadata"
   ],
-  "validation": "Local regression suite: 332 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including end-to-end golden snapshots of two synthetic PDFs that are identical before and after the refactor. Not yet validated on the production host or against real documents."
+  "validation": "Local regression suite: 336 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including end-to-end golden snapshots of two synthetic PDFs that are identical before and after the refactor, an upload-to-download run through the worker pool, and gunicorn app:app serving /api/health and /api/tasks. Not yet validated on the production host or against real documents."
 }

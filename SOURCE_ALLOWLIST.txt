@@ -14,7 +14,6 @@ phoena_translator/epub/pipeline.py
 phoena_translator/epub/segments.py
 phoena_translator/epub/xhtml.py
 phoena_translator/glossary.py
-phoena_translator/legacy_exports.py
 phoena_translator/llm.py
 phoena_translator/logging_setup.py
 phoena_translator/math_text.py
@@ -79,6 +78,7 @@ phoena_translator/pdf/verify/leaks.py
 phoena_translator/pdf/verify/merges.py
 phoena_translator/pdf/verify/output.py
 phoena_translator/prompts.py
+phoena_translator/runtime.py
 phoena_translator/storage_layout.py
 phoena_translator/task_runtime.py
 phoena_translator/task_store.py
