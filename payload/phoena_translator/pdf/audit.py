@@ -1719,17 +1719,13 @@ def _check_pdf_output_structure_serialized(
     the extraction slot and confirm any warning once before invalidating page
     caches or spending API budget on a structural rebuild.
     """
-    PDF_EXTRACTION_MAX_CONCURRENCY = dependencies.extraction_max_concurrency
-    _pdf_extraction_semaphore = dependencies.extraction_semaphore
-    _check_pdf_output_structure = dependencies.check_output_structure
-    _trim_process_memory = dependencies.trim_process_memory
     log.info(
         "Waiting for serialized PDF structure audit "
-        f"(extraction_concurrency={PDF_EXTRACTION_MAX_CONCURRENCY})"
+        f"(extraction_concurrency={dependencies.extraction_max_concurrency})"
     )
-    _pdf_extraction_semaphore.acquire()
+    dependencies.extraction_semaphore.acquire()
     try:
-        first = _check_pdf_output_structure(
+        first = dependencies.check_output_structure(
             out_path,
             superscript_expectations,
             merge_decisions,
@@ -1747,8 +1743,8 @@ def _check_pdf_output_structure_serialized(
             "while the fitz slot remains isolated",
             first.get("warning_count", 0),
         )
-        _trim_process_memory()
-        confirmed = _check_pdf_output_structure(
+        dependencies.trim_process_memory()
+        confirmed = dependencies.check_output_structure(
             out_path,
             superscript_expectations,
             merge_decisions,
@@ -1777,7 +1773,7 @@ def _check_pdf_output_structure_serialized(
             )
         return confirmed
     finally:
-        _pdf_extraction_semaphore.release()
+        dependencies.extraction_semaphore.release()
 
 
 def _require_clean_pdf_structure_check(check: dict) -> None:

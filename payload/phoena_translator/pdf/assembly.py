@@ -271,12 +271,10 @@ def _prepare_page(
     """Resolve translations and validate formula-safe placement before redaction."""
 
     task_id = context.task_id
-    PDF_USE_HTMLBOX = context.use_htmlbox
     out_doc = context.out_doc
     page_extractions = context.page_extractions
     pdf_audit = context.pdf_audit
     log = context.logger
-    _filter_pdf_formula_safe_rects = context.filter_formula_safe_rects
     out_page = out_doc[page_num]
 
     info = page_extractions.get(page_num, {})
@@ -347,7 +345,7 @@ def _prepare_page(
             ):
                 unplaceable_indices.add(i)
             continue
-        if PDF_USE_HTMLBOX or _pdf_superscript_signature(text_to_insert):
+        if context.use_htmlbox or _pdf_superscript_signature(text_to_insert):
             is_table_cell = bool(
                 elem.get("table_hint") or elem.get("glossary_cell_hint")
             )
@@ -370,7 +368,7 @@ def _prepare_page(
                     fontsize,
                     ignored_indices=watermark_indices,
                 )
-            if not _filter_pdf_formula_safe_rects(
+            if not context.filter_formula_safe_rects(
                 ladder,
                 protected_formula_rects,
                 anchor_rect=render_rect,
@@ -813,8 +811,6 @@ def _try_htmlbox(
     task_id = context.task_id
     page_num = page_plan.page_num
     i = element_plan.index
-    PDF_USE_HTMLBOX = context.use_htmlbox
-    PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE = context.minimum_htmlbox_scale
     out_page = page_plan.out_page
     elements = page_plan.elements
     watermark_indices = page_plan.watermark_indices
@@ -823,7 +819,6 @@ def _try_htmlbox(
     pdf_audit = context.pdf_audit
     font_archive = context.font_archive
     log = context.logger
-    _filter_pdf_formula_safe_rects = context.filter_formula_safe_rects
     elem = element_plan.element
     render_rect = fitz.Rect(element_plan.render_rect)
     fontsize = element_plan.fontsize
@@ -834,7 +829,7 @@ def _try_htmlbox(
     htmlbox_err = RuntimeError("PDF htmlbox rendering disabled")
     inserted = False
     textbox_fit_rects = None
-    if PDF_USE_HTMLBOX or has_semantic_superscript:
+    if context.use_htmlbox or has_semantic_superscript:
         # No-shrink policy: insert_htmlbox with scale_low near 1 writes
         # nothing when the text cannot fit (returns spare=-1 instead of
         # raising), so we can safely walk the rect ladder on the real
@@ -863,7 +858,7 @@ def _try_htmlbox(
                 fontsize,
                 ignored_indices=watermark_indices,
             )
-        ladder = _filter_pdf_formula_safe_rects(
+        ladder = context.filter_formula_safe_rects(
             ladder,
             protected_formula_rects,
             anchor_rect=render_rect,
@@ -920,7 +915,7 @@ def _try_htmlbox(
                     box_html,
                     css=css,
                     archive=font_archive,
-                    minimum_scale=PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,
+                    minimum_scale=context.minimum_htmlbox_scale,
                 )
                 if spare >= 0:
                     scale = float(scale)
@@ -935,7 +930,7 @@ def _try_htmlbox(
                         "redraw_unchanged_source": i in redraw_source_indices,
                         "text": _plain_text(text_to_insert)[:160],
                     }
-                    if scale < PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE:
+                    if scale < context.minimum_htmlbox_scale:
                         # ``scale_low`` promises that a lower scale
                         # is not drawn. If PyMuPDF ever violates
                         # that contract, abort the assembly because
@@ -945,7 +940,7 @@ def _try_htmlbox(
                             i,
                             (
                                 f"unreadable htmlbox scale {scale:.2f} below "
-                                f"minimum {PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE:.2f}"
+                                f"minimum {context.minimum_htmlbox_scale:.2f}"
                             ),
                             retryable=False,
                         )
@@ -1022,8 +1017,6 @@ def _render_element(
         return
     task_id = context.task_id
     page_num = plan.page_num
-    PDF_USE_HTMLBOX = context.use_htmlbox
-    PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE = context.minimum_htmlbox_scale
     out_page = plan.out_page
     elements = plan.elements
     watermark_indices = plan.watermark_indices
@@ -1032,7 +1025,6 @@ def _render_element(
     pdf_audit = context.pdf_audit
     font_path = context.font_path
     log = context.logger
-    _filter_pdf_formula_safe_rects = context.filter_formula_safe_rects
     elem = element_plan.element
     render_style = element_plan.render_style
     source_paragraphs = element_plan.source_paragraphs
@@ -1073,7 +1065,7 @@ def _render_element(
             f"semantic superscript could not be rendered: {htmlbox_err}",
         )
 
-    if not PDF_USE_HTMLBOX:
+    if not context.use_htmlbox:
         textbox_ladder = [("base", fitz.Rect(render_rect))]
         if not is_table_cell and not render_style.get("preserve_source_style"):
             expanded_render_rect = _expand_pdf_htmlbox_rect(
@@ -1094,7 +1086,7 @@ def _render_element(
                 fontsize,
                 ignored_indices=watermark_indices,
             )
-        textbox_ladder = _filter_pdf_formula_safe_rects(
+        textbox_ladder = context.filter_formula_safe_rects(
             textbox_ladder,
             protected_formula_rects,
             anchor_rect=render_rect,
@@ -1162,7 +1154,7 @@ def _render_element(
         protected_rects=protected_formula_rects,
         allow_compact_fontsize=compact_fixed_table_label,
         fit_rects=textbox_fit_rects,
-        minimum_scale=PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,
+        minimum_scale=context.minimum_htmlbox_scale,
     )
     if not ok:
         if _try_restore_source_element(
@@ -1186,13 +1178,13 @@ def _render_element(
         )
     if textbox_fontsize is not None:
         textbox_scale = textbox_fontsize / max(fontsize, 1.0)
-        if textbox_scale < PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE:
+        if textbox_scale < context.minimum_htmlbox_scale:
             raise PDFPageRenderError(
                 page_num + 1,
                 i,
                 (
                     f"unreadable textbox scale {textbox_scale:.2f} below "
-                    f"minimum {PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE:.2f}"
+                    f"minimum {context.minimum_htmlbox_scale:.2f}"
                 ),
                 retryable=False,
             )
@@ -1221,10 +1213,8 @@ def _assemble_page(context: PDFAssemblyContext, page_num: int) -> None:
 
     total_pages = context.total_pages
     pdf_password = context.pdf_password
-    PDF_USE_HTMLBOX = context.use_htmlbox
     assembly_work_path = context.assembly_work_path
     out_doc = context.out_doc
-    _trim_process_memory = context.trim_process_memory
     plan = _prepare_page(context, page_num)
     if plan is None:
         return
@@ -1240,12 +1230,12 @@ def _assemble_page(context: PDFAssemblyContext, page_num: int) -> None:
     for i in sorted(render_indices):
         _render_element(context, plan, css, i)
 
-    if PDF_USE_HTMLBOX and assembly_work_path:
+    if context.use_htmlbox and assembly_work_path:
         out_doc.saveIncr()
         out_doc.close()
         out_doc = None
         context.out_doc = None
-        _trim_process_memory()
+        context.trim_process_memory()
         if page_num < total_pages - 1:
             reopened_document = fitz.open(assembly_work_path)
             try:

@@ -972,14 +972,11 @@ def translate_text(
     *,
     dependencies: PDFTranslationDependencies,
 ) -> str:
-    _create_chat_completion = dependencies.create_chat_completion
-    strip_think_tags = dependencies.strip_think_tags
-    SYSTEM_PROMPT_TEXT = dependencies.system_prompt_text
     log = dependencies.logger
     if not text or not text.strip():
         return text
     if system_prompt is None:
-        system_prompt = SYSTEM_PROMPT_TEXT
+        system_prompt = dependencies.system_prompt_text
 
     # Backoff applies only to transport-level exceptions (the provider's rate
     # limiting is owned by ``api_runtime``).  Semantic verification failures
@@ -999,7 +996,7 @@ def translate_text(
                     "\n\n上一次输出未充分翻译。若输入是英文正文、标题或图注，"
                     "这次必须输出中文译文，不得直接重复英文原文。"
                 )
-            resp = _create_chat_completion(
+            resp = dependencies.create_chat_completion(
                 messages=[
                     {"role": "system", "content": prompt_for_attempt},
                     {"role": "user", "content": text},
@@ -1008,7 +1005,7 @@ def translate_text(
                 temperature=0.3,
             )
             content = resp.choices[0].message.content
-            result = strip_think_tags(content)
+            result = dependencies.strip_think_tags(content)
             # Strip markdown code fences if present
             if result.startswith("```"):
                 result = re.sub(r'^```[a-zA-Z]*\n?', '', result)
