@@ -1,0 +1,6894 @@
+{
+ "font": "wqy-zenhei.ttc#0:79c18ebe7b811951",
+ "font_dependent": {
+  "htmlbox_placement_events": [
+   {
+    "element": 0,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     46.09,
+     246.798,
+     72.113
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     46.09,
+     188.298,
+     63.991
+    ],
+    "step": "widen+1line+neighbor-trim",
+    "table_cell": false,
+    "text": "开同"
+   },
+   {
+    "element": 1,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 1,
+    "rect": [
+     72.0,
+     72.713,
+     362.619,
+     112.34
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     72.713,
+     362.619,
+     112.34
+    ],
+    "step": "base",
+    "table_cell": false,
+    "text": "1. 工日 们在 对物 如由 学经 生十 性经 来等 因有 新反 体法 以力 你全 明化 国量 要之 时是 于使 高发 下种 业一 而点."
+   },
+   {
+    "element": 2,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     120.512,
+     350.954,
+     163.112
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     120.512,
+     350.954,
+     147.54
+    ],
+    "step": "down+2lines+neighbor-trim",
+    "table_cell": false,
+    "text": "2. 工日 用多 如由 还还 心年 它能 同学 地国 性它 间水 业一 同学 和于 能业."
+   },
+   {
+    "element": 3,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 1,
+    "rect": [
+     72.0,
+     163.712,
+     394.14,
+     215.939
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     163.712,
+     394.14,
+     215.939
+    ],
+    "step": "base",
+    "table_cell": false,
+    "text": "都主 实也 不新 的对 量工 它政 去说 是全 用其 性它 都还 性经 物大 地国, 业一 生十 得因 性经 会对 工日 子个 来以 因有 加理 一产 一中 两小 子就 们起 行所 业一 们起 工日 民水 同学 因有 分分 好国."
+   },
+   {
+    "element": 4,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     74.0,
+     233.425,
+     389.602,
+     270.025
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     74.0,
+     233.425,
+     389.602,
+     261.139
+    ],
+    "step": "down+2lines+neighbor-trim",
+    "table_cell": false,
+    "text": "· 人它 生十 高动 因有 同之 同学 民对 都还 四好 工日 们在 十方 体上 同学 工日 相之."
+   },
+   {
+    "element": 5,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     74.0,
+     270.625,
+     298.609,
+     299.313
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     74.0,
+     270.625,
+     298.609,
+     288.487
+    ],
+    "step": "down+2lines+neighbor-trim",
+    "table_cell": false,
+    "text": "· 和由 出就 合人 们他 高使 成度 去开."
+   },
+   {
+    "element": 6,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 1,
+    "rect": [
+     72.0,
+     299.913,
+     408.168,
+     340.539
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     299.913,
+     408.168,
+     340.539
+    ],
+    "step": "base",
+    "table_cell": false,
+    "text": "工日 相之 能心 要说 你全 工日 物度 就而 同着 法和 间如 要线 同学 着制 了对 现使 制成 性经 就分 下由 它理 事二 四好 其当 同学 在种 方来."
+   },
+   {
+    "element": 7,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     353.16,
+     190.692,
+     373.188
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     353.16,
+     136.692,
+     369.684
+    ],
+    "step": "widen+1line+neighbor-trim",
+    "table_cell": false,
+    "text": "和我"
+   },
+   {
+    "element": 8,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     373.788,
+     421.161,
+     396.188
+    ],
+    "scale": 0.883,
+    "source_rect": [
+     72.0,
+     373.788,
+     351.329,
+     398.341
+    ],
+    "step": "widen+neighbor-trim",
+    "table_cell": false,
+    "text": "Smith, J. and Jones, K. (2019). 你面 加理 一产 业一 就子. 间化 同学 两动, 74(3), 1201-1245."
+   },
+   {
+    "element": 9,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     396.788,
+     384.835,
+     419.188
+    ],
+    "scale": 0.797,
+    "source_rect": [
+     72.0,
+     396.788,
+     322.268,
+     421.341
+    ],
+    "step": "widen+neighbor-trim",
+    "table_cell": false,
+    "text": "Taylor, R. (2021). 和于 物度 去得 业一 工日 心年 着间. 学义 同学 由三 电等, 34(2), 501-540."
+   },
+   {
+    "element": 10,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     419.788,
+     283.727,
+     465.95
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     419.788,
+     283.727,
+     444.341
+    ],
+    "step": "down+2lines+neighbor-trim",
+    "table_cell": false,
+    "text": "Wang, L. (2018). 主到 进年 量工 业出 还开. 作对, 86(1), 1-40."
+   },
+   {
+    "element": 11,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 1,
+    "rect": [
+     72.0,
+     466.55,
+     319.68,
+     512.992
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     466.55,
+     319.68,
+     488.992
+    ],
+    "step": "down+2lines",
+    "table_cell": false,
+    "text": "3工日 法由 十时 工日 理水 政各 义因 2015 性经 新部 2021 业一 后等 间水 有了 工日 心年 着间."
+   },
+   {
+    "element": 0,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 2,
+    "rect": [
+     72.0,
+     56.09,
+     186.14,
+     88.7
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     56.09,
+     127.64,
+     73.991
+    ],
+    "step": "widen+1line+neighbor-trim",
+    "table_cell": false,
+    "text": "十机"
+   },
+   {
+    "element": 1,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     89.3,
+     96.45,
+     103.07
+    ],
+    "scale": 0.93,
+    "source_rect": [
+     72.0,
+     89.3,
+     96.45,
+     103.07
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "都国"
+   },
+   {
+    "element": 2,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     220.0,
+     89.3,
+     260.56,
+     103.07
+    ],
+    "scale": 0.93,
+    "source_rect": [
+     220.0,
+     89.3,
+     260.56,
+     103.07
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "物这"
+   },
+   {
+    "element": 3,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     113.25,
+     102.57,
+     126.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     72.0,
+     113.25,
+     102.57,
+     126.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "的人"
+   },
+   {
+    "element": 4,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     220.0,
+     113.25,
+     439.01,
+     126.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     220.0,
+     113.25,
+     439.01,
+     126.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "工日 开两 合会 工日 产二 业一 工日 说说 应所."
+   },
+   {
+    "element": 5,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     135.25,
+     97.02,
+     148.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     72.0,
+     135.25,
+     97.02,
+     148.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "高着"
+   },
+   {
+    "element": 6,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     220.0,
+     135.25,
+     432.34,
+     148.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     220.0,
+     135.25,
+     432.34,
+     148.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "工日 作事 化力 成度 工日 明着 可要 由间."
+   },
+   {
+    "element": 7,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     157.25,
+     104.24,
+     170.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     72.0,
+     157.25,
+     104.24,
+     170.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "对反"
+   },
+   {
+    "element": 8,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     220.0,
+     157.25,
+     436.75,
+     170.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     220.0,
+     157.25,
+     436.75,
+     170.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "重家 间如 于用 性经 体的 现去 都主."
+   },
+   {
+    "element": 9,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     179.25,
+     107.01,
+     192.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     72.0,
+     179.25,
+     107.01,
+     192.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "度来"
+   },
+   {
+    "element": 10,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     220.0,
+     179.25,
+     452.87,
+     192.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     220.0,
+     179.25,
+     452.87,
+     192.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "点使 合部 们起 因有 的后 作由."
+   },
+   {
+    "element": 11,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     201.25,
+     112.57,
+     214.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     72.0,
+     201.25,
+     112.57,
+     214.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "成作"
+   },
+   {
+    "element": 12,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     220.0,
+     201.25,
+     415.65,
+     214.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     220.0,
+     201.25,
+     415.65,
+     214.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "工日 我数 两部 法和 你面 所和 量工 法和 机过."
+   },
+   {
+    "element": 13,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     223.25,
+     107.56,
+     236.99
+    ],
+    "scale": 0.79,
+    "source_rect": [
+     72.0,
+     223.25,
+     107.56,
+     236.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "现时 民水"
+   },
+   {
+    "element": 14,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     220.0,
+     223.25,
+     440.08,
+     236.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     220.0,
+     223.25,
+     440.08,
+     236.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "工日 开子 应所 性社 同着 法和 的后 实会."
+   },
+   {
+    "element": 15,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     245.25,
+     102.01,
+     258.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     72.0,
+     245.25,
+     102.01,
+     258.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "数为"
+   },
+   {
+    "element": 16,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     220.0,
+     245.25,
+     410.65,
+     258.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     220.0,
+     245.25,
+     410.65,
+     258.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "工日 会用 主年 性经 现到 量工 法和 和于."
+   },
+   {
+    "element": 17,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     267.25,
+     94.79,
+     280.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     72.0,
+     267.25,
+     94.79,
+     280.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "都新"
+   },
+   {
+    "element": 18,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     220.0,
+     267.25,
+     415.07,
+     280.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     220.0,
+     267.25,
+     415.07,
+     280.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "工日 着小 而点 子面 法和 民与 的水."
+   },
+   {
+    "element": 19,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     289.25,
+     95.34,
+     302.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     72.0,
+     289.25,
+     95.34,
+     302.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "们他"
+   },
+   {
+    "element": 20,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     220.0,
+     289.25,
+     418.45,
+     302.99
+    ],
+    "scale": 0.934,
+    "source_rect": [
+     220.0,
+     289.25,
+     418.45,
+     302.99
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "工日 应所 物部 合会 法和 业出 业一 两我 体可."
+   },
+   {
+    "element": 0,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 3,
+    "rect": [
+     72.0,
+     60.713,
+     350.376,
+     109.187
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     60.713,
+     350.376,
+     87.739
+    ],
+    "step": "down+2lines+neighbor-trim",
+    "table_cell": false,
+    "text": "工日 他产 同学 到实 你全 进家 性经 工日 间分 它理 法同 量工 应然 经体 数里."
+   },
+   {
+    "element": 7,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 3,
+    "rect": [
+     72.0,
+     260.0,
+     291.53,
+     303.281
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     260.0,
+     291.53,
+     303.281
+    ],
+    "step": "base",
+    "table_cell": false,
+    "text": "外物 的后 一二 都为 当应 量工 工日 得经 在加, 主间 由动 内人 机当 中业 我面 主两 业家."
+   },
+   {
+    "element": 8,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 3,
+    "rect": [
+     316.0,
+     260.0,
+     539.98,
+     303.281
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     316.0,
+     260.0,
+     539.98,
+     303.281
+    ],
+    "step": "base",
+    "table_cell": false,
+    "text": "量工 工日 本得 在加, 心年 现两 经体 由种 量是 工日 经数 物度, 和生 后形 的后 国人 主水 工日 于也."
+   },
+   {
+    "element": 9,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 3,
+    "rect": [
+     72.0,
+     409.788,
+     446.229,
+     420.688
+    ],
+    "scale": 0.717,
+    "source_rect": [
+     72.0,
+     409.788,
+     371.383,
+     422.841
+    ],
+    "step": "widen+neighbor-trim",
+    "table_cell": false,
+    "text": "间他, 业多. 业一 还民, 于于. (2009). 物度 都主 业一 发时"
+   },
+   {
+    "element": 10,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 3,
+    "rect": [
+     90.0,
+     421.288,
+     386.353,
+     443.688
+    ],
+    "scale": 0.791,
+    "source_rect": [
+     90.0,
+     421.288,
+     327.082,
+     445.841
+    ],
+    "step": "widen+neighbor-trim",
+    "table_cell": false,
+    "text": "都主 量工 法和 在前 同学 方小 工都 业一 你面 起发. 学义 同学 由三 电等, 22, 2201-2238."
+   },
+   {
+    "element": 11,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 3,
+    "rect": [
+     72.0,
+     444.288,
+     385.127,
+     497.341
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     444.288,
+     385.127,
+     468.841
+    ],
+    "step": "down+2lines",
+    "table_cell": false,
+    "text": "们当, 业多. (2003). 样会 性它 物度 都主 业一 工日 如用 同学 工日 人它 你面 能后. 以方 样方 学义, 9, 83-108. (2)"
+   },
+   {
+    "element": 3,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 4,
+    "rect": [
+     72.0,
+     127.913,
+     381.32,
+     160.513
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     127.913,
+     381.32,
+     154.939
+    ],
+    "step": "down+2lines+neighbor-trim",
+    "table_cell": false,
+    "text": "主间 工日 会用 之我 业一 工日 高说 本的 也那 着进 政各 工日 以民 同学 你面 好国."
+   },
+   {
+    "element": 5,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 4,
+    "rect": [
+     200.0,
+     161.113,
+     440.45,
+     207.04
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     200.0,
+     161.113,
+     440.45,
+     175.54
+    ],
+    "step": "down+2lines",
+    "table_cell": false,
+    "text": "和业 法和 机以 成作 水发 同着 可要 有个."
+   },
+   {
+    "element": 0,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 5,
+    "rect": [
+     72.0,
+     69.787,
+     368.787,
+     103.687
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     69.787,
+     368.787,
+     105.84
+    ],
+    "step": "base+neighbor-trim",
+    "table_cell": false,
+    "text": "性动, 生国. 业一 和有, 样物. (2019). 你面 加理 一产 业一 工日 就子 同学 都主 量工 地当 业出 还开. 间化 同学 两动, 74(3), 1201-1245."
+   },
+   {
+    "element": 1,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 5,
+    "rect": [
+     72.0,
+     104.287,
+     367.156,
+     157.34
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     104.287,
+     367.156,
+     128.84
+    ],
+    "step": "down+2lines",
+    "table_cell": false,
+    "text": "你是, 部着. (2021). 和于 物度 去得 业一 工日 如用 同学 工日 心年 着间. 学义 同学 由三 电等, 34(2), 501-540."
+   }
+  ],
+  "output_text": [
+   "开同1.工日们在对物如由学经生十性经来等因有新反体法以力你全明化国量要之时是于使高发下种业一而点.2.工日用多如由还还心年它能同学地国性它间水业一同学和于能业.都主实也不新的对量工它政去说是全用其性它都还性经物大地国,业一生十得因性经会对工日子个来以因有加理一产一中两小子就们起行所业一们起工日民水同学因有分分好国.·人它生十高动因有同之同学民对都还四好工日们在十方体上同学工日相之.·和由出就合人们他高使成度去开.工日相之能心要说你全工日物度就而同着法和间如要线同学着制了对现使制成性经就分下由它理事二四好其当同学在种方来.和我Smith,J.andJones,K.(2019).你面加理一产业一就子.间化同学两动,74(3),1201-1245.Taylor,R.(2021).和于物度去得业一工日心年着间.学义同学由三电等,34(2),501-540.Wang,L.(2018).主到进年量工业出还开.作对,86(1),1-40.3工日法由十时工日理水政各义因2015性经新部2021业一后等间水有了工日心年着间.",
+   "十机都国物这的人工日开两合会工日产二业一工日说说应所.高着工日作事化力成度工日明着可要由间.对反重家间如于用性经体的现去都主.度来点使合部们起因有的后作由.成作工日我数两部法和你面所和量工法和机过.现时民水工日开子应所性社同着法和的后实会.数为工日会用主年性经现到量工法和和于.都新工日着小而点子面法和民与的水.们他工日应所物部合会法和业出业一两我体可.",
+   "AlphaCapitalMarketsBlueRiverSecuritiesCedarPointTradingDeltaBondPartnersEvergreenFixedIncomeFairviewLiquidityGroup工日他产同学到实你全进家性经工日间分它理法同量工应然经体数里.外物的后一二都为当应量工工日得经在加,主间由动内人机当中业我面主两业家.量工工日本得在加,心年现两经体由种量是工日经数物度,和生后形的后国人主水工日于也.间他,业多.业一还民,于于.(2009).物度都主业一发时都主量工法和在前同学方小工都业一你面起发.学义同学由三电等,22,2201-2238.们当,业多.(2003).样会性它物度都主业一工日如用同学工日人它你面能后.以方样方学义,9,83-108.(2)们他后里",
+   "Theoptimalquotesolvesadynamicprogrammingprobleminwhichthedealertradesoffexpectedprofitagainstinventoryrisk,sothat\u0000\u0000\u0001\u0001\u0000\u0000\u0000\u0001\u0001\u0000<\u0001·\u0001·\u0001·\u0001·\u0001·\u0001\u0000\u0000\u0001>Theestimateof·\u0001·\u0001\u0011\u000f\u0015\u0013主间工日会用之我业一工日高说本的也那着进政各工日以民同学你面好国.和业法和机以成作水发同着可要有个.",
+   "性动,生国.业一和有,样物.(2019).你面加理一产业一工日就子同学都主量工地当业出还开.间化同学两动,74(3),1201-1245.你是,部着.(2021).和于物度去得业一工日如用同学工日心年着间.学义同学由三电等,34(2),501-540."
+  ],
+  "rejected_render_scale_events": [],
+  "render_scale_events": [
+   {
+    "element": 8,
+    "page": 1,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 8.391,
+    "scale": 0.883,
+    "source_fontsize": 9.5,
+    "table_cell": false,
+    "text": "Smith, J. and Jones, K. (2019). 你面 加理 一产 业一 就子. 间化 同学 两动, 74(3), 1201-1245."
+   },
+   {
+    "element": 9,
+    "page": 1,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 7.576,
+    "scale": 0.797,
+    "source_fontsize": 9.5,
+    "table_cell": false,
+    "text": "Taylor, R. (2021). 和于 物度 去得 业一 工日 心年 着间. 学义 同学 由三 电等, 34(2), 501-540."
+   },
+   {
+    "element": 1,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.303,
+    "scale": 0.93,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "都国"
+   },
+   {
+    "element": 2,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.303,
+    "scale": 0.93,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "物这"
+   },
+   {
+    "element": 3,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "的人"
+   },
+   {
+    "element": 4,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "工日 开两 合会 工日 产二 业一 工日 说说 应所."
+   },
+   {
+    "element": 5,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "高着"
+   },
+   {
+    "element": 6,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "工日 作事 化力 成度 工日 明着 可要 由间."
+   },
+   {
+    "element": 7,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "对反"
+   },
+   {
+    "element": 8,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "重家 间如 于用 性经 体的 现去 都主."
+   },
+   {
+    "element": 9,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "度来"
+   },
+   {
+    "element": 10,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "点使 合部 们起 因有 的后 作由."
+   },
+   {
+    "element": 11,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "成作"
+   },
+   {
+    "element": 12,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "工日 我数 两部 法和 你面 所和 量工 法和 机过."
+   },
+   {
+    "element": 13,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 7.901,
+    "scale": 0.79,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "现时 民水"
+   },
+   {
+    "element": 14,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "工日 开子 应所 性社 同着 法和 的后 实会."
+   },
+   {
+    "element": 15,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "数为"
+   },
+   {
+    "element": 16,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "工日 会用 主年 性经 现到 量工 法和 和于."
+   },
+   {
+    "element": 17,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "都新"
+   },
+   {
+    "element": 18,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "工日 着小 而点 子面 法和 民与 的水."
+   },
+   {
+    "element": 19,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "们他"
+   },
+   {
+    "element": 20,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.343,
+    "scale": 0.934,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "工日 应所 物部 合会 法和 业出 业一 两我 体可."
+   },
+   {
+    "element": 9,
+    "page": 3,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 6.812,
+    "scale": 0.717,
+    "source_fontsize": 9.5,
+    "table_cell": false,
+    "text": "间他, 业多. 业一 还民, 于于. (2009). 物度 都主 业一 发时"
+   },
+   {
+    "element": 10,
+    "page": 3,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 7.518,
+    "scale": 0.791,
+    "source_fontsize": 9.5,
+    "table_cell": false,
+    "text": "都主 量工 法和 在前 同学 方小 工都 业一 你面 起发. 学义 同学 由三 电等, 22, 2201-2238."
+   }
+  ],
+  "textbox_fallback_events": []
+ },
+ "stable": {
+  "audit": {
+   "formula_expectations": [
+    {
+     "bbox": [
+      180.0,
+      103.08,
+      292.776,
+      118.716
+     ],
+     "candidate_symbol_count": 2,
+     "element": 1,
+     "line_count": 1,
+     "mixed": false,
+     "page": 4,
+     "reasons": [
+      "decoded_symbol",
+      "equation_structure",
+      "math_font",
+      "math_symbol"
+     ],
+     "signature": {
+      "font_sha256": "b76a7ca153c24671658335bbd08946350ffc621fa1c516e7123095d4ffd5c581",
+      "geometry_sha256": "7affdaff2396aac1fbb4e0f0252d67e6ad1c9409b10cd773b7a0f22909358034",
+      "raster_height": 32,
+      "raster_sha256": "478a7bfbc2eba1997ad23b17b0b16d9a28def8ab1a75ff829b4b583366e2c397",
+      "raster_width": 226,
+      "signature_sha256": "88f09c4f7f27d02d15d63d26dc92cbf6777511d76b0d6b574cc50a8364760981",
+      "span_count": 1,
+      "text_sha256": "c85d6308268bcf4e8333893e3122f50eb7f46381b618720c58a5625720426d48"
+     }
+    },
+    {
+     "bbox": [
+      72.0,
+      161.113,
+      175.41,
+      175.54
+     ],
+     "candidate_symbol_count": 0,
+     "element": 4,
+     "line_count": 1,
+     "mixed": true,
+     "page": 4,
+     "reasons": [
+      "decoded_symbol",
+      "math_font"
+     ],
+     "signature": {
+      "font_sha256": "e3387075b5a8f344dc29b47ca31669e40c8d169426550b677f8f8690cc082cec",
+      "geometry_sha256": "f6d48f486ebcbbaf24b26cc254089f93b5f8bf320f969b9174bd1adfbd69ea2a",
+      "raster_height": 30,
+      "raster_sha256": "e658eba5cb1c11f8711f14bc8738c04184ca905981149f33274a64e1de59ac02",
+      "raster_width": 207,
+      "signature_sha256": "8db5ddbc0b0c1f4452b21f0c2cbdb460cc880793eb046fad178af4421735c49b",
+      "span_count": 2,
+      "text_sha256": "ba38cfa192f5775fdded2beee9f550549eb6ecefb6351fcff86c30c24ded846c"
+     }
+    }
+   ],
+   "formula_mid_sentence_preserved_elements": [
+    {
+     "element": 0,
+     "page": 4,
+     "reason": "mid-sentence-into-formula",
+     "text": "The optimal quote solves a dynamic programming problem in which the dealer trades off expected profit against inventory "
+    }
+   ],
+   "formula_protection": {
+    "candidate_math_symbols": 2,
+    "mixed_regions": 1,
+    "per_page": {
+     "1": {
+      "candidate_math_symbols": 0,
+      "formula_queue_entries": 0,
+      "mixed_regions": 0,
+      "preserved_source_math_symbols": 0,
+      "protected_math_symbols": 0,
+      "protected_regions": 0,
+      "reasons": {},
+      "semantic_inline_math_symbols": 0,
+      "tolerated_inline_math_symbols": 0,
+      "unprotected_math_symbols_in_text": 0
+     },
+     "2": {
+      "candidate_math_symbols": 0,
+      "formula_queue_entries": 0,
+      "mixed_regions": 0,
+      "preserved_source_math_symbols": 0,
+      "protected_math_symbols": 0,
+      "protected_regions": 0,
+      "reasons": {},
+      "semantic_inline_math_symbols": 0,
+      "tolerated_inline_math_symbols": 0,
+      "unprotected_math_symbols_in_text": 0
+     },
+     "3": {
+      "candidate_math_symbols": 0,
+      "formula_queue_entries": 0,
+      "mixed_regions": 0,
+      "preserved_source_math_symbols": 0,
+      "protected_math_symbols": 0,
+      "protected_regions": 0,
+      "reasons": {},
+      "semantic_inline_math_symbols": 0,
+      "tolerated_inline_math_symbols": 0,
+      "unprotected_math_symbols_in_text": 0
+     },
+     "4": {
+      "candidate_math_symbols": 2,
+      "formula_queue_entries": 0,
+      "mixed_regions": 1,
+      "preserved_source_math_symbols": 0,
+      "protected_math_symbols": 2,
+      "protected_regions": 2,
+      "reasons": {
+       "decoded_symbol": 2,
+       "equation_structure": 1,
+       "math_font": 2,
+       "math_symbol": 1
+      },
+      "semantic_inline_math_symbols": 0,
+      "tolerated_inline_math_symbols": 0,
+      "unprotected_math_symbols_in_text": 0
+     },
+     "5": {
+      "candidate_math_symbols": 0,
+      "formula_queue_entries": 0,
+      "mixed_regions": 0,
+      "preserved_source_math_symbols": 0,
+      "protected_math_symbols": 0,
+      "protected_regions": 0,
+      "reasons": {},
+      "semantic_inline_math_symbols": 0,
+      "tolerated_inline_math_symbols": 0,
+      "unprotected_math_symbols_in_text": 0
+     }
+    },
+    "preserved_source_math_symbols": 0,
+    "protected_math_symbols": 2,
+    "protected_regions": 2,
+    "protected_regions_queued_for_translation": 0,
+    "reason_counts": {
+     "decoded_symbol": 2,
+     "equation_structure": 1,
+     "math_font": 2,
+     "math_symbol": 1
+    },
+    "semantic_inline_math_symbols": 0,
+    "tolerated_inline_math_symbols": 0,
+    "translation_queue_check": "ok",
+    "unprotected_math_symbols_in_text": 0
+   },
+   "merge_decisions": [
+    {
+     "carried_tail": "(2)",
+     "decision": "accepted",
+     "destination_element": 2,
+     "destination_layout": "scattered",
+     "destination_page": 4,
+     "kind": "cross-page-orphan-tail",
+     "reason": "accepted",
+     "source_continuation_reason": "complete",
+     "source_element": 11,
+     "source_layout": "body",
+     "source_page": 3
+    }
+   ],
+   "minimum_acceptable_render_scale": 0.6,
+   "schema_version": 2,
+   "source_page_fallbacks": [],
+   "structure_check": {
+    "accepted_merges": 1,
+    "exact_source_superscript_matches": [],
+    "expected_formula_regions": 2,
+    "expected_superscripts": 1,
+    "expected_vector_ocr_elements": 0,
+    "pages_checked": [
+     1,
+     4
+    ],
+    "rendered_superscripts": 1,
+    "status": "ok",
+    "tolerated_formula_raster_differences": [],
+    "verified_formula_regions": 2,
+    "verified_vector_ocr_elements": 0,
+    "warning_count": 0,
+    "warnings": []
+   },
+   "superscript_expectations": [
+    {
+     "element": 11,
+     "markers": [
+      {
+       "scale": 0.75,
+       "source": "inferred",
+       "text": "3"
+      }
+     ],
+     "page": 1
+    }
+   ],
+   "table_preserved_elements": [],
+   "task_id": "golden0000000000",
+   "total_pages": 5,
+   "untranslated_delivered_pages": [],
+   "untranslated_english_leaks": [],
+   "vector_ocr_expectations": []
+  },
+  "layout": {
+   "page_extractions": {
+    "0": {
+     "cached": {
+      "0": "开同",
+      "1": "1. 工日 们在 对物 如由 学经 生十 性经 来等 因有 新反 体法 以力 你全 明化 国量 要之 时是 于使 高发 下种 业一 而点.",
+      "10": "Wang, L. (2018). 主到 进年 量工 业出 还开. 作对, 86(1), 1-40.",
+      "11": "<sup>3</sup>工日 法由 十时 工日 理水 政各 义因 2015 性经 新部 2021 业一 后等 间水 有了 工日 心年 着间.",
+      "2": "2. 工日 用多 如由 还还 心年 它能 同学 地国 性它 间水 业一 同学 和于 能业.",
+      "3": "都主 实也 不新 的对 量工 它政 去说 是全 用其 性它 都还 性经 物大 地国, 业一 生十 得因 性经 会对 工日 子个 来以 因有 加理 一产 一中 两小 子就 们起 行所 业一 们起 工日 民水 同学 因有 分分 好国.",
+      "4": "· 人它 生十 高动 因有 同之 同学 民对 都还 四好 工日 们在 十方 体上 同学 工日 相之.",
+      "5": "· 和由 出就 合人 们他 高使 成度 去开.",
+      "6": "工日 相之 能心 要说 你全 工日 物度 就而 同着 法和 间如 要线 同学 着制 了对 现使 制成 性经 就分 下由 它理 事二 四好 其当 同学 在种 方来.",
+      "7": "和我",
+      "8": "Smith, J. and Jones, K. (2019). 你面 加理 一产 业一 就子. 间化 同学 两动, 74(3), 1201-1245.",
+      "9": "Taylor, R. (2021). 和于 物度 去得 业一 工日 心年 着间. 学义 同学 由三 电等, 34(2), 501-540."
+     },
+     "elements": [
+      {
+       "bbox": [
+        72.0,
+        46.09,
+        188.298,
+        63.991
+       ],
+       "bold": true,
+       "color": 0,
+       "content": "Recommendations",
+       "fontsize": 13.0,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 17.901,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "Recommendations",
+         "rich": "<b>Recommendations</b>",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          46.09,
+          188.298,
+          63.991
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           46.09,
+           188.298,
+           63.991
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            46.09,
+            188.298,
+            63.991
+           ],
+           "plain": "Recommendations",
+           "rich": "<b>Recommendations</b>",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        46.09,
+        188.298,
+        63.991
+       ],
+       "render_bbox": [
+        72.0,
+        46.09,
+        188.298,
+        63.991
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": true,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 46.09
+      },
+      {
+       "bbox": [
+        72.0,
+        72.713,
+        362.619,
+        112.34
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "1. The first numbered recommendation asks dealers to publish their quoting policies so that clients can compare execution quality across venues and time.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 14.427,
+       "merged_visual_line_count": 3,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 14.0,
+         "nowrap": null,
+         "plain": "1. The first numbered recommendation asks dealers to publish their quoting policies so that clients can compare execution quality across venues and time.",
+         "rich": "1. The first numbered recommendation asks dealers to publish their quoting policies so that clients can compare execution quality across venues and time.",
+         "source_bbox": [
+          72.0,
+          72.713,
+          362.619,
+          112.34
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           72.713,
+           362.619,
+           87.14
+          ],
+          [
+           86.0,
+           85.312,
+           360.292,
+           99.739
+          ],
+          [
+           86.0,
+           97.913,
+           233.063,
+           112.34
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            72.713,
+            362.619,
+            87.14
+           ],
+           "plain": "1. The first numbered recommendation asks dealers to publish",
+           "rich": "1. The first numbered recommendation asks dealers to publish",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            86.0,
+            85.312,
+            360.292,
+            99.739
+           ],
+           "plain": "their quoting policies so that clients can compare execution",
+           "rich": "their quoting policies so that clients can compare execution",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            86.0,
+            97.913,
+            233.063,
+            112.34
+           ],
+           "plain": "quality across venues and time.",
+           "rich": "quality across venues and time.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": -14.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        72.713,
+        362.619,
+        112.34
+       ],
+       "render_bbox": [
+        72.0,
+        72.713,
+        362.619,
+        112.34
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         72.713,
+         362.619,
+         87.14
+        ],
+        [
+         86.0,
+         85.312,
+         360.292,
+         99.739
+        ],
+        [
+         86.0,
+         97.913,
+         233.063,
+         112.34
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 72.713
+      },
+      {
+       "bbox": [
+        72.0,
+        120.512,
+        350.954,
+        147.54
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "2. The second recommendation concerns central clearing of cash Treasury transactions and of repo agreements.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 14.427,
+       "merged_visual_line_count": 2,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 14.0,
+         "nowrap": null,
+         "plain": "2. The second recommendation concerns central clearing of cash Treasury transactions and of repo agreements.",
+         "rich": "2. The second recommendation concerns central clearing of cash Treasury transactions and of repo agreements.",
+         "source_bbox": [
+          72.0,
+          120.512,
+          350.954,
+          147.54
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           120.512,
+           350.954,
+           134.939
+          ],
+          [
+           86.0,
+           133.113,
+           329.359,
+           147.54
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            120.512,
+            350.954,
+            134.939
+           ],
+           "plain": "2. The second recommendation concerns central clearing of",
+           "rich": "2. The second recommendation concerns central clearing of"
+          },
+          {
+           "bbox": [
+            86.0,
+            133.113,
+            329.359,
+            147.54
+           ],
+           "plain": "cash Treasury transactions and of repo agreements.",
+           "rich": "cash Treasury transactions and of repo agreements."
+          }
+         ],
+         "text_align": "left",
+         "text_indent": -14.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        120.512,
+        350.954,
+        147.54
+       ],
+       "render_bbox": [
+        72.0,
+        120.512,
+        350.954,
+        147.54
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         120.512,
+         350.954,
+         134.939
+        ],
+        [
+         86.0,
+         133.113,
+         329.359,
+         147.54
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 120.512
+      },
+      {
+       "bbox": [
+        72.0,
+        163.712,
+        394.14,
+        215.939
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Liquidity conditions deteriorated sharply in March as investors sold Treasury securities to raise cash, and dealers struggled to absorb the flows because their balance sheets were already constrained by regulation and by the size of their existing inventories.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "body",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Liquidity conditions deteriorated sharply in March as investors sold Treasury securities to raise cash, and dealers struggled to absorb the flows because their balance sheets were already constrained by regulation and by the size of their existing inventories.",
+         "rich": "Liquidity conditions deteriorated sharply in March as investors sold Treasury securities to raise cash, and dealers struggled to absorb the flows because their balance sheets were already constrained by regulation and by the size of their existing inventories.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          163.712,
+          394.14,
+          215.939
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           163.712,
+           380.7,
+           178.139
+          ],
+          [
+           72.0,
+           176.312,
+           394.14,
+           190.739
+          ],
+          [
+           72.0,
+           188.913,
+           369.633,
+           203.34
+          ],
+          [
+           72.0,
+           201.512,
+           321.785,
+           215.939
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            163.712,
+            380.7,
+            178.139
+           ],
+           "plain": "Liquidity conditions deteriorated sharply in March as investors sold",
+           "rich": "Liquidity conditions deteriorated sharply in March as investors sold",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            176.312,
+            394.14,
+            190.739
+           ],
+           "plain": "Treasury securities to raise cash, and dealers struggled to absorb the",
+           "rich": "Treasury securities to raise cash, and dealers struggled to absorb the",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            188.913,
+            369.633,
+            203.34
+           ],
+           "plain": "flows because their balance sheets were already constrained by",
+           "rich": "flows because their balance sheets were already constrained by",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            201.512,
+            321.785,
+            215.939
+           ],
+           "plain": "regulation and by the size of their existing inventories.",
+           "rich": "regulation and by the size of their existing inventories.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        163.712,
+        394.14,
+        215.939
+       ],
+       "render_bbox": [
+        72.0,
+        163.712,
+        394.14,
+        215.939
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 163.712
+      },
+      {
+       "bbox": [
+        74.0,
+        233.425,
+        389.602,
+        261.139
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "· Primary dealers increased their holdings of off-the-run securities during the first two weeks of the episode.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 15.572,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 18.0,
+         "nowrap": null,
+         "plain": "· Primary dealers increased their holdings of off-the-run securities during the first two weeks of the episode.",
+         "rich": "· Primary dealers increased their holdings of off-the-run securities during the first two weeks of the episode.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          74.0,
+          233.425,
+          389.602,
+          261.139
+         ],
+         "source_line_bboxes": [
+          [
+           74.0,
+           233.425,
+           77.614,
+           251.287
+          ],
+          [
+           92.0,
+           234.113,
+           389.602,
+           248.54
+          ],
+          [
+           92.0,
+           246.712,
+           282.26,
+           261.139
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            74.0,
+            233.425,
+            77.614,
+            251.287
+           ],
+           "plain": "·",
+           "rich": "·",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            92.0,
+            234.113,
+            389.602,
+            248.54
+           ],
+           "plain": "Primary dealers increased their holdings of off-the-run securities",
+           "rich": "Primary dealers increased their holdings of off-the-run securities",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            92.0,
+            246.712,
+            282.26,
+            261.139
+           ],
+           "plain": "during the first two weeks of the episode.",
+           "rich": "during the first two weeks of the episode.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": -18.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        74.0,
+        233.425,
+        389.602,
+        261.139
+       ],
+       "render_bbox": [
+        74.0,
+        233.425,
+        389.602,
+        261.139
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 74.0,
+       "y": 233.425
+      },
+      {
+       "bbox": [
+        74.0,
+        270.625,
+        298.609,
+        288.487
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "· Hedge funds unwound basis trades at scale.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 16.145,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 18.0,
+         "nowrap": null,
+         "plain": "· Hedge funds unwound basis trades at scale.",
+         "rich": "· Hedge funds unwound basis trades at scale.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          74.0,
+          270.625,
+          298.609,
+          288.487
+         ],
+         "source_line_bboxes": [
+          [
+           74.0,
+           270.625,
+           77.614,
+           288.487
+          ],
+          [
+           92.0,
+           271.312,
+           298.609,
+           285.74
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            74.0,
+            270.625,
+            77.614,
+            288.487
+           ],
+           "plain": "·",
+           "rich": "·",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            92.0,
+            271.312,
+            298.609,
+            285.74
+           ],
+           "plain": "Hedge funds unwound basis trades at scale.",
+           "rich": "Hedge funds unwound basis trades at scale.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": -18.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        74.0,
+        270.625,
+        298.609,
+        288.487
+       ],
+       "render_bbox": [
+        74.0,
+        270.625,
+        298.609,
+        288.487
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 74.0,
+       "y": 270.625
+      },
+      {
+       "bbox": [
+        72.0,
+        299.913,
+        408.168,
+        340.539
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "The episode also showed that the market depends on a small number of large intermediaries whose capacity to warehouse risk is limited during periods of broad deleveraging.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "body",
+       "line_height": 14.357,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "The episode also showed that the market depends on a small number of large intermediaries whose capacity to warehouse risk is limited during periods of broad deleveraging.",
+         "rich": "The episode also showed that the market depends on a small number of large intermediaries whose capacity to warehouse risk is limited during periods of broad deleveraging.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          299.913,
+          408.168,
+          340.539
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           299.913,
+           408.168,
+           314.34
+          ],
+          [
+           72.0,
+           313.565,
+           238.887,
+           327.782
+          ],
+          [
+           72.0,
+           326.112,
+           374.873,
+           340.539
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            299.913,
+            408.168,
+            314.34
+           ],
+           "plain": "The episode also showed that the market depends on a small number of",
+           "rich": "The episode also showed that the market depends on a small number of",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            313.565,
+            238.887,
+            327.782
+           ],
+           "plain": "large intermediaries whose capacity",
+           "rich": "large intermediaries whose capacity",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            326.112,
+            374.873,
+            340.539
+           ],
+           "plain": "to warehouse risk is limited during periods of broad deleveraging.",
+           "rich": "to warehouse risk is limited during periods of broad deleveraging.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        299.913,
+        408.168,
+        340.539
+       ],
+       "render_bbox": [
+        72.0,
+        299.913,
+        408.168,
+        340.539
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 299.913
+      },
+      {
+       "bbox": [
+        72.0,
+        353.16,
+        136.692,
+        369.684
+       ],
+       "bold": true,
+       "color": 0,
+       "content": "References",
+       "fontsize": 12.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 16.524,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "References",
+         "rich": "<b>References</b>",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          353.16,
+          136.692,
+          369.684
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           353.16,
+           136.692,
+           369.684
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            353.16,
+            136.692,
+            369.684
+           ],
+           "plain": "References",
+           "rich": "<b>References</b>",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        353.16,
+        136.692,
+        369.684
+       ],
+       "render_bbox": [
+        72.0,
+        353.16,
+        136.692,
+        369.684
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": true,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 353.16
+      },
+      {
+       "bbox": [
+        72.0,
+        373.788,
+        351.329,
+        398.341
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Smith, J. and Jones, K. (2019). Dealer balance sheets and pricing. Journal of Finance, 74(3), 1201-1245.",
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.053,
+       "merged_visual_line_count": 2,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Smith, J. and Jones, K. (2019). Dealer balance sheets and pricing. Journal of Finance, 74(3), 1201-1245.",
+         "rich": "Smith, J. and Jones, K. (2019). Dealer balance sheets and pricing. Journal of Finance, 74(3), 1201-1245.",
+         "source_bbox": [
+          72.0,
+          373.788,
+          351.329,
+          398.341
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           373.788,
+           351.329,
+           386.841
+          ],
+          [
+           90.0,
+           385.288,
+           248.944,
+           398.341
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            373.788,
+            351.329,
+            386.841
+           ],
+           "plain": "Smith, J. and Jones, K. (2019). Dealer balance sheets and pricing.",
+           "rich": "Smith, J. and Jones, K. (2019). Dealer balance sheets and pricing."
+          },
+          {
+           "bbox": [
+            90.0,
+            385.288,
+            248.944,
+            398.341
+           ],
+           "plain": "Journal of Finance, 74(3), 1201-1245.",
+           "rich": "Journal of Finance, 74(3), 1201-1245."
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        373.788,
+        351.329,
+        398.341
+       ],
+       "reference_entry_hint": true,
+       "render_bbox": [
+        72.0,
+        373.788,
+        351.329,
+        398.341
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         373.788,
+         351.329,
+         386.841
+        ],
+        [
+         90.0,
+         385.288,
+         248.944,
+         398.341
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 373.788
+      },
+      {
+       "bbox": [
+        72.0,
+        396.788,
+        322.268,
+        421.341
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Taylor, R. (2021). Repo market stress and the central bank. Review of Financial Studies, 34(2), 501-540.",
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.053,
+       "merged_visual_line_count": 2,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Taylor, R. (2021). Repo market stress and the central bank. Review of Financial Studies, 34(2), 501-540.",
+         "rich": "Taylor, R. (2021). Repo market stress and the central bank. Review of Financial Studies, 34(2), 501-540.",
+         "source_bbox": [
+          72.0,
+          396.788,
+          322.268,
+          421.341
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           396.788,
+           322.268,
+           409.841
+          ],
+          [
+           90.0,
+           408.288,
+           276.913,
+           421.341
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            396.788,
+            322.268,
+            409.841
+           ],
+           "plain": "Taylor, R. (2021). Repo market stress and the central bank.",
+           "rich": "Taylor, R. (2021). Repo market stress and the central bank."
+          },
+          {
+           "bbox": [
+            90.0,
+            408.288,
+            276.913,
+            421.341
+           ],
+           "plain": "Review of Financial Studies, 34(2), 501-540.",
+           "rich": "Review of Financial Studies, 34(2), 501-540."
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        396.788,
+        322.268,
+        421.341
+       ],
+       "reference_entry_hint": true,
+       "render_bbox": [
+        72.0,
+        396.788,
+        322.268,
+        421.341
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         396.788,
+         322.268,
+         409.841
+        ],
+        [
+         90.0,
+         408.288,
+         276.913,
+         421.341
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 396.788
+      },
+      {
+       "bbox": [
+        72.0,
+        419.788,
+        283.727,
+        444.341
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Wang, L. (2018). Search frictions in bond markets. Econometrica, 86(1), 1-40.",
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.053,
+       "merged_visual_line_count": 2,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 18.0,
+         "nowrap": null,
+         "plain": "Wang, L. (2018). Search frictions in bond markets. Econometrica, 86(1), 1-40.",
+         "rich": "Wang, L. (2018). Search frictions in bond markets. Econometrica, 86(1), 1-40.",
+         "source_bbox": [
+          72.0,
+          419.788,
+          283.727,
+          444.341
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           419.788,
+           283.727,
+           432.841
+          ],
+          [
+           90.0,
+           431.288,
+           202.461,
+           444.341
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            419.788,
+            283.727,
+            432.841
+           ],
+           "plain": "Wang, L. (2018). Search frictions in bond markets.",
+           "rich": "Wang, L. (2018). Search frictions in bond markets.",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            90.0,
+            431.288,
+            202.461,
+            444.341
+           ],
+           "plain": "Econometrica, 86(1), 1-40.",
+           "rich": "Econometrica, 86(1), 1-40.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": -18.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        419.788,
+        283.727,
+        444.341
+       ],
+       "reference_entry_hint": true,
+       "reference_entry_merged": 2,
+       "render_bbox": [
+        72.0,
+        419.788,
+        283.727,
+        444.341
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         419.788,
+         283.727,
+         432.841
+        ],
+        [
+         90.0,
+         431.288,
+         202.461,
+         444.341
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 419.788
+      },
+      {
+       "bbox": [
+        72.0,
+        466.55,
+        319.68,
+        488.992
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "3The data cover the period from January 2015 to December 2021 and exclude transactions with the central bank.",
+       "fontsize": 8.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 11.917,
+       "merged_visual_line_count": 2,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "3The data cover the period from January 2015 to December 2021 and exclude transactions with the central bank.",
+         "rich": "<sup>3</sup>The data cover the period from January 2015 to December 2021 and exclude transactions with the central bank.",
+         "source_bbox": [
+          72.0,
+          466.55,
+          319.68,
+          488.992
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           466.55,
+           319.68,
+           479.392
+          ],
+          [
+           76.0,
+           478.0,
+           226.736,
+           488.992
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            466.55,
+            319.68,
+            479.392
+           ],
+           "plain": "3The data cover the period from January 2015 to December 2021 and",
+           "rich": "<sup>3</sup>The data cover the period from January 2015 to December 2021 and"
+          },
+          {
+           "bbox": [
+            76.0,
+            478.0,
+            226.736,
+            488.992
+           ],
+           "plain": "exclude transactions with the central bank.",
+           "rich": "exclude transactions with the central bank."
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        466.55,
+        319.68,
+        488.992
+       ],
+       "render_bbox": [
+        72.0,
+        466.55,
+        319.68,
+        488.992
+       ],
+       "rich_content": "<sup>3</sup>The data cover the period from January 2015 to December 2021 and exclude transactions with the central bank.",
+       "rotation": 0,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         466.55,
+         319.68,
+         479.392
+        ],
+        [
+         76.0,
+         478.0,
+         226.736,
+         488.992
+        ]
+       ],
+       "superscript_runs": [
+        {
+         "scale": 0.75,
+         "source": "inferred",
+         "text": "3"
+        }
+       ],
+       "superscript_scale": 0.75,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 466.55
+      }
+     ],
+     "layout_styles": {
+      "body": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.5,
+       "line_height": 14.91,
+       "padding_ratio": 0.34
+      },
+      "scattered": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.5,
+       "line_height": 13.65,
+       "padding_ratio": 0.3
+      },
+      "table": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 9.5,
+       "line_height": 11.78,
+       "padding_ratio": 0.26
+      }
+     }
+    },
+    "1": {
+     "cached": {
+      "0": "十机",
+      "1": "都国",
+      "10": "点使 合部 们起 因有 的后 作由.",
+      "11": "成作",
+      "12": "工日 我数 两部 法和 你面 所和 量工 法和 机过.",
+      "13": "现时 民水",
+      "14": "工日 开子 应所 性社 同着 法和 的后 实会.",
+      "15": "数为",
+      "16": "工日 会用 主年 性经 现到 量工 法和 和于.",
+      "17": "都新",
+      "18": "工日 着小 而点 子面 法和 民与 的水.",
+      "19": "们他",
+      "2": "物这",
+      "20": "工日 应所 物部 合会 法和 业出 业一 两我 体可.",
+      "3": "的人",
+      "4": "工日 开两 合会 工日 产二 业一 工日 说说 应所.",
+      "5": "高着",
+      "6": "工日 作事 化力 成度 工日 明着 可要 由间.",
+      "7": "对反",
+      "8": "重家 间如 于用 性经 体的 现去 都主.",
+      "9": "度来"
+     },
+     "elements": [
+      {
+       "bbox": [
+        72.0,
+        56.09,
+        127.64,
+        73.991
+       ],
+       "bold": true,
+       "color": 0,
+       "content": "Glossary",
+       "fontsize": 13.0,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 17.901,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "Glossary",
+         "rich": "<b>Glossary</b>",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          56.09,
+          127.64,
+          73.991
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           56.09,
+           127.64,
+           73.991
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            56.09,
+            127.64,
+            73.991
+           ],
+           "plain": "Glossary",
+           "rich": "<b>Glossary</b>",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        56.09,
+        127.64,
+        73.991
+       ],
+       "render_bbox": [
+        72.0,
+        56.09,
+        127.64,
+        73.991
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": true,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 56.09
+      },
+      {
+       "bbox": [
+        72.0,
+        89.3,
+        96.45,
+        103.07
+       ],
+       "bold": true,
+       "color": 0,
+       "content": "Term",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.77,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "Term",
+         "rich": "<b>Term</b>",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          89.3,
+          96.45,
+          103.07
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           89.3,
+           96.45,
+           103.07
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            89.3,
+            96.45,
+            103.07
+           ],
+           "plain": "Term",
+           "rich": "<b>Term</b>",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        89.3,
+        96.45,
+        103.07
+       ],
+       "render_bbox": [
+        72.0,
+        89.3,
+        96.45,
+        103.07
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": true,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 89.3
+      },
+      {
+       "bbox": [
+        220.0,
+        89.3,
+        260.56,
+        103.07
+       ],
+       "bold": true,
+       "color": 0,
+       "content": "Meaning",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.77,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "Meaning",
+         "rich": "<b>Meaning</b>",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          220.0,
+          89.3,
+          260.56,
+          103.07
+         ],
+         "source_line_bboxes": [
+          [
+           220.0,
+           89.3,
+           260.56,
+           103.07
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            220.0,
+            89.3,
+            260.56,
+            103.07
+           ],
+           "plain": "Meaning",
+           "rich": "<b>Meaning</b>",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        220.0,
+        89.3,
+        260.56,
+        103.07
+       ],
+       "render_bbox": [
+        220.0,
+        89.3,
+        260.56,
+        103.07
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": true,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 220.0,
+       "y": 89.3
+      },
+      {
+       "bbox": [
+        72.0,
+        113.25,
+        102.57,
+        126.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "spread",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_term_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "spread",
+         "rich": "spread",
+         "source_bbox": [
+          72.0,
+          113.25,
+          102.57,
+          126.99
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           113.25,
+           102.57,
+           126.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            113.25,
+            102.57,
+            126.99
+           ],
+           "plain": "spread",
+           "rich": "spread",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        72.0,
+        113.25,
+        102.57,
+        126.99
+       ],
+       "render_bbox": [
+        72.0,
+        113.25,
+        102.57,
+        126.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         113.25,
+         102.57,
+         126.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 113.25
+      },
+      {
+       "bbox": [
+        220.0,
+        113.25,
+        439.01,
+        126.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "The difference between the bid and the ask price.",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_definition_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "The difference between the bid and the ask price.",
+         "rich": "The difference between the bid and the ask price.",
+         "source_bbox": [
+          220.0,
+          113.25,
+          439.01,
+          126.99
+         ],
+         "source_line_bboxes": [
+          [
+           220.0,
+           113.25,
+           439.01,
+           126.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            220.0,
+            113.25,
+            439.01,
+            126.99
+           ],
+           "plain": "The difference between the bid and the ask price.",
+           "rich": "The difference between the bid and the ask price.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        220.0,
+        113.25,
+        439.01,
+        126.99
+       ],
+       "render_bbox": [
+        220.0,
+        113.25,
+        439.01,
+        126.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         220.0,
+         113.25,
+         439.01,
+         126.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 220.0,
+       "y": 113.25
+      },
+      {
+       "bbox": [
+        72.0,
+        135.25,
+        97.02,
+        148.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "depth",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_term_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "depth",
+         "rich": "depth",
+         "source_bbox": [
+          72.0,
+          135.25,
+          97.02,
+          148.99
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           135.25,
+           97.02,
+           148.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            135.25,
+            97.02,
+            148.99
+           ],
+           "plain": "depth",
+           "rich": "depth",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        72.0,
+        135.25,
+        97.02,
+        148.99
+       ],
+       "render_bbox": [
+        72.0,
+        135.25,
+        97.02,
+        148.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         135.25,
+         97.02,
+         148.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 135.25
+      },
+      {
+       "bbox": [
+        220.0,
+        135.25,
+        432.34,
+        148.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "The quantity available at the best quoted prices.",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_definition_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "The quantity available at the best quoted prices.",
+         "rich": "The quantity available at the best quoted prices.",
+         "source_bbox": [
+          220.0,
+          135.25,
+          432.34,
+          148.99
+         ],
+         "source_line_bboxes": [
+          [
+           220.0,
+           135.25,
+           432.34,
+           148.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            220.0,
+            135.25,
+            432.34,
+            148.99
+           ],
+           "plain": "The quantity available at the best quoted prices.",
+           "rich": "The quantity available at the best quoted prices.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        220.0,
+        135.25,
+        432.34,
+        148.99
+       ],
+       "render_bbox": [
+        220.0,
+        135.25,
+        432.34,
+        148.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         220.0,
+         135.25,
+         432.34,
+         148.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 220.0,
+       "y": 135.25
+      },
+      {
+       "bbox": [
+        72.0,
+        157.25,
+        104.24,
+        170.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "pinging",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_term_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "pinging",
+         "rich": "pinging",
+         "source_bbox": [
+          72.0,
+          157.25,
+          104.24,
+          170.99
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           157.25,
+           104.24,
+           170.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            157.25,
+            104.24,
+            170.99
+           ],
+           "plain": "pinging",
+           "rich": "pinging",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        72.0,
+        157.25,
+        104.24,
+        170.99
+       ],
+       "render_bbox": [
+        72.0,
+        157.25,
+        104.24,
+        170.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         157.25,
+         104.24,
+         170.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 157.25
+      },
+      {
+       "bbox": [
+        220.0,
+        157.25,
+        436.75,
+        170.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Sending small orders to discover hidden liquidity.",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_definition_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Sending small orders to discover hidden liquidity.",
+         "rich": "Sending small orders to discover hidden liquidity.",
+         "source_bbox": [
+          220.0,
+          157.25,
+          436.75,
+          170.99
+         ],
+         "source_line_bboxes": [
+          [
+           220.0,
+           157.25,
+           436.75,
+           170.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            220.0,
+            157.25,
+            436.75,
+            170.99
+           ],
+           "plain": "Sending small orders to discover hidden liquidity.",
+           "rich": "Sending small orders to discover hidden liquidity.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        220.0,
+        157.25,
+        436.75,
+        170.99
+       ],
+       "render_bbox": [
+        220.0,
+        157.25,
+        436.75,
+        170.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         220.0,
+         157.25,
+         436.75,
+         170.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 220.0,
+       "y": 157.25
+      },
+      {
+       "bbox": [
+        72.0,
+        179.25,
+        107.01,
+        192.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "profiling",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_term_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "profiling",
+         "rich": "profiling",
+         "source_bbox": [
+          72.0,
+          179.25,
+          107.01,
+          192.99
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           179.25,
+           107.01,
+           192.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            179.25,
+            107.01,
+            192.99
+           ],
+           "plain": "profiling",
+           "rich": "profiling",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        72.0,
+        179.25,
+        107.01,
+        192.99
+       ],
+       "render_bbox": [
+        72.0,
+        179.25,
+        107.01,
+        192.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         179.25,
+         107.01,
+         192.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 179.25
+      },
+      {
+       "bbox": [
+        220.0,
+        179.25,
+        452.87,
+        192.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Classifying counterparties by their trading behaviour.",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_definition_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Classifying counterparties by their trading behaviour.",
+         "rich": "Classifying counterparties by their trading behaviour.",
+         "source_bbox": [
+          220.0,
+          179.25,
+          452.87,
+          192.99
+         ],
+         "source_line_bboxes": [
+          [
+           220.0,
+           179.25,
+           452.87,
+           192.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            220.0,
+            179.25,
+            452.87,
+            192.99
+           ],
+           "plain": "Classifying counterparties by their trading behaviour.",
+           "rich": "Classifying counterparties by their trading behaviour.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        220.0,
+        179.25,
+        452.87,
+        192.99
+       ],
+       "render_bbox": [
+        220.0,
+        179.25,
+        452.87,
+        192.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         220.0,
+         179.25,
+         452.87,
+         192.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 220.0,
+       "y": 179.25
+      },
+      {
+       "bbox": [
+        72.0,
+        201.25,
+        112.57,
+        214.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "inventory",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_term_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "inventory",
+         "rich": "inventory",
+         "source_bbox": [
+          72.0,
+          201.25,
+          112.57,
+          214.99
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           201.25,
+           112.57,
+           214.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            201.25,
+            112.57,
+            214.99
+           ],
+           "plain": "inventory",
+           "rich": "inventory",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        72.0,
+        201.25,
+        112.57,
+        214.99
+       ],
+       "render_bbox": [
+        72.0,
+        201.25,
+        112.57,
+        214.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         201.25,
+         112.57,
+         214.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 201.25
+      },
+      {
+       "bbox": [
+        220.0,
+        201.25,
+        415.65,
+        214.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "The net position a dealer holds in a security.",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_definition_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "The net position a dealer holds in a security.",
+         "rich": "The net position a dealer holds in a security.",
+         "source_bbox": [
+          220.0,
+          201.25,
+          415.65,
+          214.99
+         ],
+         "source_line_bboxes": [
+          [
+           220.0,
+           201.25,
+           415.65,
+           214.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            220.0,
+            201.25,
+            415.65,
+            214.99
+           ],
+           "plain": "The net position a dealer holds in a security.",
+           "rich": "The net position a dealer holds in a security.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        220.0,
+        201.25,
+        415.65,
+        214.99
+       ],
+       "render_bbox": [
+        220.0,
+        201.25,
+        415.65,
+        214.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         220.0,
+         201.25,
+         415.65,
+         214.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 220.0,
+       "y": 201.25
+      },
+      {
+       "bbox": [
+        72.0,
+        223.25,
+        107.56,
+        236.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "tick size",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_term_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "tick size",
+         "rich": "tick size",
+         "source_bbox": [
+          72.0,
+          223.25,
+          107.56,
+          236.99
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           223.25,
+           107.56,
+           236.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            223.25,
+            107.56,
+            236.99
+           ],
+           "plain": "tick size",
+           "rich": "tick size",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        72.0,
+        223.25,
+        107.56,
+        236.99
+       ],
+       "render_bbox": [
+        72.0,
+        223.25,
+        107.56,
+        236.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         223.25,
+         107.56,
+         236.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 223.25
+      },
+      {
+       "bbox": [
+        220.0,
+        223.25,
+        440.08,
+        236.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "The minimum price increment on a trading venue.",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_definition_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "The minimum price increment on a trading venue.",
+         "rich": "The minimum price increment on a trading venue.",
+         "source_bbox": [
+          220.0,
+          223.25,
+          440.08,
+          236.99
+         ],
+         "source_line_bboxes": [
+          [
+           220.0,
+           223.25,
+           440.08,
+           236.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            220.0,
+            223.25,
+            440.08,
+            236.99
+           ],
+           "plain": "The minimum price increment on a trading venue.",
+           "rich": "The minimum price increment on a trading venue.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        220.0,
+        223.25,
+        440.08,
+        236.99
+       ],
+       "render_bbox": [
+        220.0,
+        223.25,
+        440.08,
+        236.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         220.0,
+         223.25,
+         440.08,
+         236.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 220.0,
+       "y": 223.25
+      },
+      {
+       "bbox": [
+        72.0,
+        245.25,
+        102.01,
+        258.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "haircut",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_term_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "haircut",
+         "rich": "haircut",
+         "source_bbox": [
+          72.0,
+          245.25,
+          102.01,
+          258.99
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           245.25,
+           102.01,
+           258.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            245.25,
+            102.01,
+            258.99
+           ],
+           "plain": "haircut",
+           "rich": "haircut",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        72.0,
+        245.25,
+        102.01,
+        258.99
+       ],
+       "render_bbox": [
+        72.0,
+        245.25,
+        102.01,
+        258.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         245.25,
+         102.01,
+         258.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 245.25
+      },
+      {
+       "bbox": [
+        220.0,
+        245.25,
+        410.65,
+        258.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "The discount applied to collateral in a repo.",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_definition_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "The discount applied to collateral in a repo.",
+         "rich": "The discount applied to collateral in a repo.",
+         "source_bbox": [
+          220.0,
+          245.25,
+          410.65,
+          258.99
+         ],
+         "source_line_bboxes": [
+          [
+           220.0,
+           245.25,
+           410.65,
+           258.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            220.0,
+            245.25,
+            410.65,
+            258.99
+           ],
+           "plain": "The discount applied to collateral in a repo.",
+           "rich": "The discount applied to collateral in a repo.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        220.0,
+        245.25,
+        410.65,
+        258.99
+       ],
+       "render_bbox": [
+        220.0,
+        245.25,
+        410.65,
+        258.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         220.0,
+         245.25,
+         410.65,
+         258.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 220.0,
+       "y": 245.25
+      },
+      {
+       "bbox": [
+        72.0,
+        267.25,
+        94.79,
+        280.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "tenor",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_term_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "tenor",
+         "rich": "tenor",
+         "source_bbox": [
+          72.0,
+          267.25,
+          94.79,
+          280.99
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           267.25,
+           94.79,
+           280.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            267.25,
+            94.79,
+            280.99
+           ],
+           "plain": "tenor",
+           "rich": "tenor",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        72.0,
+        267.25,
+        94.79,
+        280.99
+       ],
+       "render_bbox": [
+        72.0,
+        267.25,
+        94.79,
+        280.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         267.25,
+         94.79,
+         280.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 267.25
+      },
+      {
+       "bbox": [
+        220.0,
+        267.25,
+        415.07,
+        280.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "The remaining time until a contract matures.",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_definition_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "The remaining time until a contract matures.",
+         "rich": "The remaining time until a contract matures.",
+         "source_bbox": [
+          220.0,
+          267.25,
+          415.07,
+          280.99
+         ],
+         "source_line_bboxes": [
+          [
+           220.0,
+           267.25,
+           415.07,
+           280.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            220.0,
+            267.25,
+            415.07,
+            280.99
+           ],
+           "plain": "The remaining time until a contract matures.",
+           "rich": "The remaining time until a contract matures.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        220.0,
+        267.25,
+        415.07,
+        280.99
+       ],
+       "render_bbox": [
+        220.0,
+        267.25,
+        415.07,
+        280.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         220.0,
+         267.25,
+         415.07,
+         280.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 220.0,
+       "y": 267.25
+      },
+      {
+       "bbox": [
+        72.0,
+        289.25,
+        95.34,
+        302.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "basis",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_term_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "basis",
+         "rich": "basis",
+         "source_bbox": [
+          72.0,
+          289.25,
+          95.34,
+          302.99
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           289.25,
+           95.34,
+           302.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            289.25,
+            95.34,
+            302.99
+           ],
+           "plain": "basis",
+           "rich": "basis",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        72.0,
+        289.25,
+        95.34,
+        302.99
+       ],
+       "render_bbox": [
+        72.0,
+        289.25,
+        95.34,
+        302.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         289.25,
+         95.34,
+         302.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 289.25
+      },
+      {
+       "bbox": [
+        220.0,
+        289.25,
+        418.45,
+        302.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "The price gap between a bond and its future.",
+       "fontsize": 10.0,
+       "glossary_cell_hint": true,
+       "glossary_definition_hint": true,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "merged_visual_line_count": 1,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "The price gap between a bond and its future.",
+         "rich": "The price gap between a bond and its future.",
+         "source_bbox": [
+          220.0,
+          289.25,
+          418.45,
+          302.99
+         ],
+         "source_line_bboxes": [
+          [
+           220.0,
+           289.25,
+           418.45,
+           302.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            220.0,
+            289.25,
+            418.45,
+            302.99
+           ],
+           "plain": "The price gap between a bond and its future.",
+           "rich": "The price gap between a bond and its future.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        220.0,
+        289.25,
+        418.45,
+        302.99
+       ],
+       "render_bbox": [
+        220.0,
+        289.25,
+        418.45,
+        302.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "semantic_native_table_cell": false,
+       "semantic_table_cell": false,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         220.0,
+         289.25,
+         418.45,
+         302.99
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 220.0,
+       "y": 289.25
+      }
+     ],
+     "layout_styles": {
+      "body": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.0,
+       "line_height": 14.2,
+       "padding_ratio": 0.34
+      },
+      "scattered": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.0,
+       "line_height": 13.0,
+       "padding_ratio": 0.3
+      },
+      "table": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.0,
+       "line_height": 12.4,
+       "padding_ratio": 0.26
+      }
+     }
+    },
+    "2": {
+     "cached": {
+      "0": "工日 他产 同学 到实 你全 进家 性经 工日 间分 它理 法同 量工 应然 经体 数里.",
+      "1": "Alpha Capital Markets",
+      "10": "都主 量工 法和 在前 同学 方小 工都 业一 你面 起发. 学义 同学 由三 电等, 22, 2201-2238.",
+      "11": "们当, 业多. (2003). 样会 性它 物度 都主 业一 工日 如用 同学 工日 人它 你面 能后. 以方 样方 学义, 9, 83-108. (2)",
+      "12": "们他 后里",
+      "2": "Blue River Securities",
+      "3": "Cedar Point Trading",
+      "4": "Delta Bond Partners",
+      "5": "Evergreen Fixed Income",
+      "6": "Fairview Liquidity Group",
+      "7": "外物 的后 一二 都为 当应 量工 工日 得经 在加, 主间 由动 内人 机当 中业 我面 主两 业家.",
+      "8": "量工 工日 本得 在加, 心年 现两 经体 由种 量是 工日 经数 物度, 和生 后形 的后 国人 主水 工日 于也.",
+      "9": "间他, 业多. 业一 还民, 于于. (2009). 物度 都主 业一 发时"
+     },
+     "elements": [
+      {
+       "bbox": [
+        72.0,
+        60.713,
+        350.376,
+        87.739
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "The list of firms that responded to the survey is presented in alphabetical order below.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "The list of firms that responded to the survey is presented in alphabetical order below.",
+         "rich": "The list of firms that responded to the survey is presented in alphabetical order below.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          60.713,
+          350.376,
+          87.739
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           60.713,
+           350.376,
+           75.14
+          ],
+          [
+           72.0,
+           73.312,
+           188.718,
+           87.739
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            60.713,
+            350.376,
+            75.14
+           ],
+           "plain": "The list of firms that responded to the survey is presented in",
+           "rich": "The list of firms that responded to the survey is presented in",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            73.312,
+            188.718,
+            87.739
+           ],
+           "plain": "alphabetical order below.",
+           "rich": "alphabetical order below.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        60.713,
+        350.376,
+        87.739
+       ],
+       "render_bbox": [
+        72.0,
+        60.713,
+        350.376,
+        87.739
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 60.713
+      },
+      {
+       "bbox": [
+        90.0,
+        109.787,
+        182.919,
+        122.84
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Alpha Capital Markets",
+       "entity_directory_hint": true,
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.053,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Alpha Capital Markets",
+         "rich": "Alpha Capital Markets",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          90.0,
+          109.787,
+          182.919,
+          122.84
+         ],
+         "source_line_bboxes": [
+          [
+           90.0,
+           109.787,
+           182.919,
+           122.84
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            90.0,
+            109.787,
+            182.919,
+            122.84
+           ],
+           "plain": "Alpha Capital Markets",
+           "rich": "Alpha Capital Markets",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        90.0,
+        109.787,
+        182.919,
+        122.84
+       ],
+       "render_bbox": [
+        90.0,
+        109.787,
+        182.919,
+        122.84
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 90.0,
+       "y": 109.787
+      },
+      {
+       "bbox": [
+        90.0,
+        129.788,
+        178.16,
+        142.84
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Blue River Securities",
+       "entity_directory_hint": true,
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.053,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Blue River Securities",
+         "rich": "Blue River Securities",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          90.0,
+          129.788,
+          178.16,
+          142.84
+         ],
+         "source_line_bboxes": [
+          [
+           90.0,
+           129.788,
+           178.16,
+           142.84
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            90.0,
+            129.788,
+            178.16,
+            142.84
+           ],
+           "plain": "Blue River Securities",
+           "rich": "Blue River Securities",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        90.0,
+        129.788,
+        178.16,
+        142.84
+       ],
+       "render_bbox": [
+        90.0,
+        129.788,
+        178.16,
+        142.84
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 90.0,
+       "y": 129.788
+      },
+      {
+       "bbox": [
+        90.0,
+        149.788,
+        175.006,
+        162.84
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Cedar Point Trading",
+       "entity_directory_hint": true,
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.053,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Cedar Point Trading",
+         "rich": "Cedar Point Trading",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          90.0,
+          149.788,
+          175.006,
+          162.84
+         ],
+         "source_line_bboxes": [
+          [
+           90.0,
+           149.788,
+           175.006,
+           162.84
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            90.0,
+            149.788,
+            175.006,
+            162.84
+           ],
+           "plain": "Cedar Point Trading",
+           "rich": "Cedar Point Trading",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        90.0,
+        149.788,
+        175.006,
+        162.84
+       ],
+       "render_bbox": [
+        90.0,
+        149.788,
+        175.006,
+        162.84
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 90.0,
+       "y": 149.788
+      },
+      {
+       "bbox": [
+        90.0,
+        169.788,
+        175.538,
+        182.84
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Delta Bond Partners",
+       "entity_directory_hint": true,
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.053,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Delta Bond Partners",
+         "rich": "Delta Bond Partners",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          90.0,
+          169.788,
+          175.538,
+          182.84
+         ],
+         "source_line_bboxes": [
+          [
+           90.0,
+           169.788,
+           175.538,
+           182.84
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            90.0,
+            169.788,
+            175.538,
+            182.84
+           ],
+           "plain": "Delta Bond Partners",
+           "rich": "Delta Bond Partners",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        90.0,
+        169.788,
+        175.538,
+        182.84
+       ],
+       "render_bbox": [
+        90.0,
+        169.788,
+        175.538,
+        182.84
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 90.0,
+       "y": 169.788
+      },
+      {
+       "bbox": [
+        90.0,
+        189.788,
+        193.483,
+        202.84
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Evergreen Fixed Income",
+       "entity_directory_hint": true,
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.053,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Evergreen Fixed Income",
+         "rich": "Evergreen Fixed Income",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          90.0,
+          189.788,
+          193.483,
+          202.84
+         ],
+         "source_line_bboxes": [
+          [
+           90.0,
+           189.788,
+           193.483,
+           202.84
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            90.0,
+            189.788,
+            193.483,
+            202.84
+           ],
+           "plain": "Evergreen Fixed Income",
+           "rich": "Evergreen Fixed Income",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        90.0,
+        189.788,
+        193.483,
+        202.84
+       ],
+       "render_bbox": [
+        90.0,
+        189.788,
+        193.483,
+        202.84
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 90.0,
+       "y": 189.788
+      },
+      {
+       "bbox": [
+        90.0,
+        209.788,
+        191.887,
+        222.84
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Fairview Liquidity Group",
+       "entity_directory_hint": true,
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.053,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Fairview Liquidity Group",
+         "rich": "Fairview Liquidity Group",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          90.0,
+          209.788,
+          191.887,
+          222.84
+         ],
+         "source_line_bboxes": [
+          [
+           90.0,
+           209.788,
+           191.887,
+           222.84
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            90.0,
+            209.788,
+            191.887,
+            222.84
+           ],
+           "plain": "Fairview Liquidity Group",
+           "rich": "Fairview Liquidity Group",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        90.0,
+        209.788,
+        191.887,
+        222.84
+       ],
+       "render_bbox": [
+        90.0,
+        209.788,
+        191.887,
+        222.84
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 90.0,
+       "y": 209.788
+      },
+      {
+       "bbox": [
+        72.0,
+        260.0,
+        291.53,
+        303.281
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Electronic trading has grown steadily in the dealer-to-client segment, where request-for-quote protocols now account for most volume.",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Electronic trading has grown steadily in the dealer-to-client segment, where request-for-quote protocols now account for most volume.",
+         "rich": "Electronic trading has grown steadily in the dealer-to-client segment, where request-for-quote protocols now account for most volume.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          260.0,
+          291.53,
+          303.281
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           260.0,
+           262.08,
+           273.74
+          ],
+          [
+           72.0,
+           274.771,
+           291.53,
+           288.51
+          ],
+          [
+           72.0,
+           289.541,
+           248.18,
+           303.281
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            260.0,
+            262.08,
+            273.74
+           ],
+           "plain": "Electronic trading has grown steadily in the",
+           "rich": "Electronic trading has grown steadily in the",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            274.771,
+            291.53,
+            288.51
+           ],
+           "plain": "dealer-to-client segment, where request-for-quote",
+           "rich": "dealer-to-client segment, where request-for-quote",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            289.541,
+            248.18,
+            303.281
+           ],
+           "plain": "protocols now account for most volume.",
+           "rich": "protocols now account for most volume.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        260.0,
+        291.53,
+        303.281
+       ],
+       "render_bbox": [
+        72.0,
+        260.0,
+        291.53,
+        303.281
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 260.0
+      },
+      {
+       "bbox": [
+        316.0,
+        260.0,
+        539.98,
+        303.281
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "In the interdealer segment, central limit order books dominate the on-the-run market, while voice trading persists off the run.",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "In the interdealer segment, central limit order books dominate the on-the-run market, while voice trading persists off the run.",
+         "rich": "In the interdealer segment, central limit order books dominate the on-the-run market, while voice trading persists off the run.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          316.0,
+          260.0,
+          539.98,
+          303.281
+         ],
+         "source_line_bboxes": [
+          [
+           316.0,
+           260.0,
+           514.41,
+           273.74
+          ],
+          [
+           316.0,
+           274.771,
+           539.98,
+           288.51
+          ],
+          [
+           316.0,
+           289.541,
+           434.39,
+           303.281
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            316.0,
+            260.0,
+            514.41,
+            273.74
+           ],
+           "plain": "In the interdealer segment, central limit order",
+           "rich": "In the interdealer segment, central limit order",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            316.0,
+            274.771,
+            539.98,
+            288.51
+           ],
+           "plain": "books dominate the on-the-run market, while voice",
+           "rich": "books dominate the on-the-run market, while voice",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            316.0,
+            289.541,
+            434.39,
+            303.281
+           ],
+           "plain": "trading persists off the run.",
+           "rich": "trading persists off the run.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        316.0,
+        260.0,
+        539.98,
+        303.281
+       ],
+       "render_bbox": [
+        316.0,
+        260.0,
+        539.98,
+        303.281
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 316.0,
+       "y": 260.0
+      },
+      {
+       "bbox": [
+        72.0,
+        409.788,
+        371.383,
+        422.841
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Brunnermeier, M. and Pedersen, L. (2009). Market liquidity and funding",
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.053,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Brunnermeier, M. and Pedersen, L. (2009). Market liquidity and funding",
+         "rich": "Brunnermeier, M. and Pedersen, L. (2009). Market liquidity and funding",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          409.788,
+          371.383,
+          422.841
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           409.788,
+           371.383,
+           422.841
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            409.788,
+            371.383,
+            422.841
+           ],
+           "plain": "Brunnermeier, M. and Pedersen, L. (2009). Market liquidity and funding",
+           "rich": "Brunnermeier, M. and Pedersen, L. (2009). Market liquidity and funding",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        409.788,
+        371.383,
+        422.841
+       ],
+       "render_bbox": [
+        72.0,
+        409.788,
+        371.383,
+        422.841
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 409.788
+      },
+      {
+       "bbox": [
+        90.0,
+        421.288,
+        327.082,
+        445.841
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "liquidity in a model of margin spirals and dealer constraints. Review of Financial Studies, 22, 2201-2238.",
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.053,
+       "merged_visual_line_count": 2,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "liquidity in a model of margin spirals and dealer constraints. Review of Financial Studies, 22, 2201-2238.",
+         "rich": "liquidity in a model of margin spirals and dealer constraints. Review of Financial Studies, 22, 2201-2238.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          90.0,
+          421.288,
+          327.082,
+          445.841
+         ],
+         "source_line_bboxes": [
+          [
+           90.0,
+           421.288,
+           287.99,
+           434.341
+          ],
+          [
+           90.0,
+           432.788,
+           327.082,
+           445.841
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            90.0,
+            421.288,
+            287.99,
+            434.341
+           ],
+           "plain": "liquidity in a model of margin spirals and dealer",
+           "rich": "liquidity in a model of margin spirals and dealer",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            90.0,
+            432.788,
+            327.082,
+            445.841
+           ],
+           "plain": "constraints. Review of Financial Studies, 22, 2201-2238.",
+           "rich": "constraints. Review of Financial Studies, 22, 2201-2238.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        90.0,
+        421.288,
+        327.082,
+        445.841
+       ],
+       "render_bbox": [
+        90.0,
+        421.288,
+        327.082,
+        445.841
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         90.0,
+         421.288,
+         287.99,
+         434.341
+        ],
+        [
+         90.0,
+         432.788,
+         327.082,
+         445.841
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 90.0,
+       "y": 421.288
+      },
+      {
+       "bbox": [
+        72.0,
+        444.288,
+        385.127,
+        468.841
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Fleming, M. (2003). Measuring Treasury market liquidity and the role of the primary dealer system. Economic Policy Review, 9, 83-108. (2)",
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "body",
+       "line_height": 13.053,
+       "merged_visual_line_count": 2,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Fleming, M. (2003). Measuring Treasury market liquidity and the role of the primary dealer system. Economic Policy Review, 9, 83-108.",
+         "rich": "Fleming, M. (2003). Measuring Treasury market liquidity and the role of the primary dealer system. Economic Policy Review, 9, 83-108.",
+         "source_bbox": [
+          72.0,
+          444.288,
+          385.127,
+          468.841
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           444.288,
+           341.781,
+           457.341
+          ],
+          [
+           90.0,
+           455.788,
+           385.127,
+           468.841
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            444.288,
+            341.781,
+            457.341
+           ],
+           "plain": "Fleming, M. (2003). Measuring Treasury market liquidity and the",
+           "rich": "Fleming, M. (2003). Measuring Treasury market liquidity and the"
+          },
+          {
+           "bbox": [
+            90.0,
+            455.788,
+            385.127,
+            468.841
+           ],
+           "plain": "role of the primary dealer system. Economic Policy Review, 9, 83-108.",
+           "rich": "role of the primary dealer system. Economic Policy Review, 9, 83-108."
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        444.288,
+        385.127,
+        468.841
+       ],
+       "render_bbox": [
+        72.0,
+        444.288,
+        385.127,
+        468.841
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         444.288,
+         341.781,
+         457.341
+        ],
+        [
+         90.0,
+         455.788,
+         385.127,
+         468.841
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 444.288
+      },
+      {
+       "bbox": [
+        551.4,
+        456.872,
+        562.392,
+        500.0
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Basis points",
+       "fontsize": 8.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 43.128,
+       "non_horizontal": true,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Basis points",
+         "rich": "Basis points",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          551.4,
+          456.872,
+          562.392,
+          500.0
+         ],
+         "source_line_bboxes": [
+          [
+           551.4,
+           456.872,
+           562.392,
+           500.0
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            551.4,
+            456.872,
+            562.392,
+            500.0
+           ],
+           "plain": "Basis points",
+           "rich": "Basis points",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        551.4,
+        456.872,
+        562.392,
+        500.0
+       ],
+       "render_bbox": [
+        551.4,
+        456.872,
+        562.392,
+        500.0
+       ],
+       "rich_content": null,
+       "rotation": 90,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 551.4,
+       "y": 456.872
+      }
+     ],
+     "layout_styles": {
+      "body": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 9.5,
+       "line_height": 13.49,
+       "padding_ratio": 0.34
+      },
+      "scattered": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.5,
+       "line_height": 13.65,
+       "padding_ratio": 0.3
+      },
+      "table": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 9.5,
+       "line_height": 11.78,
+       "padding_ratio": 0.26
+      }
+     }
+    },
+    "3": {
+     "cached": {
+      "0": "The optimal quote solves a dynamic programming problem in which the dealer trades off expected profit against inventory risk, so that",
+      "3": "主间 工日 会用 之我 业一 工日 高说 本的 也那 着进 政各 工日 以民 同学 你面 好国.",
+      "5": "和业 法和 机以 成作 水发 同着 可要 有个."
+     },
+     "elements": [
+      {
+       "bbox": [
+        72.0,
+        68.713,
+        403.454,
+        95.739
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "The optimal quote solves a dynamic programming problem in which the dealer trades off expected profit against inventory risk, so that",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "The optimal quote solves a dynamic programming problem in which the dealer trades off expected profit against inventory risk, so that",
+         "rich": "The optimal quote solves a dynamic programming problem in which the dealer trades off expected profit against inventory risk, so that",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          68.713,
+          403.454,
+          95.739
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           68.713,
+           403.454,
+           83.14
+          ],
+          [
+           72.0,
+           81.312,
+           358.556,
+           95.739
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            68.713,
+            403.454,
+            83.14
+           ],
+           "plain": "The optimal quote solves a dynamic programming problem in which the",
+           "rich": "The optimal quote solves a dynamic programming problem in which the",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            81.312,
+            358.556,
+            95.739
+           ],
+           "plain": "dealer trades off expected profit against inventory risk, so that",
+           "rich": "dealer trades off expected profit against inventory risk, so that",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        68.713,
+        403.454,
+        95.739
+       ],
+       "render_bbox": [
+        72.0,
+        68.713,
+        403.454,
+        95.739
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "skip_translate_reason": "formula_risk_preserved",
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 68.713
+      },
+      {
+       "bbox": [
+        180.0,
+        103.08,
+        292.776,
+        118.716
+       ],
+       "math_candidate_symbol_count": 2,
+       "math_line_count": 1,
+       "math_mixed": false,
+       "math_reasons": [
+        "decoded_symbol",
+        "equation_structure",
+        "math_font",
+        "math_symbol"
+       ],
+       "math_signature": {
+        "font_sha256": "b76a7ca153c24671658335bbd08946350ffc621fa1c516e7123095d4ffd5c581",
+        "geometry_sha256": "7affdaff2396aac1fbb4e0f0252d67e6ad1c9409b10cd773b7a0f22909358034",
+        "raster_height": 32,
+        "raster_sha256": "478a7bfbc2eba1997ad23b17b0b16d9a28def8ab1a75ff829b4b583366e2c397",
+        "raster_width": 226,
+        "signature_sha256": "88f09c4f7f27d02d15d63d26dc92cbf6777511d76b0d6b574cc50a8364760981",
+        "span_count": 1,
+        "text_sha256": "c85d6308268bcf4e8333893e3122f50eb7f46381b618720c58a5625720426d48"
+       },
+       "rect": [
+        180.0,
+        103.08,
+        292.776,
+        118.716
+       ],
+       "type": "formula_image",
+       "x": 180.0,
+       "y": 103.08
+      },
+      {
+       "bbox": [
+        470.0,
+        103.913,
+        482.831,
+        118.34
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "(2)",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "(2)",
+         "rich": "(2)",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          470.0,
+          103.913,
+          482.831,
+          118.34
+         ],
+         "source_line_bboxes": [
+          [
+           470.0,
+           103.913,
+           482.831,
+           118.34
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            470.0,
+            103.913,
+            482.831,
+            118.34
+           ],
+           "plain": "(2)",
+           "rich": "(2)",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        470.0,
+        103.913,
+        482.831,
+        118.34
+       ],
+       "render_bbox": [
+        470.0,
+        103.913,
+        482.831,
+        118.34
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text_merged_away",
+       "x": 470.0,
+       "y": 103.913
+      },
+      {
+       "bbox": [
+        72.0,
+        127.913,
+        381.32,
+        154.939
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "where the discount factor and the penalty parameter are estimated from the cross-section of dealer inventories.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "where the discount factor and the penalty parameter are estimated from the cross-section of dealer inventories.",
+         "rich": "where the discount factor and the penalty parameter are estimated from the cross-section of dealer inventories.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          127.913,
+          381.32,
+          154.939
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           127.913,
+           381.32,
+           142.34
+          ],
+          [
+           72.0,
+           140.512,
+           275.658,
+           154.939
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            127.913,
+            381.32,
+            142.34
+           ],
+           "plain": "where the discount factor and the penalty parameter are estimated",
+           "rich": "where the discount factor and the penalty parameter are estimated",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            140.512,
+            275.658,
+            154.939
+           ],
+           "plain": "from the cross-section of dealer inventories.",
+           "rich": "from the cross-section of dealer inventories.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        127.913,
+        381.32,
+        154.939
+       ],
+       "render_bbox": [
+        72.0,
+        127.913,
+        381.32,
+        154.939
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 127.913
+      },
+      {
+       "bbox": [
+        72.0,
+        161.113,
+        175.41,
+        175.54
+       ],
+       "math_candidate_symbol_count": 0,
+       "math_line_count": 1,
+       "math_mixed": true,
+       "math_reasons": [
+        "decoded_symbol",
+        "math_font"
+       ],
+       "math_signature": {
+        "font_sha256": "e3387075b5a8f344dc29b47ca31669e40c8d169426550b677f8f8690cc082cec",
+        "geometry_sha256": "f6d48f486ebcbbaf24b26cc254089f93b5f8bf320f969b9174bd1adfbd69ea2a",
+        "raster_height": 30,
+        "raster_sha256": "e658eba5cb1c11f8711f14bc8738c04184ca905981149f33274a64e1de59ac02",
+        "raster_width": 207,
+        "signature_sha256": "8db5ddbc0b0c1f4452b21f0c2cbdb460cc880793eb046fad178af4421735c49b",
+        "span_count": 2,
+        "text_sha256": "ba38cfa192f5775fdded2beee9f550549eb6ecefb6351fcff86c30c24ded846c"
+       },
+       "rect": [
+        72.0,
+        161.113,
+        175.41,
+        175.54
+       ],
+       "type": "formula_image",
+       "x": 72.0,
+       "y": 161.113
+      },
+      {
+       "bbox": [
+        200.0,
+        161.113,
+        440.45,
+        175.54
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "implies a strong inventory effect on quoted spreads.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "implies a strong inventory effect on quoted spreads.",
+         "rich": "implies a strong inventory effect on quoted spreads.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          200.0,
+          161.113,
+          440.45,
+          175.54
+         ],
+         "source_line_bboxes": [
+          [
+           200.0,
+           161.113,
+           440.45,
+           175.54
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            200.0,
+            161.113,
+            440.45,
+            175.54
+           ],
+           "plain": "implies a strong inventory effect on quoted spreads.",
+           "rich": "implies a strong inventory effect on quoted spreads.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        200.0,
+        161.113,
+        440.45,
+        175.54
+       ],
+       "render_bbox": [
+        200.0,
+        161.113,
+        440.45,
+        175.54
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 200.0,
+       "y": 161.113
+      }
+     ],
+     "layout_styles": {
+      "body": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.5,
+       "line_height": 14.91,
+       "padding_ratio": 0.34
+      },
+      "scattered": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.5,
+       "line_height": 13.65,
+       "padding_ratio": 0.3
+      },
+      "table": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.5,
+       "line_height": 13.02,
+       "padding_ratio": 0.26
+      }
+     }
+    },
+    "4": {
+     "cached": {
+      "0": "性动, 生国. 业一 和有, 样物. (2019). 你面 加理 一产 业一 工日 就子 同学 都主 量工 地当 业出 还开. 间化 同学 两动, 74(3), 1201-1245.",
+      "1": "你是, 部着. (2021). 和于 物度 去得 业一 工日 如用 同学 工日 心年 着间. 学义 同学 由三 电等, 34(2), 501-540."
+     },
+     "elements": [
+      {
+       "bbox": [
+        72.0,
+        69.787,
+        368.787,
+        105.84
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Smith, J. and Jones, K. (2019). Dealer balance sheets and the pricing of liquidity in government bond markets. Journal of Finance, 74(3), 1201-1245.",
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.053,
+       "merged_visual_line_count": 3,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 18.0,
+         "nowrap": null,
+         "plain": "Smith, J. and Jones, K. (2019). Dealer balance sheets and the pricing of liquidity in government bond markets. Journal of Finance, 74(3), 1201-1245.",
+         "rich": "Smith, J. and Jones, K. (2019). Dealer balance sheets and the pricing of liquidity in government bond markets. Journal of Finance, 74(3), 1201-1245.",
+         "source_bbox": [
+          72.0,
+          69.787,
+          368.787,
+          105.84
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           69.787,
+           364.534,
+           82.84
+          ],
+          [
+           90.0,
+           81.287,
+           368.787,
+           94.34
+          ],
+          [
+           90.0,
+           92.787,
+           138.06,
+           105.84
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            69.787,
+            364.534,
+            82.84
+           ],
+           "plain": "Smith, J. and Jones, K. (2019). Dealer balance sheets and the pricing",
+           "rich": "Smith, J. and Jones, K. (2019). Dealer balance sheets and the pricing",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            90.0,
+            81.287,
+            368.787,
+            94.34
+           ],
+           "plain": "of liquidity in government bond markets. Journal of Finance, 74(3),",
+           "rich": "of liquidity in government bond markets. Journal of Finance, 74(3),",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            90.0,
+            92.787,
+            138.06,
+            105.84
+           ],
+           "plain": "1201-1245.",
+           "rich": "1201-1245.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": -18.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        69.787,
+        368.787,
+        105.84
+       ],
+       "render_bbox": [
+        72.0,
+        69.787,
+        368.787,
+        105.84
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         69.787,
+         364.534,
+         82.84
+        ],
+        [
+         90.0,
+         81.287,
+         368.787,
+         94.34
+        ],
+        [
+         90.0,
+         92.787,
+         138.06,
+         105.84
+        ]
+       ],
+       "strong_semantic_continuation_merged": 2,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 69.787
+      },
+      {
+       "bbox": [
+        72.0,
+        104.287,
+        367.156,
+        128.84
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Taylor, R. (2021). Repo market stress and the role of the central bank. Review of Financial Studies, 34(2), 501-540.",
+       "fontsize": 9.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.053,
+       "merged_visual_line_count": 2,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Taylor, R. (2021). Repo market stress and the role of the central bank. Review of Financial Studies, 34(2), 501-540.",
+         "rich": "Taylor, R. (2021). Repo market stress and the role of the central bank. Review of Financial Studies, 34(2), 501-540.",
+         "source_bbox": [
+          72.0,
+          104.287,
+          367.156,
+          128.84
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           104.287,
+           367.156,
+           117.34
+          ],
+          [
+           90.0,
+           115.787,
+           276.913,
+           128.84
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            104.287,
+            367.156,
+            117.34
+           ],
+           "plain": "Taylor, R. (2021). Repo market stress and the role of the central bank.",
+           "rich": "Taylor, R. (2021). Repo market stress and the role of the central bank."
+          },
+          {
+           "bbox": [
+            90.0,
+            115.787,
+            276.913,
+            128.84
+           ],
+           "plain": "Review of Financial Studies, 34(2), 501-540.",
+           "rich": "Review of Financial Studies, 34(2), 501-540."
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        104.287,
+        367.156,
+        128.84
+       ],
+       "render_bbox": [
+        72.0,
+        104.287,
+        367.156,
+        128.84
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "source_line_bboxes": [
+        [
+         72.0,
+         104.287,
+         367.156,
+         117.34
+        ],
+        [
+         90.0,
+         115.787,
+         276.913,
+         128.84
+        ]
+       ],
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 104.287
+      }
+     ],
+     "layout_styles": {
+      "body": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 9.5,
+       "line_height": 13.49,
+       "padding_ratio": 0.34
+      },
+      "scattered": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 9.5,
+       "line_height": 12.35,
+       "padding_ratio": 0.3
+      },
+      "table": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 8.5,
+       "line_height": 10.54,
+       "padding_ratio": 0.26
+      }
+     }
+    }
+   },
+   "page_rects": {
+    "0": [
+     0.0,
+     0.0,
+     612.0,
+     792.0
+    ],
+    "1": [
+     0.0,
+     0.0,
+     612.0,
+     792.0
+    ],
+    "2": [
+     0.0,
+     0.0,
+     612.0,
+     792.0
+    ],
+    "3": [
+     0.0,
+     0.0,
+     612.0,
+     792.0
+    ],
+    "4": [
+     0.0,
+     0.0,
+     612.0,
+     792.0
+    ]
+   }
+  },
+  "page_caches": {
+   "page_0.json": {
+    "element_identities": {
+     "0": "20514f75254858983961913097e653bc6ea5e0a08d036a50e29d48c89b6ef6ea",
+     "1": "b1e39c0faeb84153eb4940874c183b4c9bf227fb188b99621e90c7ae7bcdd839",
+     "10": "297f7d197bacccd07b77ae3808fe7417781026c36ccd33b95c304e9f1ff1a72c",
+     "11": "a04a6b31ac6bb55e4e7cb336d5b5afc7dab978123c1aaf1309d5a4e4c57ea926",
+     "2": "1310eed0036e3cd3e67a107d3c1038874801e2d93d5b0f6ef9d6d654e32c1985",
+     "3": "0714fbbf0b26bdc4032ab59530279fa1c85368d332817439fb845364a76a9f5e",
+     "4": "82c00646bfb72c8a83d728421a9b393d1cab3932c85652b60a5896c10764874f",
+     "5": "5379d5c4e8301e47db9393260a771d2b878fbf528d3f2dcf13391332cb6fc5ed",
+     "6": "9edda4407cf6bf1da4ecdb6160b3a45dd2e5c000f79f2142582ffb35c8317212",
+     "7": "5e9d86a26bca8b2954539cd91152de2dd3567696a04e6262b58e51b0051b29a7",
+     "8": "f45605ade5c9e8f14ed1ca77580d946cf1395c2eff86de2634b4efe9036a47fc",
+     "9": "6ed94fd9739a8f7ed074436bdebda28ee0c815abd4f10f6921a943a05ae3b544"
+    },
+    "layout_semantics": "2026-08-semantic-paragraphs-v39",
+    "schema_version": 3,
+    "source_sha256": "ce50e31ccffc56952847a33c80644a6dbdbe07c57f5fa07fc803ad844d711444",
+    "translations": {
+     "0": "开同",
+     "1": "1. 工日 们在 对物 如由 学经 生十 性经 来等 因有 新反 体法 以力 你全 明化 国量 要之 时是 于使 高发 下种 业一 而点.",
+     "10": "Wang, L. (2018). 主到 进年 量工 业出 还开. 作对, 86(1), 1-40.",
+     "11": "<sup>3</sup>工日 法由 十时 工日 理水 政各 义因 2015 性经 新部 2021 业一 后等 间水 有了 工日 心年 着间.",
+     "2": "2. 工日 用多 如由 还还 心年 它能 同学 地国 性它 间水 业一 同学 和于 能业.",
+     "3": "都主 实也 不新 的对 量工 它政 去说 是全 用其 性它 都还 性经 物大 地国, 业一 生十 得因 性经 会对 工日 子个 来以 因有 加理 一产 一中 两小 子就 们起 行所 业一 们起 工日 民水 同学 因有 分分 好国.",
+     "4": "· 人它 生十 高动 因有 同之 同学 民对 都还 四好 工日 们在 十方 体上 同学 工日 相之.",
+     "5": "· 和由 出就 合人 们他 高使 成度 去开.",
+     "6": "工日 相之 能心 要说 你全 工日 物度 就而 同着 法和 间如 要线 同学 着制 了对 现使 制成 性经 就分 下由 它理 事二 四好 其当 同学 在种 方来.",
+     "7": "和我",
+     "8": "Smith, J. and Jones, K. (2019). 你面 加理 一产 业一 就子. 间化 同学 两动, 74(3), 1201-1245.",
+     "9": "Taylor, R. (2021). 和于 物度 去得 业一 工日 心年 着间. 学义 同学 由三 电等, 34(2), 501-540."
+    }
+   },
+   "page_1.json": {
+    "element_identities": {
+     "0": "81514500cc0d67a6b2de5b11e50b0997942f050504ed02a5b44b6d9faea4daf4",
+     "1": "a84a10a46faee081aee26295dff1aae18578cb97bc9ee80a7e1764e89b8b67eb",
+     "10": "79ca962cdfe59613c408f57285637be4cab05786c6713e7f2b65ab7c3d0bc08d",
+     "11": "6da1a32610b0bbce5f3d4e0d4a400ba24f0c274784fbea8cd8139f5650edf111",
+     "12": "d9dcc4c28f089324a650877afe60940a33509c9d7b0a98e73b6cbc93156a8dc2",
+     "13": "8fb2e8241dc8f5a86b355643332bc47026dc619d5079dfacd533951e62ed00f6",
+     "14": "1f268f95192a7f5b21997bcbe6d5826d86d08eb10937f8cfe3ef09278cfacefa",
+     "15": "86d86250b7fa9c94c836727483f670de3c7802102f6a19229b3a0e336a0f6e6f",
+     "16": "b3ee30c4bc86012abd448a4b04c79ce000c48b8155a806a7c6cdc7c7c4276688",
+     "17": "d373c05da03a3e7724465d1300d3df5df4501bcbd9f4ad738bfa4bce71eda2b9",
+     "18": "263fc896e7f8ff02f69055406f8e2c3dc2e4be598d9caa4e40e836a7bf024696",
+     "19": "fe68078d1b76d3d74ae5ff256ca1daa915cc84af011f66e6848162e0367c6a98",
+     "2": "4398f5d565b836496752ebb436727491e1df22e8755a5ffae87b8c32f39ef934",
+     "20": "8ac22c1d99823bd151e028ccf41cd731caf7624383e4cc67bbaf7031f0eda54f",
+     "3": "dae69a6a17b934ab6f59cd59205d84223932c3a08eb42ba38f0d013f176f2a64",
+     "4": "7a780ba942dcde182707a3959867d89861c628000a3b55ad4b1c7440d24f3fd4",
+     "5": "fd3c0cfd28df4ea5ead6409d5abb9525a5224552f177a0304e93e50f991ee727",
+     "6": "5e7bcf601da590ad4ab312ec651859a19da0e34db6784947595bf11f9b1235c0",
+     "7": "09f9fb9b913c6d0793ad500745bd8a5f0ebca106b76a0c82b4c90cff51449888",
+     "8": "09273bbbc6d6989f87b32978076dceb85e0aa707b27df86b18cafb4f3755d55b",
+     "9": "e89c5cef7fc21967e594227f84481948374afc36c140be5d74f1596a5c64ad4d"
+    },
+    "layout_semantics": "2026-08-semantic-paragraphs-v39",
+    "schema_version": 3,
+    "source_sha256": "ce50e31ccffc56952847a33c80644a6dbdbe07c57f5fa07fc803ad844d711444",
+    "translations": {
+     "0": "十机",
+     "1": "都国",
+     "10": "点使 合部 们起 因有 的后 作由.",
+     "11": "成作",
+     "12": "工日 我数 两部 法和 你面 所和 量工 法和 机过.",
+     "13": "现时 民水",
+     "14": "工日 开子 应所 性社 同着 法和 的后 实会.",
+     "15": "数为",
+     "16": "工日 会用 主年 性经 现到 量工 法和 和于.",
+     "17": "都新",
+     "18": "工日 着小 而点 子面 法和 民与 的水.",
+     "19": "们他",
+     "2": "物这",
+     "20": "工日 应所 物部 合会 法和 业出 业一 两我 体可.",
+     "3": "的人",
+     "4": "工日 开两 合会 工日 产二 业一 工日 说说 应所.",
+     "5": "高着",
+     "6": "工日 作事 化力 成度 工日 明着 可要 由间.",
+     "7": "对反",
+     "8": "重家 间如 于用 性经 体的 现去 都主.",
+     "9": "度来"
+    }
+   },
+   "page_2.json": {
+    "element_identities": {
+     "0": "12768aae3629d44f059386207bd10be651e88def4ba257fcec4581e40a72b646",
+     "1": "2e1f1653190965e806262fa43c93217c70fff122133780aa5bd86adc6a45f647",
+     "10": "b6abfe030d8a434e868c726869e8bebe98a41ca09a2631b5a81caad1a85d4264",
+     "11": "38605e40d169a119e19d9ea47e1ec1603ec71911ba176b1c559ccae65eddf83a",
+     "12": "f1fe987efce724ab55798c17465234ce1f17a566b20f38d528df2e4b785afd1a",
+     "2": "28b7dfa420805e09ef48afecaedcf153936f0e71a67e185d86255f97ec2abf0f",
+     "3": "6196dc6955f98f6e3fc41008a49404c931f889cb9ce4afdd6632c5a4a17cfd62",
+     "4": "92ba881a7baf990e2ed0c32e694a9f1e85e15610c71460483a04705000f60030",
+     "5": "eee31a8598068566ce2414f4db40e54c10f2f9c76f13c38b6302246999f01450",
+     "6": "c9966b1a14d1da3ffb845d8eca73db864ea1a3ecca84e7cc9d8fc698bda5f4cc",
+     "7": "c34de7eca1d5d415b821291f4c09fa8ebc54d079448ef71078436728c4b0b8e3",
+     "8": "558bfc7573d6d569a6380c9e54e322b5123e8236818f5ff4e52e90fd52ed1437",
+     "9": "6bb64f48fefb8b39461fd72e21026972bda358daf38cab09015053d93e5f8436"
+    },
+    "layout_semantics": "2026-08-semantic-paragraphs-v39",
+    "schema_version": 3,
+    "source_sha256": "ce50e31ccffc56952847a33c80644a6dbdbe07c57f5fa07fc803ad844d711444",
+    "translations": {
+     "0": "工日 他产 同学 到实 你全 进家 性经 工日 间分 它理 法同 量工 应然 经体 数里.",
+     "1": "Alpha Capital Markets",
+     "10": "都主 量工 法和 在前 同学 方小 工都 业一 你面 起发. 学义 同学 由三 电等, 22, 2201-2238.",
+     "11": "们当, 业多. (2003). 样会 性它 物度 都主 业一 工日 如用 同学 工日 人它 你面 能后. 以方 样方 学义, 9, 83-108. (2)",
+     "12": "们他 后里",
+     "2": "Blue River Securities",
+     "3": "Cedar Point Trading",
+     "4": "Delta Bond Partners",
+     "5": "Evergreen Fixed Income",
+     "6": "Fairview Liquidity Group",
+     "7": "外物 的后 一二 都为 当应 量工 工日 得经 在加, 主间 由动 内人 机当 中业 我面 主两 业家.",
+     "8": "量工 工日 本得 在加, 心年 现两 经体 由种 量是 工日 经数 物度, 和生 后形 的后 国人 主水 工日 于也.",
+     "9": "间他, 业多. 业一 还民, 于于. (2009). 物度 都主 业一 发时"
+    }
+   },
+   "page_3.json": {
+    "element_identities": {
+     "0": "a49ac50f419cc993cb74a4e436010fc5e9b93c0d989be806cd09b77a4eb6594d",
+     "3": "4da3f31776378889eb5f5eeb979265b6c1621b32b6d0d60903179119e1c14394",
+     "5": "ad44f12dcd1985e1a9cc5c7ecb293bbd3f36dc6902c4d91a2f22561641af4191"
+    },
+    "layout_semantics": "2026-08-semantic-paragraphs-v39",
+    "schema_version": 3,
+    "source_sha256": "ce50e31ccffc56952847a33c80644a6dbdbe07c57f5fa07fc803ad844d711444",
+    "translations": {
+     "0": "The optimal quote solves a dynamic programming problem in which the dealer trades off expected profit against inventory risk, so that",
+     "3": "主间 工日 会用 之我 业一 工日 高说 本的 也那 着进 政各 工日 以民 同学 你面 好国.",
+     "5": "和业 法和 机以 成作 水发 同着 可要 有个."
+    }
+   },
+   "page_4.json": {
+    "element_identities": {
+     "0": "8f2bae2f40d8ecfb1d48aeba27308fc85c93084760abfbed233f4c73bbe67d7b",
+     "1": "e5d4d2fcf1274c5ea5c9fbbcbfbea0016f43eec4c3650441a72202f0d112efea"
+    },
+    "layout_semantics": "2026-08-semantic-paragraphs-v39",
+    "schema_version": 3,
+    "source_sha256": "ce50e31ccffc56952847a33c80644a6dbdbe07c57f5fa07fc803ad844d711444",
+    "translations": {
+     "0": "性动, 生国. 业一 和有, 样物. (2019). 你面 加理 一产 业一 工日 就子 同学 都主 量工 地当 业出 还开. 间化 同学 两动, 74(3), 1201-1245.",
+     "1": "你是, 部着. (2021). 和于 物度 去得 业一 工日 如用 同学 工日 心年 着间. 学义 同学 由三 电等, 34(2), 501-540."
+    }
+   }
+  },
+  "requests": [
+   "Dealer balance sheets and pricing. Journal of Finance, 74(3), 1201-1245.",
+   "PHOENA_SEG_0000_0738EE00B61BC3AF\nRecommendations\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0001_E5A59D4CFE00A37B\n1. The first numbered recommendation asks dealers to publish their quoting policies so that clients can compare execution quality across venues and time.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0002_4CB94788F614B3AA\n2. The second recommendation concerns central clearing of cash Treasury transactions and of repo agreements.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0003_2E49127351F06086\nLiquidity conditions deteriorated sharply in March as investors sold Treasury securities to raise cash, and dealers struggled to absorb the flows because their balance sheets were already constrained by regulation and by the size of their existing inventories.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0004_BC4880614A636510\n· Primary dealers increased their holdings of off-the-run securities during the first two weeks of the episode.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0005_595B2B1798E5324F\n· Hedge funds unwound basis trades at scale.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0006_8A80E10AE3BC285A\nThe episode also showed that the market depends on a small number of large intermediaries whose capacity to warehouse risk is limited during periods of broad deleveraging.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0007_69824D3B0E70CA6A\nReferences\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0008_4AF6F6610C670480\nSmith, J. and Jones, K. (2019). Dealer balance sheets and pricing. Journal of Finance, 74(3), 1201-1245.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0009_0EFEE595A8CB06DB\nTaylor, R. (2021). Repo market stress and the central bank. Review of Financial Studies, 34(2), 501-540.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0010_F826E7E78F577FD6\nWang, L. (2018). Search frictions in bond markets. Econometrica, 86(1), 1-40.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0011_611C7E53B7A8172F\nPHOENA_SUP_0000_985E622D455BDBEEThe data cover the period from January 2015 to December 2021 and exclude transactions with the central bank.",
+   "PHOENA_SEG_0000_4C4E436F9A453C77\nGlossary\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0001_C6F3BFD45614178A\nTerm\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0002_1F5D64B92820F823\nMeaning\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0003_909802B269DEE093\nspread\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0004_4B7320CD9BB084B8\nThe difference between the bid and the ask price.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0005_DED32129B05BFC16\ndepth\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0006_555702FE6F4B06FB\nThe quantity available at the best quoted prices.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0007_208DA5F8B82BA5E0\npinging\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0008_6EE6421732AD4DF2\nSending small orders to discover hidden liquidity.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0009_46A56E86CE6264D5\nprofiling\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0010_6D95E524AC3C1E7D\nClassifying counterparties by their trading behaviour.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0011_B11A85B296A90AFC\ninventory\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0012_119E0F3AA650D2A3\nThe net position a dealer holds in a security.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0013_1B4F1C58489A5B2B\ntick size\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0014_8A86915D43A3D767\nThe minimum price increment on a trading venue.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0015_8A9C59AFB7E7CB40\nhaircut\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0016_F7CDD1DEC3840E9D\nThe discount applied to collateral in a repo.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0017_E98738577E236BF9\ntenor\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0018_429E452FCB0CDE36\nThe remaining time until a contract matures.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0019_A7A3C8F654761303\nbasis\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0020_D3E5659F720621B1\nThe price gap between a bond and its future.",
+   "PHOENA_SEG_0000_543EF7AC05A82F99\nThe list of firms that responded to the survey is presented in alphabetical order below.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0001_A610B1CE9DB1341B\nElectronic trading has grown steadily in the dealer-to-client segment, where request-for-quote protocols now account for most volume.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0002_01F3905CD518E605\nIn the interdealer segment, central limit order books dominate the on-the-run market, while voice trading persists off the run.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0003_F6E6C10A87E6C209\nBrunnermeier, M. and Pedersen, L. (2009). Market liquidity and funding\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0004_C23F7E253756B0C5\nliquidity in a model of margin spirals and dealer constraints. Review of Financial Studies, 22, 2201-2238.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0005_DA487AED77FA61DF\nFleming, M. (2003). Measuring Treasury market liquidity and the role of the primary dealer system. Economic Policy Review, 9, 83-108. (2)\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0006_DA7238D021A7599A\nBasis points",
+   "PHOENA_SEG_0000_59D6F6D742EFA064\nSmith, J. and Jones, K. (2019). Dealer balance sheets and the pricing of liquidity in government bond markets. Journal of Finance, 74(3), 1201-1245.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0001_1E386CF70305734C\nTaylor, R. (2021). Repo market stress and the role of the central bank. Review of Financial Studies, 34(2), 501-540.",
+   "PHOENA_SEG_0000_640FBE257A11A573\nwhere the discount factor and the penalty parameter are estimated from the cross-section of dealer inventories.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0001_FA749AB0C3BA2AA6\nimplies a strong inventory effect on quoted spreads.",
+   "Repo market stress and the central bank. Review of Financial Studies, 34(2), 501-540.",
+   "Search frictions in bond markets. Econometrica, 86(1), 1-40."
+  ],
+  "task": {
+   "completed_files": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+   ],
+   "completion_status": "completed",
+   "current_file": "",
+   "element_source_fallbacks": [],
+   "filename": "structures.pdf",
+   "out_filename": "zh_structures.pdf",
+   "output": "<TMP>/outputs/golden0000000000.pdf",
+   "progress": 5,
+   "source_page_fallbacks": [],
+   "status": "completed",
+   "table_preservation_rollbacks": [],
+   "total": 5,
+   "type": "pdf",
+   "untranslated_delivered_pages": [],
+   "untranslated_english_leaks": []
+  }
+ }
+}

@@ -1,0 +1,3708 @@
+{
+ "font": "wqy-zenhei.ttc#0:79c18ebe7b811951",
+ "font_dependent": {
+  "htmlbox_placement_events": [
+   {
+    "element": 0,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     68.6,
+     483.2,
+     99.575
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     68.6,
+     393.2,
+     96.14
+    ],
+    "step": "widen+1line+neighbor-trim",
+    "table_cell": false,
+    "text": "都主 量工 这也 的十 还开"
+   },
+   {
+    "element": 1,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     100.175,
+     178.975,
+     128.65
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     100.175,
+     178.975,
+     115.289
+    ],
+    "step": "down+2lines+neighbor-trim",
+    "table_cell": false,
+    "text": "化两 行年 为里"
+   },
+   {
+    "element": 2,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     129.25,
+     323.83,
+     176.42
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     129.25,
+     323.83,
+     170.99
+    ],
+    "step": "down+2lines+neighbor-trim",
+    "table_cell": false,
+    "text": "着如 ............................................................ 1 物度 起为 ............................................................ 2 和我 ......................"
+   },
+   {
+    "element": 3,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     177.02,
+     228.338,
+     199.4
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     177.02,
+     165.338,
+     196.298
+    ],
+    "step": "widen+1line+neighbor-trim",
+    "table_cell": false,
+    "text": "1 着如"
+   },
+   {
+    "element": 4,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 1,
+    "rect": [
+     72.0,
+     200.0,
+     532.446,
+     245.445
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     200.0,
+     532.446,
+     245.445
+    ],
+    "step": "base",
+    "table_cell": false,
+    "text": "物度 理生 三两 都主 高发 工日 的后 不水, 业一 因有 定用 时上 性经 成作 下由, 发时 下高 业一 工日 一而 同学 工日 方下 都还. 来两 一而 小之, 有个 应年 业一 高着 这心, 日下 量工 大家 小物 工日 时是 于使 点水 们起 中子 是全."
+   },
+   {
+    "element": 5,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     255.871,
+     278.587,
+     279.999
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     255.871,
+     278.587,
+     270.298
+    ],
+    "step": "down+2lines+neighbor-trim",
+    "table_cell": false,
+    "text": "生十 加理 正体 说当 两子:"
+   },
+   {
+    "element": 6,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 1,
+    "rect": [
+     80.0,
+     280.599,
+     344.084,
+     297.314
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     80.0,
+     280.599,
+     344.084,
+     297.314
+    ],
+    "step": "base",
+    "table_cell": false,
+    "text": "· 本三 法和 是上 子会 物度 我面 明化;"
+   },
+   {
+    "element": 7,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 1,
+    "rect": [
+     80.0,
+     307.616,
+     370.345,
+     324.331
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     80.0,
+     307.616,
+     370.345,
+     324.331
+    ],
+    "step": "base",
+    "table_cell": false,
+    "text": "· 在其 成作 从有 工日 数度 由二 们起 工日 下由 种能;"
+   },
+   {
+    "element": 8,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 1,
+    "rect": [
+     80.0,
+     334.633,
+     368.623,
+     351.347
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     80.0,
+     334.633,
+     368.623,
+     351.347
+    ],
+    "step": "base",
+    "table_cell": false,
+    "text": "· 后的 工日 过电 国样 同学 加事 还性 把人."
+   },
+   {
+    "element": 9,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 1,
+    "rect": [
+     72.0,
+     363.936,
+     499.791,
+     384.693
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     363.936,
+     499.791,
+     393.873
+    ],
+    "step": "base+neighbor-trim",
+    "table_cell": false,
+    "text": "在里 电等 着民 法和 政对 因使 量工 你面 制成 合两 工日 着如 同学 工日 得到 说不."
+   },
+   {
+    "element": 11,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 1,
+    "rect": [
+     72.0,
+     620.0,
+     519.059,
+     681.436
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     620.0,
+     519.059,
+     649.936
+    ],
+    "step": "down+2lines",
+    "table_cell": false,
+    "text": "工日 国出 同学 就动 行年 产用 表等 工日 新反 作由 同学 工日 主理 生十 度相 四好 工日 去得 相之, 业一 能起 工日 所平 心量 量工 物度 高着 年所 发然 高发 种得. 的民 国他 性二 们在, 和生 如在 国他 物生. 2 物度 起为"
+   },
+   {
+    "element": 12,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 1,
+    "rect": [
+     72.0,
+     705.4,
+     303.44,
+     743.392
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     705.4,
+     303.44,
+     719.392
+    ],
+    "step": "down+2lines",
+    "table_cell": false,
+    "text": "1 作个 工日 性方 本为 我面 工日 以正 分能 学不."
+   },
+   {
+    "element": 1,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     127.444,
+     391.809,
+     141.871
+    ],
+    "scale": 0.863,
+    "source_rect": [
+     72.0,
+     127.444,
+     391.809,
+     141.871
+    ],
+    "step": "base",
+    "table_cell": false,
+    "text": "水平 在前 工日 地四 的人 去说 法和 那开 同学 一而 业一 成作:"
+   },
+   {
+    "element": 4,
+    "formula_trimmed": false,
+    "neighbor_constrained": true,
+    "page": 2,
+    "rect": [
+     72.0,
+     188.46,
+     376.049,
+     230.177
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     188.46,
+     376.049,
+     202.887
+    ],
+    "step": "down+2lines+neighbor-trim",
+    "table_cell": false,
+    "text": "主间 行高 说性 义如 一而 业一 高形 工日 你面 成作."
+   },
+   {
+    "element": 6,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     82.0,
+     230.777,
+     120.89,
+     244.547
+    ],
+    "scale": 0.93,
+    "source_rect": [
+     82.0,
+     230.777,
+     120.89,
+     244.547
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "制外"
+   },
+   {
+    "element": 7,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     232.0,
+     230.777,
+     287.56,
+     244.547
+    ],
+    "scale": 0.93,
+    "source_rect": [
+     232.0,
+     230.777,
+     287.56,
+     244.547
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "的人 (会它)"
+   },
+   {
+    "element": 8,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     382.0,
+     230.777,
+     434.22,
+     244.547
+    ],
+    "scale": 0.916,
+    "source_rect": [
+     382.0,
+     230.777,
+     434.22,
+     244.547
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "高着 ($业多)"
+   },
+   {
+    "element": 9,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     82.0,
+     250.727,
+     110.34,
+     264.466
+    ],
+    "scale": 0.914,
+    "source_rect": [
+     82.0,
+     250.727,
+     110.34,
+     264.466
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "2-水主"
+   },
+   {
+    "element": 12,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     82.0,
+     270.727,
+     115.9,
+     284.466
+    ],
+    "scale": 0.916,
+    "source_rect": [
+     82.0,
+     270.727,
+     115.9,
+     284.466
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "10-水主"
+   },
+   {
+    "element": 15,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     82.0,
+     290.727,
+     115.9,
+     304.466
+    ],
+    "scale": 0.916,
+    "source_rect": [
+     82.0,
+     290.727,
+     115.9,
+     304.466
+    ],
+    "step": "base",
+    "table_cell": true,
+    "text": "30-水主"
+   },
+   {
+    "element": 18,
+    "formula_trimmed": false,
+    "neighbor_constrained": false,
+    "page": 2,
+    "rect": [
+     72.0,
+     325.477,
+     322.623,
+     364.842
+    ],
+    "scale": 1.0,
+    "source_rect": [
+     72.0,
+     325.477,
+     322.623,
+     337.842
+    ],
+    "step": "down+2lines",
+    "table_cell": false,
+    "text": "上自 1 全年 生化 有个 业一 高着 们起 制外 后新."
+   }
+  ],
+  "output_text": [
+   "11都主量工这也的十还开化两行年为里着如......1物度起为......2和我......31着如物度理生三两都主高发工日的后不水,业一因有定用时上性经成作下由,发时下高业一工日一而同学工日方下都还.来两一而小之,有个应年业一高着这心,日下量工大家小物工日时是于使点水们起中子是全.生十加理正体说当两子:·本三法和是上子会物度我面明化;·在其成作从有工日数度由二们起工日下由种能;·后的工日过电国样同学加事还性把人.在里电等着民法和政对因使量工你面制成合两工日着如同学工日得到说不.工日国出同学就动行年产用表等工日新反作由同学工日主理生十度相四好工日去得相之,业一能起工日所平心量量工物度高着年所发然高发种得.的民国他性二们在,和生如在国他物生.2物度起为1作个工日性方本为我面工日以正分能学不.",
+   "\u0000\u0001\u0001·\u0001\u0001·\u0001·\u0001\u0001·\u0001]\u0000]\u0001·\u0001·\u0001\u0000\u0001\u0000(1)0.82501.61203.1452水平在前工日地四的人去说法和那开同学一而业一成作:主间行高说性义如一而业一高形工日你面成作.制外的人(会它)高着($业多)2-水主10-水主30-水主上自1全年生化有个业一高着们起制外后新.",
+   "ReferencesAdrian,T.,Fleming,M.andVogt,E.(2017).Marketliquidityafterthefinancialcrisis.AnnualReviewofFinancialEconomics,9,43-83.Duffie,D.(2020).Stilltheworld'ssafehaven?RedesigningtheU.S.TreasurymarketaftertheCOVID-19crisis.HutchinsCenterWorkingPaper62.He,Z.,Nagel,S.andSong,Z.(2022).TreasuryinconvenienceyieldsduringtheCOVID-19crisis.JournalofFinancialEconomics,143(1),57-79.Disclaimer:Theviewsexpressedinthispaperarethoseoftheauthorsanddonotnecessarilyreflectthepositionoftheinstitution.3"
+  ],
+  "rejected_render_scale_events": [],
+  "render_scale_events": [
+   {
+    "element": 1,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.066,
+    "scale": 0.863,
+    "source_fontsize": 10.5,
+    "table_cell": false,
+    "text": "水平 在前 工日 地四 的人 去说 法和 那开 同学 一而 业一 成作:"
+   },
+   {
+    "element": 6,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.303,
+    "scale": 0.93,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "制外"
+   },
+   {
+    "element": 7,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.303,
+    "scale": 0.93,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "的人 (会它)"
+   },
+   {
+    "element": 8,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.159,
+    "scale": 0.916,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "高着 ($业多)"
+   },
+   {
+    "element": 9,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.143,
+    "scale": 0.914,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "2-水主"
+   },
+   {
+    "element": 12,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.159,
+    "scale": 0.916,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "10-水主"
+   },
+   {
+    "element": 15,
+    "page": 2,
+    "redraw_unchanged_source": false,
+    "rendered_fontsize": 9.159,
+    "scale": 0.916,
+    "source_fontsize": 10.0,
+    "table_cell": true,
+    "text": "30-水主"
+   }
+  ],
+  "textbox_fallback_events": []
+ },
+ "stable": {
+  "audit": {
+   "formula_expectations": [
+    {
+     "bbox": [
+      200.0,
+      156.34,
+      298.112,
+      171.976
+     ],
+     "candidate_symbol_count": 0,
+     "element": 2,
+     "line_count": 1,
+     "mixed": false,
+     "page": 2,
+     "reasons": [
+      "decoded_symbol",
+      "equation_structure",
+      "math_font"
+     ],
+     "signature": {
+      "font_sha256": "b76a7ca153c24671658335bbd08946350ffc621fa1c516e7123095d4ffd5c581",
+      "geometry_sha256": "568f53173635f248815d01099731fd13da75d220c9df19085a0efcd718ac7a0c",
+      "raster_height": 32,
+      "raster_sha256": "c998ba16d88fb78300735f82012fc34c5f8b567c21764c8a8a25d6cffc272cd8",
+      "raster_width": 197,
+      "signature_sha256": "7b7dda5a069bced7415c1f0b476935936a04fe3333258148cd96686aa877fc85",
+      "span_count": 1,
+      "text_sha256": "4baa55903015e7a21a18e50e3f10ed49a6c4a09970137babbd4256dd891fdf5b"
+     }
+    }
+   ],
+   "formula_protection": {
+    "candidate_math_symbols": 0,
+    "mixed_regions": 0,
+    "per_page": {
+     "1": {
+      "candidate_math_symbols": 0,
+      "formula_queue_entries": 0,
+      "mixed_regions": 0,
+      "preserved_source_math_symbols": 0,
+      "protected_math_symbols": 0,
+      "protected_regions": 0,
+      "reasons": {},
+      "semantic_inline_math_symbols": 0,
+      "tolerated_inline_math_symbols": 0,
+      "unprotected_math_symbols_in_text": 0
+     },
+     "2": {
+      "candidate_math_symbols": 0,
+      "formula_queue_entries": 0,
+      "mixed_regions": 0,
+      "preserved_source_math_symbols": 0,
+      "protected_math_symbols": 0,
+      "protected_regions": 1,
+      "reasons": {
+       "decoded_symbol": 1,
+       "equation_structure": 1,
+       "math_font": 1
+      },
+      "semantic_inline_math_symbols": 0,
+      "tolerated_inline_math_symbols": 0,
+      "unprotected_math_symbols_in_text": 0
+     },
+     "3": {
+      "candidate_math_symbols": 0,
+      "formula_queue_entries": 0,
+      "mixed_regions": 0,
+      "preserved_source_math_symbols": 0,
+      "protected_math_symbols": 0,
+      "protected_regions": 0,
+      "reasons": {},
+      "semantic_inline_math_symbols": 0,
+      "tolerated_inline_math_symbols": 0,
+      "unprotected_math_symbols_in_text": 0
+     }
+    },
+    "preserved_source_math_symbols": 0,
+    "protected_math_symbols": 0,
+    "protected_regions": 1,
+    "protected_regions_queued_for_translation": 0,
+    "reason_counts": {
+     "decoded_symbol": 1,
+     "equation_structure": 1,
+     "math_font": 1
+    },
+    "semantic_inline_math_symbols": 0,
+    "tolerated_inline_math_symbols": 0,
+    "translation_queue_check": "ok",
+    "unprotected_math_symbols_in_text": 0
+   },
+   "merge_decisions": [
+    {
+     "carried_tail": "subsequent recovery in market depth was uneven across maturities. Short-dated bonds recovered first, while long-dated bonds lagged. 2 Market Structure",
+     "decision": "accepted",
+     "destination_element": 0,
+     "destination_layout": "scattered",
+     "destination_page": 2,
+     "kind": "cross-page-orphan-tail",
+     "reason": "accepted",
+     "source_continuation_reason": "dangling",
+     "source_element": 11,
+     "source_layout": "body",
+     "source_page": 1,
+     "tail_unterminated": true
+    }
+   ],
+   "minimum_acceptable_render_scale": 0.6,
+   "schema_version": 2,
+   "source_page_fallbacks": [],
+   "structure_check": {
+    "accepted_merges": 1,
+    "exact_source_superscript_matches": [],
+    "expected_formula_regions": 1,
+    "expected_superscripts": 0,
+    "expected_vector_ocr_elements": 0,
+    "pages_checked": [
+     2
+    ],
+    "rendered_superscripts": 0,
+    "status": "ok",
+    "tolerated_formula_raster_differences": [],
+    "verified_formula_regions": 1,
+    "verified_vector_ocr_elements": 0,
+    "warning_count": 0,
+    "warnings": []
+   },
+   "superscript_expectations": [],
+   "table_preserved_elements": [],
+   "task_id": "golden0000000000",
+   "total_pages": 3,
+   "untranslated_delivered_pages": [],
+   "untranslated_english_leaks": [],
+   "vector_ocr_expectations": []
+  },
+  "layout": {
+   "page_extractions": {
+    "0": {
+     "cached": {
+      "0": "都主 量工 这也 的十 还开",
+      "1": "化两 行年 为里",
+      "10": "1",
+      "11": "工日 国出 同学 就动 行年 产用 表等 工日 新反 作由 同学 工日 主理 生十 度相 四好 工日 去得 相之, 业一 能起 工日 所平 心量 量工 物度 高着 年所 发然 高发 种得. 的民 国他 性二 们在, 和生 如在 国他 物生. <b>2 物度 起为</b>",
+      "12": "1 作个 工日 性方 本为 我面 工日 以正 分能 学不.",
+      "13": "1",
+      "2": "着如 ............................................................ 1 物度 起为 ............................................................ 2 和我 ............................................................ 3",
+      "3": "1 着如",
+      "4": "物度 理生 三两 都主 高发 工日 的后 不水, 业一 因有 定用 时上 性经 成作 下由, 发时 下高 业一 工日 一而 同学 工日 方下 都还. 来两 一而 小之, 有个 应年 业一 高着 这心, 日下 量工 大家 小物 工日 时是 于使 点水 们起 中子 是全.",
+      "5": "生十 加理 正体 说当 两子:",
+      "6": "· 本三 法和 是上 子会 物度 我面 明化;",
+      "7": "· 在其 成作 从有 工日 数度 由二 们起 工日 下由 种能;",
+      "8": "· 后的 工日 过电 国样 同学 加事 还性 把人.",
+      "9": "在里 电等 着民 法和 政对 因使 量工 你面 制成 合两 工日 着如 同学 工日 得到 说不."
+     },
+     "elements": [
+      {
+       "bbox": [
+        72.0,
+        68.6,
+        393.2,
+        96.14
+       ],
+       "bold": true,
+       "color": 0,
+       "content": "Liquidity in Fixed Income Markets",
+       "fontsize": 20.0,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 27.54,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "Liquidity in Fixed Income Markets",
+         "rich": "<b>Liquidity in Fixed Income Markets</b>",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          68.6,
+          393.2,
+          96.14
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           68.6,
+           393.2,
+           96.14
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            68.6,
+            393.2,
+            96.14
+           ],
+           "plain": "Liquidity in Fixed Income Markets",
+           "rich": "<b>Liquidity in Fixed Income Markets</b>",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        68.6,
+        393.2,
+        96.14
+       ],
+       "render_bbox": [
+        72.0,
+        68.6,
+        393.2,
+        96.14
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": true,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 68.6
+      },
+      {
+       "bbox": [
+        72.0,
+        100.175,
+        178.975,
+        115.289
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Working Paper Series",
+       "fontsize": 11.0,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 15.114,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Working Paper Series",
+         "rich": "Working Paper Series",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          100.175,
+          178.975,
+          115.289
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           100.175,
+           178.975,
+           115.289
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            100.175,
+            178.975,
+            115.289
+           ],
+           "plain": "Working Paper Series",
+           "rich": "Working Paper Series",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        100.175,
+        178.975,
+        115.289
+       ],
+       "render_bbox": [
+        72.0,
+        100.175,
+        178.975,
+        115.289
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 100.175
+      },
+      {
+       "bbox": [
+        72.0,
+        129.25,
+        323.83,
+        170.99
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Introduction ............................................................ 1 Market Structure ............................................................ 2 References ............................................................ 3",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "body",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Introduction ............................................................ 1 Market Structure ............................................................ 2 References ............................................................ 3",
+         "rich": "Introduction ............................................................ 1 Market Structure ............................................................ 2 References ............................................................ 3",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          129.25,
+          323.83,
+          170.99
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           129.25,
+           302.17,
+           142.99
+          ],
+          [
+           72.0,
+           143.25,
+           323.83,
+           156.99
+          ],
+          [
+           72.0,
+           157.25,
+           301.05,
+           170.99
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            129.25,
+            302.17,
+            142.99
+           ],
+           "plain": "Introduction ............................................................ 1",
+           "rich": "Introduction ............................................................ 1",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            143.25,
+            323.83,
+            156.99
+           ],
+           "plain": "Market Structure ............................................................ 2",
+           "rich": "Market Structure ............................................................ 2",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            157.25,
+            301.05,
+            170.99
+           ],
+           "plain": "References ............................................................ 3",
+           "rich": "References ............................................................ 3",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": {
+          "label": "Introduction ............................................................ 1 Market Structure ............................................................ 2 References",
+          "page": "3"
+         }
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        129.25,
+        323.83,
+        170.99
+       ],
+       "render_bbox": [
+        72.0,
+        129.25,
+        323.83,
+        170.99
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 129.25
+      },
+      {
+       "bbox": [
+        72.0,
+        177.02,
+        165.338,
+        196.298
+       ],
+       "bold": true,
+       "color": 0,
+       "content": "1 Introduction",
+       "fontsize": 14.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 19.278,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "1 Introduction",
+         "rich": "<b>1 Introduction</b>",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          177.02,
+          165.338,
+          196.298
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           177.02,
+           165.338,
+           196.298
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            177.02,
+            165.338,
+            196.298
+           ],
+           "plain": "1 Introduction",
+           "rich": "<b>1 Introduction</b>",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        177.02,
+        165.338,
+        196.298
+       ],
+       "render_bbox": [
+        72.0,
+        177.02,
+        165.338,
+        196.298
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": true,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 177.02
+      },
+      {
+       "bbox": [
+        72.0,
+        200.0,
+        532.446,
+        245.445
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Market makers provide liquidity across the trading day, and their quotes respond to inventory risk, funding costs and the volatility of the underlying securities. When volatility rises, spreads widen and depth declines, which in turn affects the execution quality observed by institutional investors.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "body",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Market makers provide liquidity across the trading day, and their quotes respond to inventory risk, funding costs and the volatility of the underlying securities. When volatility rises, spreads widen and depth declines, which in turn affects the execution quality observed by institutional investors.",
+         "rich": "Market makers provide liquidity across the trading day, and their quotes respond to inventory risk, funding costs and the volatility of the underlying securities. When volatility rises, spreads widen and depth declines, which in turn affects the execution quality observed by institutional investors.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          200.0,
+          532.446,
+          245.445
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           200.0,
+           524.267,
+           214.427
+          ],
+          [
+           72.0,
+           215.509,
+           532.446,
+           229.936
+          ],
+          [
+           72.0,
+           231.018,
+           500.369,
+           245.445
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            200.0,
+            524.267,
+            214.427
+           ],
+           "plain": "Market makers provide liquidity across the trading day, and their quotes respond to inventory risk,",
+           "rich": "Market makers provide liquidity across the trading day, and their quotes respond to inventory risk,",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            215.509,
+            532.446,
+            229.936
+           ],
+           "plain": "funding costs and the volatility of the underlying securities. When volatility rises, spreads widen and",
+           "rich": "funding costs and the volatility of the underlying securities. When volatility rises, spreads widen and",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            231.018,
+            500.369,
+            245.445
+           ],
+           "plain": "depth declines, which in turn affects the execution quality observed by institutional investors.",
+           "rich": "depth declines, which in turn affects the execution quality observed by institutional investors.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        200.0,
+        532.446,
+        245.445
+       ],
+       "render_bbox": [
+        72.0,
+        200.0,
+        532.446,
+        245.445
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 200.0
+      },
+      {
+       "bbox": [
+        72.0,
+        255.871,
+        278.587,
+        270.298
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Dealers balance three competing objectives:",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Dealers balance three competing objectives:",
+         "rich": "Dealers balance three competing objectives:",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          255.871,
+          278.587,
+          270.298
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           255.871,
+           278.587,
+           270.298
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            255.871,
+            278.587,
+            270.298
+           ],
+           "plain": "Dealers balance three competing objectives:",
+           "rich": "Dealers balance three competing objectives:",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        255.871,
+        278.587,
+        270.298
+       ],
+       "render_bbox": [
+        72.0,
+        255.871,
+        278.587,
+        270.298
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 255.871
+      },
+      {
+       "bbox": [
+        80.0,
+        280.599,
+        344.084,
+        297.314
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "· maintaining a competitive two-sided market for clients;",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 12.0,
+         "nowrap": null,
+         "plain": "· maintaining a competitive two-sided market for clients;",
+         "rich": "· maintaining a competitive two-sided market for clients;",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          80.0,
+          280.599,
+          344.084,
+          297.314
+         ],
+         "source_line_bboxes": [
+          [
+           80.0,
+           280.599,
+           82.919,
+           295.026
+          ],
+          [
+           92.0,
+           282.887,
+           344.084,
+           297.314
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            80.0,
+            280.599,
+            82.919,
+            295.026
+           ],
+           "plain": "·",
+           "rich": "·",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            92.0,
+            282.887,
+            344.084,
+            297.314
+           ],
+           "plain": "maintaining a competitive two-sided market for clients;",
+           "rich": "maintaining a competitive two-sided market for clients;",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": -12.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        80.0,
+        280.599,
+        344.084,
+        297.314
+       ],
+       "render_bbox": [
+        80.0,
+        280.599,
+        344.084,
+        297.314
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 80.0,
+       "y": 280.599
+      },
+      {
+       "bbox": [
+        80.0,
+        307.616,
+        370.345,
+        324.331
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "· keeping inventory within the limits set by the risk committee;",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 12.0,
+         "nowrap": null,
+         "plain": "· keeping inventory within the limits set by the risk committee;",
+         "rich": "· keeping inventory within the limits set by the risk committee;",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          80.0,
+          307.616,
+          370.345,
+          324.331
+         ],
+         "source_line_bboxes": [
+          [
+           80.0,
+           307.616,
+           82.919,
+           322.043
+          ],
+          [
+           92.0,
+           309.904,
+           370.345,
+           324.331
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            80.0,
+            307.616,
+            82.919,
+            322.043
+           ],
+           "plain": "·",
+           "rich": "·",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            92.0,
+            309.904,
+            370.345,
+            324.331
+           ],
+           "plain": "keeping inventory within the limits set by the risk committee;",
+           "rich": "keeping inventory within the limits set by the risk committee;",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": -12.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        80.0,
+        307.616,
+        370.345,
+        324.331
+       ],
+       "render_bbox": [
+        80.0,
+        307.616,
+        370.345,
+        324.331
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 80.0,
+       "y": 307.616
+      },
+      {
+       "bbox": [
+        80.0,
+        334.633,
+        368.623,
+        351.347
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "· minimising the balance-sheet cost of holding long positions.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 12.0,
+         "nowrap": null,
+         "plain": "· minimising the balance-sheet cost of holding long positions.",
+         "rich": "· minimising the balance-sheet cost of holding long positions.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          80.0,
+          334.633,
+          368.623,
+          351.347
+         ],
+         "source_line_bboxes": [
+          [
+           80.0,
+           334.633,
+           82.919,
+           349.06
+          ],
+          [
+           92.0,
+           336.92,
+           368.623,
+           351.347
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            80.0,
+            334.633,
+            82.919,
+            349.06
+           ],
+           "plain": "·",
+           "rich": "·",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            92.0,
+            336.92,
+            368.623,
+            351.347
+           ],
+           "plain": "minimising the balance-sheet cost of holding long positions.",
+           "rich": "minimising the balance-sheet cost of holding long positions.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": -12.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        80.0,
+        334.633,
+        368.623,
+        351.347
+       ],
+       "render_bbox": [
+        80.0,
+        334.633,
+        368.623,
+        351.347
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 80.0,
+       "y": 334.633
+      },
+      {
+       "bbox": [
+        72.0,
+        363.936,
+        499.791,
+        393.873
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Recent studies document a persistent decline in dealer capacity since the introduction of the leverage ratio.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "body",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Recent studies document a persistent decline in dealer capacity since the introduction of the leverage ratio.",
+         "rich": "Recent studies document a persistent decline in dealer capacity since the introduction of the leverage ratio.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          363.936,
+          499.791,
+          393.873
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           363.936,
+           499.791,
+           378.363
+          ],
+          [
+           72.0,
+           379.446,
+           138.528,
+           393.873
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            363.936,
+            499.791,
+            378.363
+           ],
+           "plain": "Recent studies document a persistent decline in dealer capacity since the introduction of the",
+           "rich": "Recent studies document a persistent decline in dealer capacity since the introduction of the",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            379.446,
+            138.528,
+            393.873
+           ],
+           "plain": "leverage ratio.",
+           "rich": "leverage ratio.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        363.936,
+        499.791,
+        393.873
+       ],
+       "render_bbox": [
+        72.0,
+        363.936,
+        499.791,
+        393.873
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 363.936
+      },
+      {
+       "bbox": [
+        401.0,
+        385.293,
+        404.614,
+        394.224
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "1",
+       "fontsize": 6.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 8.931,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "1",
+         "rich": "1",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          401.0,
+          385.293,
+          404.614,
+          394.224
+         ],
+         "source_line_bboxes": [
+          [
+           401.0,
+           385.293,
+           404.614,
+           394.224
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            401.0,
+            385.293,
+            404.614,
+            394.224
+           ],
+           "plain": "1",
+           "rich": "1",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        401.0,
+        385.293,
+        404.614,
+        394.224
+       ],
+       "render_bbox": [
+        401.0,
+        385.293,
+        404.614,
+        394.224
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 401.0,
+       "y": 385.293
+      },
+      {
+       "bbox": [
+        72.0,
+        620.0,
+        519.059,
+        649.936
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "The remainder of this paper describes how the quoting behaviour of the largest dealers changed during the stress episode, and why the subsequent recovery in market depth was uneven across maturities. Short-dated bonds recovered first, while long-dated bonds lagged. 2 Market Structure",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "body",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "The remainder of this paper describes how the quoting behaviour of the largest dealers changed during the stress episode, and why the",
+         "rich": "The remainder of this paper describes how the quoting behaviour of the largest dealers changed during the stress episode, and why the",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          620.0,
+          519.059,
+          649.936
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           620.0,
+           519.059,
+           634.427
+          ],
+          [
+           72.0,
+           635.509,
+           251.76,
+           649.936
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            620.0,
+            519.059,
+            634.427
+           ],
+           "plain": "The remainder of this paper describes how the quoting behaviour of the largest dealers changed",
+           "rich": "The remainder of this paper describes how the quoting behaviour of the largest dealers changed",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            635.509,
+            251.76,
+            649.936
+           ],
+           "plain": "during the stress episode, and why the",
+           "rich": "during the stress episode, and why the",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        620.0,
+        519.059,
+        649.936
+       ],
+       "render_bbox": [
+        72.0,
+        620.0,
+        519.059,
+        649.936
+       ],
+       "rich_content": "The remainder of this paper describes how the quoting behaviour of the largest dealers changed during the stress episode, and why the subsequent recovery in market depth was uneven across maturities. Short-dated bonds recovered first, while long-dated bonds lagged. <b>2 Market Structure</b>",
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 620.0
+      },
+      {
+       "bbox": [
+        72.0,
+        705.4,
+        303.44,
+        719.392
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "1 See the supplementary appendix for the full sample description.",
+       "fontsize": 8.0,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 13.992,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "1 See the supplementary appendix for the full sample description.",
+         "rich": "1 See the supplementary appendix for the full sample description.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          705.4,
+          303.44,
+          719.392
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           705.4,
+           303.44,
+           719.392
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            705.4,
+            303.44,
+            719.392
+           ],
+           "plain": "1 See the supplementary appendix for the full sample description.",
+           "rich": "1 See the supplementary appendix for the full sample description.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        705.4,
+        303.44,
+        719.392
+       ],
+       "render_bbox": [
+        72.0,
+        705.4,
+        303.44,
+        719.392
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 705.4
+      },
+      {
+       "bbox": [
+        300.0,
+        750.325,
+        305.004,
+        762.691
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "1",
+       "fontsize": 9.0,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 12.366,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "1",
+         "rich": "1",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          300.0,
+          750.325,
+          305.004,
+          762.691
+         ],
+         "source_line_bboxes": [
+          [
+           300.0,
+           750.325,
+           305.004,
+           762.691
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            300.0,
+            750.325,
+            305.004,
+            762.691
+           ],
+           "plain": "1",
+           "rich": "1",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        300.0,
+        750.325,
+        305.004,
+        762.691
+       ],
+       "render_bbox": [
+        300.0,
+        750.325,
+        305.004,
+        762.691
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 300.0,
+       "y": 750.325
+      }
+     ],
+     "layout_styles": {
+      "body": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.5,
+       "line_height": 14.91,
+       "padding_ratio": 0.34
+      },
+      "scattered": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 8.0,
+       "line_height": 10.4,
+       "padding_ratio": 0.3
+      },
+      "table": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.5,
+       "line_height": 13.02,
+       "padding_ratio": 0.26
+      }
+     }
+    },
+    "1": {
+     "cached": {
+      "1": "水平 在前 工日 地四 的人 去说 法和 那开 同学 一而 业一 成作:",
+      "10": "0.8",
+      "11": "250",
+      "12": "10-水主",
+      "13": "1.6",
+      "14": "120",
+      "15": "30-水主",
+      "16": "3.1",
+      "17": "45",
+      "18": "上自 1 全年 生化 有个 业一 高着 们起 制外 后新.",
+      "19": "2",
+      "3": "(1)",
+      "4": "主间 行高 说性 义如 一而 业一 高形 工日 你面 成作.",
+      "6": "制外",
+      "7": "的人 (会它)",
+      "8": "高着 ($业多)",
+      "9": "2-水主"
+     },
+     "elements": [
+      {
+       "bbox": [
+        72.0,
+        72.0,
+        527.784,
+        123.741
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "subsequent recovery in market depth was uneven across maturities. Short-dated bonds recovered first, while long-dated bonds lagged. 2 Market Structure",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 16.044,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "subsequent recovery in market depth was uneven across maturities. Short-dated bonds recovered first, while long-dated bonds lagged. 2 Market Structure",
+         "rich": "subsequent recovery in market depth was uneven across maturities. Short-dated bonds recovered first, while long-dated bonds lagged. <b>2 Market Structure</b>",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          72.0,
+          527.784,
+          123.741
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           72.0,
+           527.784,
+           86.427
+          ],
+          [
+           72.0,
+           87.509,
+           240.084,
+           101.936
+          ],
+          [
+           72.0,
+           104.463,
+           194.92,
+           123.741
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            72.0,
+            527.784,
+            86.427
+           ],
+           "plain": "subsequent recovery in market depth was uneven across maturities. Short-dated bonds recovered",
+           "rich": "subsequent recovery in market depth was uneven across maturities. Short-dated bonds recovered",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            87.509,
+            240.084,
+            101.936
+           ],
+           "plain": "first, while long-dated bonds lagged.",
+           "rich": "first, while long-dated bonds lagged.",
+           "same_baseline_fragments": []
+          },
+          {
+           "bbox": [
+            72.0,
+            104.463,
+            194.92,
+            123.741
+           ],
+           "plain": "2 Market Structure",
+           "rich": "<b>2 Market Structure</b>",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        72.0,
+        527.784,
+        123.741
+       ],
+       "render_bbox": [
+        72.0,
+        72.0,
+        527.784,
+        123.741
+       ],
+       "rich_content": "subsequent recovery in market depth was uneven across maturities. Short-dated bonds recovered first, while long-dated bonds lagged. <b>2 Market Structure</b>",
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text_merged_away",
+       "x": 72.0,
+       "y": 72.0
+      },
+      {
+       "bbox": [
+        72.0,
+        127.444,
+        391.809,
+        141.871
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "We model the bid-ask spread as a function of volatility and inventory:",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "We model the bid-ask spread as a function of volatility and inventory:",
+         "rich": "We model the bid-ask spread as a function of volatility and inventory:",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          127.444,
+          391.809,
+          141.871
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           127.444,
+           391.809,
+           141.871
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            127.444,
+            391.809,
+            141.871
+           ],
+           "plain": "We model the bid-ask spread as a function of volatility and inventory:",
+           "rich": "We model the bid-ask spread as a function of volatility and inventory:",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        127.444,
+        391.809,
+        141.871
+       ],
+       "render_bbox": [
+        72.0,
+        127.444,
+        391.809,
+        141.871
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 127.444
+      },
+      {
+       "bbox": [
+        200.0,
+        156.34,
+        298.112,
+        171.976
+       ],
+       "math_candidate_symbol_count": 0,
+       "math_line_count": 1,
+       "math_mixed": false,
+       "math_reasons": [
+        "decoded_symbol",
+        "equation_structure",
+        "math_font"
+       ],
+       "math_signature": {
+        "font_sha256": "b76a7ca153c24671658335bbd08946350ffc621fa1c516e7123095d4ffd5c581",
+        "geometry_sha256": "568f53173635f248815d01099731fd13da75d220c9df19085a0efcd718ac7a0c",
+        "raster_height": 32,
+        "raster_sha256": "c998ba16d88fb78300735f82012fc34c5f8b567c21764c8a8a25d6cffc272cd8",
+        "raster_width": 197,
+        "signature_sha256": "7b7dda5a069bced7415c1f0b476935936a04fe3333258148cd96686aa877fc85",
+        "span_count": 1,
+        "text_sha256": "4baa55903015e7a21a18e50e3f10ed49a6c4a09970137babbd4256dd891fdf5b"
+       },
+       "rect": [
+        200.0,
+        156.34,
+        298.112,
+        171.976
+       ],
+       "type": "formula_image",
+       "x": 200.0,
+       "y": 156.34
+      },
+      {
+       "bbox": [
+        470.0,
+        157.173,
+        482.831,
+        171.6
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "(1)",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "(1)",
+         "rich": "(1)",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          470.0,
+          157.173,
+          482.831,
+          171.6
+         ],
+         "source_line_bboxes": [
+          [
+           470.0,
+           157.173,
+           482.831,
+           171.6
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            470.0,
+            157.173,
+            482.831,
+            171.6
+           ],
+           "plain": "(1)",
+           "rich": "(1)",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        470.0,
+        157.173,
+        482.831,
+        171.6
+       ],
+       "render_bbox": [
+        470.0,
+        157.173,
+        482.831,
+        171.6
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 470.0,
+       "y": 157.173
+      },
+      {
+       "bbox": [
+        72.0,
+        188.46,
+        376.049,
+        202.887
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "where sigma denotes realised volatility and I the dealer inventory.",
+       "fontsize": 10.5,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 14.427,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "where sigma denotes realised volatility and I the dealer inventory.",
+         "rich": "where sigma denotes realised volatility and I the dealer inventory.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          188.46,
+          376.049,
+          202.887
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           188.46,
+           376.049,
+           202.887
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            188.46,
+            376.049,
+            202.887
+           ],
+           "plain": "where sigma denotes realised volatility and I the dealer inventory.",
+           "rich": "where sigma denotes realised volatility and I the dealer inventory.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        188.46,
+        376.049,
+        202.887
+       ],
+       "render_bbox": [
+        72.0,
+        188.46,
+        376.049,
+        202.887
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 188.46
+      },
+      {
+       "bbox": [
+        72.0,
+        227.477,
+        522.0,
+        307.477
+       ],
+       "rect": [
+        72.0,
+        227.477,
+        522.0,
+        307.477
+       ],
+       "type": "table_image",
+       "y": 227.477
+      },
+      {
+       "bbox": [
+        82.0,
+        230.777,
+        120.89,
+        244.547
+       ],
+       "bold": true,
+       "color": 0,
+       "content": "Maturity",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.77,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "Maturity",
+         "rich": "<b>Maturity</b>",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          82.0,
+          230.777,
+          120.89,
+          244.547
+         ],
+         "source_line_bboxes": [
+          [
+           82.0,
+           230.777,
+           120.89,
+           244.547
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            82.0,
+            230.777,
+            120.89,
+            244.547
+           ],
+           "plain": "Maturity",
+           "rich": "<b>Maturity</b>",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        82.0,
+        230.777,
+        120.89,
+        244.547
+       ],
+       "render_bbox": [
+        82.0,
+        230.777,
+        120.89,
+        244.547
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 82.0,
+       "y": 230.777
+      },
+      {
+       "bbox": [
+        232.0,
+        230.777,
+        287.56,
+        244.547
+       ],
+       "bold": true,
+       "color": 0,
+       "content": "Spread (bp)",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.77,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "Spread (bp)",
+         "rich": "<b>Spread (bp)</b>",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          232.0,
+          230.777,
+          287.56,
+          244.547
+         ],
+         "source_line_bboxes": [
+          [
+           232.0,
+           230.777,
+           287.56,
+           244.547
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            232.0,
+            230.777,
+            287.56,
+            244.547
+           ],
+           "plain": "Spread (bp)",
+           "rich": "<b>Spread (bp)</b>",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        232.0,
+        230.777,
+        287.56,
+        244.547
+       ],
+       "render_bbox": [
+        232.0,
+        230.777,
+        287.56,
+        244.547
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 232.0,
+       "y": 230.777
+      },
+      {
+       "bbox": [
+        382.0,
+        230.777,
+        434.22,
+        244.547
+       ],
+       "bold": true,
+       "color": 0,
+       "content": "Depth ($m)",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.77,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "Depth ($m)",
+         "rich": "<b>Depth ($m)</b>",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          382.0,
+          230.777,
+          434.22,
+          244.547
+         ],
+         "source_line_bboxes": [
+          [
+           382.0,
+           230.777,
+           434.22,
+           244.547
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            382.0,
+            230.777,
+            434.22,
+            244.547
+           ],
+           "plain": "Depth ($m)",
+           "rich": "<b>Depth ($m)</b>",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        382.0,
+        230.777,
+        434.22,
+        244.547
+       ],
+       "render_bbox": [
+        382.0,
+        230.777,
+        434.22,
+        244.547
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 382.0,
+       "y": 230.777
+      },
+      {
+       "bbox": [
+        82.0,
+        250.727,
+        110.34,
+        264.466
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "2-year",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "2-year",
+         "rich": "2-year",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          82.0,
+          250.727,
+          110.34,
+          264.466
+         ],
+         "source_line_bboxes": [
+          [
+           82.0,
+           250.727,
+           110.34,
+           264.466
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            82.0,
+            250.727,
+            110.34,
+            264.466
+           ],
+           "plain": "2-year",
+           "rich": "2-year",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        82.0,
+        250.727,
+        110.34,
+        264.466
+       ],
+       "render_bbox": [
+        82.0,
+        250.727,
+        110.34,
+        264.466
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 82.0,
+       "y": 250.727
+      },
+      {
+       "bbox": [
+        232.0,
+        250.727,
+        245.9,
+        264.466
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "0.8",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "0.8",
+         "rich": "0.8",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          232.0,
+          250.727,
+          245.9,
+          264.466
+         ],
+         "source_line_bboxes": [
+          [
+           232.0,
+           250.727,
+           245.9,
+           264.466
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            232.0,
+            250.727,
+            245.9,
+            264.466
+           ],
+           "plain": "0.8",
+           "rich": "0.8",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        232.0,
+        250.727,
+        245.9,
+        264.466
+       ],
+       "render_bbox": [
+        232.0,
+        250.727,
+        245.9,
+        264.466
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 232.0,
+       "y": 250.727
+      },
+      {
+       "bbox": [
+        382.0,
+        250.727,
+        398.68,
+        264.466
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "250",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "250",
+         "rich": "250",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          382.0,
+          250.727,
+          398.68,
+          264.466
+         ],
+         "source_line_bboxes": [
+          [
+           382.0,
+           250.727,
+           398.68,
+           264.466
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            382.0,
+            250.727,
+            398.68,
+            264.466
+           ],
+           "plain": "250",
+           "rich": "250",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        382.0,
+        250.727,
+        398.68,
+        264.466
+       ],
+       "render_bbox": [
+        382.0,
+        250.727,
+        398.68,
+        264.466
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 382.0,
+       "y": 250.727
+      },
+      {
+       "bbox": [
+        82.0,
+        270.727,
+        115.9,
+        284.466
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "10-year",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "10-year",
+         "rich": "10-year",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          82.0,
+          270.727,
+          115.9,
+          284.466
+         ],
+         "source_line_bboxes": [
+          [
+           82.0,
+           270.727,
+           115.9,
+           284.466
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            82.0,
+            270.727,
+            115.9,
+            284.466
+           ],
+           "plain": "10-year",
+           "rich": "10-year",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        82.0,
+        270.727,
+        115.9,
+        284.466
+       ],
+       "render_bbox": [
+        82.0,
+        270.727,
+        115.9,
+        284.466
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 82.0,
+       "y": 270.727
+      },
+      {
+       "bbox": [
+        232.0,
+        270.727,
+        245.9,
+        284.466
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "1.6",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "1.6",
+         "rich": "1.6",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          232.0,
+          270.727,
+          245.9,
+          284.466
+         ],
+         "source_line_bboxes": [
+          [
+           232.0,
+           270.727,
+           245.9,
+           284.466
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            232.0,
+            270.727,
+            245.9,
+            284.466
+           ],
+           "plain": "1.6",
+           "rich": "1.6",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        232.0,
+        270.727,
+        245.9,
+        284.466
+       ],
+       "render_bbox": [
+        232.0,
+        270.727,
+        245.9,
+        284.466
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 232.0,
+       "y": 270.727
+      },
+      {
+       "bbox": [
+        382.0,
+        270.727,
+        398.68,
+        284.466
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "120",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "120",
+         "rich": "120",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          382.0,
+          270.727,
+          398.68,
+          284.466
+         ],
+         "source_line_bboxes": [
+          [
+           382.0,
+           270.727,
+           398.68,
+           284.466
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            382.0,
+            270.727,
+            398.68,
+            284.466
+           ],
+           "plain": "120",
+           "rich": "120",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        382.0,
+        270.727,
+        398.68,
+        284.466
+       ],
+       "render_bbox": [
+        382.0,
+        270.727,
+        398.68,
+        284.466
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 382.0,
+       "y": 270.727
+      },
+      {
+       "bbox": [
+        82.0,
+        290.727,
+        115.9,
+        304.466
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "30-year",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "30-year",
+         "rich": "30-year",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          82.0,
+          290.727,
+          115.9,
+          304.466
+         ],
+         "source_line_bboxes": [
+          [
+           82.0,
+           290.727,
+           115.9,
+           304.466
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            82.0,
+            290.727,
+            115.9,
+            304.466
+           ],
+           "plain": "30-year",
+           "rich": "30-year",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        82.0,
+        290.727,
+        115.9,
+        304.466
+       ],
+       "render_bbox": [
+        82.0,
+        290.727,
+        115.9,
+        304.466
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 82.0,
+       "y": 290.727
+      },
+      {
+       "bbox": [
+        232.0,
+        290.727,
+        245.9,
+        304.466
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "3.1",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "3.1",
+         "rich": "3.1",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          232.0,
+          290.727,
+          245.9,
+          304.466
+         ],
+         "source_line_bboxes": [
+          [
+           232.0,
+           290.727,
+           245.9,
+           304.466
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            232.0,
+            290.727,
+            245.9,
+            304.466
+           ],
+           "plain": "3.1",
+           "rich": "3.1",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        232.0,
+        290.727,
+        245.9,
+        304.466
+       ],
+       "render_bbox": [
+        232.0,
+        290.727,
+        245.9,
+        304.466
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 232.0,
+       "y": 290.727
+      },
+      {
+       "bbox": [
+        382.0,
+        290.727,
+        393.12,
+        304.466
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "45",
+       "fontsize": 10.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 13.74,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": true,
+         "plain": "45",
+         "rich": "45",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          382.0,
+          290.727,
+          393.12,
+          304.466
+         ],
+         "source_line_bboxes": [
+          [
+           382.0,
+           290.727,
+           393.12,
+           304.466
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            382.0,
+            290.727,
+            393.12,
+            304.466
+           ],
+           "plain": "45",
+           "rich": "45",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": true,
+       "rect": [
+        382.0,
+        290.727,
+        393.12,
+        304.466
+       ],
+       "render_bbox": [
+        382.0,
+        290.727,
+        393.12,
+        304.466
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": true,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 382.0,
+       "y": 290.727
+      },
+      {
+       "bbox": [
+        72.0,
+        325.477,
+        322.623,
+        337.842
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "Table 1 reports average spreads and depth by maturity bucket.",
+       "fontsize": 9.0,
+       "inline_math_fragments": [],
+       "layout_class": "table",
+       "line_height": 12.366,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "Table 1 reports average spreads and depth by maturity bucket.",
+         "rich": "Table 1 reports average spreads and depth by maturity bucket.",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          72.0,
+          325.477,
+          322.623,
+          337.842
+         ],
+         "source_line_bboxes": [
+          [
+           72.0,
+           325.477,
+           322.623,
+           337.842
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            72.0,
+            325.477,
+            322.623,
+            337.842
+           ],
+           "plain": "Table 1 reports average spreads and depth by maturity bucket.",
+           "rich": "Table 1 reports average spreads and depth by maturity bucket.",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        72.0,
+        325.477,
+        322.623,
+        337.842
+       ],
+       "render_bbox": [
+        72.0,
+        325.477,
+        322.623,
+        337.842
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 72.0,
+       "y": 325.477
+      },
+      {
+       "bbox": [
+        300.0,
+        750.325,
+        305.004,
+        762.691
+       ],
+       "bold": false,
+       "color": 0,
+       "content": "2",
+       "fontsize": 9.0,
+       "inline_math_fragments": [],
+       "layout_class": "scattered",
+       "line_height": 12.366,
+       "non_horizontal": false,
+       "paragraphs": [
+        {
+         "first_line_indent": false,
+         "gap_before": 0.0,
+         "margin_left": 0.0,
+         "nowrap": null,
+         "plain": "2",
+         "rich": "2",
+         "same_baseline_paragraph_start": false,
+         "source_bbox": [
+          300.0,
+          750.325,
+          305.004,
+          762.691
+         ],
+         "source_line_bboxes": [
+          [
+           300.0,
+           750.325,
+           305.004,
+           762.691
+          ]
+         ],
+         "source_lines": [
+          {
+           "bbox": [
+            300.0,
+            750.325,
+            305.004,
+            762.691
+           ],
+           "plain": "2",
+           "rich": "2",
+           "same_baseline_fragments": []
+          }
+         ],
+         "text_align": "left",
+         "text_indent": 0.0,
+         "toc_leader": null
+        }
+       ],
+       "preserve_source_style": false,
+       "rect": [
+        300.0,
+        750.325,
+        305.004,
+        762.691
+       ],
+       "render_bbox": [
+        300.0,
+        750.325,
+        305.004,
+        762.691
+       ],
+       "rich_content": null,
+       "rotation": 0,
+       "single_line_heading": false,
+       "superscript_runs": [],
+       "superscript_scale": null,
+       "table_hint": false,
+       "top_padding": 0.0,
+       "type": "text",
+       "x": 300.0,
+       "y": 750.325
+      }
+     ],
+     "layout_styles": {
+      "body": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.5,
+       "line_height": 14.91,
+       "padding_ratio": 0.34
+      },
+      "scattered": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.5,
+       "line_height": 13.65,
+       "padding_ratio": 0.3
+      },
+      "table": {
+       "color": 0,
+       "color_hex": "#000000",
+       "fontsize": 10.5,
+       "line_height": 13.02,
+       "padding_ratio": 0.26
+      }
+     }
+    },
+    "2": {
+     "appendix": true
+    }
+   },
+   "page_rects": {
+    "0": [
+     0.0,
+     0.0,
+     612.0,
+     792.0
+    ],
+    "1": [
+     0.0,
+     0.0,
+     612.0,
+     792.0
+    ],
+    "2": [
+     0.0,
+     0.0,
+     612.0,
+     792.0
+    ]
+   }
+  },
+  "page_caches": {
+   "page_0.json": {
+    "element_identities": {
+     "0": "eba4326cb61597376b8af1bb600c0846a9dedc8d31b54c8f2dc1bb38e367dd0b",
+     "1": "402c669f984c0637677236f8f48e2ddf4bcdcada8b7bc437a4694e1088035cca",
+     "10": "ddac8c3ba0b55ad8af62351523fd7436c7611a18c9875b259fb741c4d7e0392b",
+     "11": "14de7f79aee6af5f42cb42a386a547400dde4b6cfcaa4bc7c11a1bdd9e5572a7",
+     "12": "6678376cde893ab59408f623c7b197fc93ed234c22b83db6ddf4c00e321b7f4e",
+     "13": "ecbd31c5de997baa1b7378cb1be90d5782d02f35506c9a042cb025a38a6c5198",
+     "2": "a68cdffa71e95933e4ab231d0fd177738181a33dd9fe5b8a9e61053f2b3f346b",
+     "3": "f3d14b2b0ef1d95168ad76aee5ef9b594891c0925471eb07111dbbc0728ca177",
+     "4": "16848409d0f93ba95cf9a207fdaa3f9167f462143bd43c471369c5b7022b043d",
+     "5": "e5f44dc15d9a67e8b2023dd6c730e7c649bba214ffad61f0ae4b78579b7a1ec3",
+     "6": "e12215a70e4061ecb08fd808ef4586deec05da880bdf96f2e1edeb10fcbd8807",
+     "7": "47086e92f8cdc954ef99d575e8a2f3436a3e1553e82a320c9add794a996810a7",
+     "8": "f66258c2508a022d07328b104441b0a32943bdd0c60f1b7dadc15c83de1902a7",
+     "9": "cd023d3abf2bc8c576174a5d8c1b6364a0fd0111684b4a9082e40911f54189bb"
+    },
+    "layout_semantics": "2026-08-semantic-paragraphs-v39",
+    "schema_version": 3,
+    "source_sha256": "31582b930dfff1b8b0b85379b71b3da89a6cf62dfe4ff1b9d25524b503197598",
+    "translations": {
+     "0": "都主 量工 这也 的十 还开",
+     "1": "化两 行年 为里",
+     "10": "1",
+     "11": "工日 国出 同学 就动 行年 产用 表等 工日 新反 作由 同学 工日 主理 生十 度相 四好 工日 去得 相之, 业一 能起 工日 所平 心量 量工 物度 高着 年所 发然 高发 种得. 的民 国他 性二 们在, 和生 如在 国他 物生. <b>2 物度 起为</b>",
+     "12": "1 作个 工日 性方 本为 我面 工日 以正 分能 学不.",
+     "13": "1",
+     "2": "着如 ............................................................ 1 物度 起为 ............................................................ 2 和我 ............................................................ 3",
+     "3": "1 着如",
+     "4": "物度 理生 三两 都主 高发 工日 的后 不水, 业一 因有 定用 时上 性经 成作 下由, 发时 下高 业一 工日 一而 同学 工日 方下 都还. 来两 一而 小之, 有个 应年 业一 高着 这心, 日下 量工 大家 小物 工日 时是 于使 点水 们起 中子 是全.",
+     "5": "生十 加理 正体 说当 两子:",
+     "6": "· 本三 法和 是上 子会 物度 我面 明化;",
+     "7": "· 在其 成作 从有 工日 数度 由二 们起 工日 下由 种能;",
+     "8": "· 后的 工日 过电 国样 同学 加事 还性 把人.",
+     "9": "在里 电等 着民 法和 政对 因使 量工 你面 制成 合两 工日 着如 同学 工日 得到 说不."
+    }
+   },
+   "page_1.json": {
+    "element_identities": {
+     "1": "0bc13d0763d4babc9dc82e0b52e093180dd9b827ee3855ab83ea53805f9aac38",
+     "10": "4fd3da79dc4a0c82e38bfa17a6cd1060ed0fbd51ef35ee28112fb6da2fa1a397",
+     "11": "8b0255062b6d7434260f6d7e6d946bcbe858219f054e2d9a5a6d530f4bbff779",
+     "12": "1958c9ee178045b9bac3bc0d1606ce0727996daf7081ef62373cd8de078eea1a",
+     "13": "85e7732a1538c34b483b914c1848f73c1f9e72d26d2a29c26888257db6a27190",
+     "14": "bcfe1cadabd6862842b3cb9facb504b406e5e22c6683cc1db606f9a12ebecf8d",
+     "15": "feaa38839c38181f998c7248cc5eadcbfc32405ebfaed37b56455849c407ec98",
+     "16": "5a51318c4add8e16c83a164495dbb0f5e36d301fba21e0d6fb3698d4af3319de",
+     "17": "fe26c7497a9865978c717b34504041c530b61b8810c45fb9889cd051eafb2255",
+     "18": "16cf1c326392f0046c90d6781991dd9d0b86f8f83e0ac54e4ef5d0624d06f8ee",
+     "19": "d9bea325bf659b6e9ff0b703b8591a0c98691b0201d24ed79c8d3365b2ed5b7c",
+     "3": "51c6964d3c126b9e34121afb0f296708c3e704a60c6ac1442c59db06ab39fb8d",
+     "4": "8b97dd6c0ddb12c08239ff0c26e305e411f7fbbbd4c23eb17475da1a4f85a775",
+     "6": "417c43de3db3af63f14924d47b365e3142e42f00266895aeffde1e7409f8f5f7",
+     "7": "6fecadbf833d56d8ecfb60f656950485e57bbfb4303aac8bb62e7eb0d07db62c",
+     "8": "6acfa88ab536c9d73312d1874887225128d20d8ac5ffae54243fc6144b8819e4",
+     "9": "e00a92ba0db6499cb46997aed440dd59fd738e7bf5efc1cb3b039e2e1b95d746"
+    },
+    "layout_semantics": "2026-08-semantic-paragraphs-v39",
+    "schema_version": 3,
+    "source_sha256": "31582b930dfff1b8b0b85379b71b3da89a6cf62dfe4ff1b9d25524b503197598",
+    "translations": {
+     "1": "水平 在前 工日 地四 的人 去说 法和 那开 同学 一而 业一 成作:",
+     "10": "0.8",
+     "11": "250",
+     "12": "10-水主",
+     "13": "1.6",
+     "14": "120",
+     "15": "30-水主",
+     "16": "3.1",
+     "17": "45",
+     "18": "上自 1 全年 生化 有个 业一 高着 们起 制外 后新.",
+     "19": "2",
+     "3": "(1)",
+     "4": "主间 行高 说性 义如 一而 业一 高形 工日 你面 成作.",
+     "6": "制外",
+     "7": "的人 (会它)",
+     "8": "高着 ($业多)",
+     "9": "2-水主"
+    }
+   }
+  },
+  "requests": [
+   "PHOENA_SEG_0000_6EF53FE186E283F5\nLiquidity in Fixed Income Markets\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0001_620DF28893DAE2C7\nWorking Paper Series\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0002_195B6B1A30D9DCD6\nIntroduction ............................................................ 1 Market Structure ............................................................ 2 References ............................................................ 3\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0003_C9234967B670C324\n1 Introduction\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0004_3E151ABF4B73EDBE\nMarket makers provide liquidity across the trading day, and their quotes respond to inventory risk, funding costs and the volatility of the underlying securities. When volatility rises, spreads widen and depth declines, which in turn affects the execution quality observed by institutional investors.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0005_57F0337A8DD68875\nDealers balance three competing objectives:\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0006_0095F0A1A179AB84\n· maintaining a competitive two-sided market for clients;\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0007_680EB27113EA7209\n· keeping inventory within the limits set by the risk committee;\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0008_70E8A8D5FF8E9495\n· minimising the balance-sheet cost of holding long positions.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0009_158240EFF7C7CB27\nRecent studies document a persistent decline in dealer capacity since the introduction of the leverage ratio.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0010_A21347747EA2924D\nThe remainder of this paper describes how the quoting behaviour of the largest dealers changed during the stress episode, and why the subsequent recovery in market depth was uneven across maturities. Short-dated bonds recovered first, while long-dated bonds lagged. <b>2 Market Structure</b>\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0011_51A6A26910A7A88A\n1 See the supplementary appendix for the full sample description.",
+   "PHOENA_SEG_0000_80D5FDAA0CB14E19\nWe model the bid-ask spread as a function of volatility and inventory:\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0001_C058DA7BB63E9276\nwhere sigma denotes realised volatility and I the dealer inventory.\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0002_25E271B62958370E\nMaturity\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0003_0AA574606104E24C\nSpread (bp)\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0004_BF2B1873D6A43145\nDepth ($m)\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0005_E9CEF07A4252F8FD\n2-year\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0006_964A96A08C650C07\n10-year\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0007_9CED45210CD3C34E\n30-year\n≡≡≡SPLIT≡≡≡\nPHOENA_SEG_0008_F0DB309AE8681EF0\nTable 1 reports average spreads and depth by maturity bucket."
+  ],
+  "task": {
+   "completed_files": [
+    "0",
+    "1",
+    "2"
+   ],
+   "completion_status": "completed",
+   "current_file": "",
+   "element_source_fallbacks": [],
+   "filename": "report.pdf",
+   "out_filename": "zh_report.pdf",
+   "output": "<TMP>/outputs/golden0000000000.pdf",
+   "progress": 3,
+   "source_page_fallbacks": [],
+   "status": "completed",
+   "table_preservation_rollbacks": [],
+   "total": 3,
+   "type": "pdf",
+   "untranslated_delivered_pages": [],
+   "untranslated_english_leaks": []
+  }
+ }
+}
