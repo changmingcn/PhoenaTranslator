@@ -57,179 +57,218 @@ def _mark_pdf_table_preserved_elements(
     preserved = []
     dominant_fontsize = _cross_page_dominant_fontsize(page_extractions or {})
     for page_num, info in page_extractions.items():
-        elements = info.get("elements") or []
-        text_indices = [
-            index
-            for index, elem in enumerate(elements)
-            if elem.get("type") == ElementType.TEXT
-        ]
-        prose_indices = {
-            index
-            for index in text_indices
-            if _pdf_element_is_body_prose(elements[index], dominant_fontsize)
-        }
-        # Region geometry stays authoritative: a cell inside a detected grid
-        # is preserved whatever it reads like.  The classifier is the noisy
-        # signal, so it may not speak for prose.
-        table_like = [
-            index
-            for index in text_indices
-            if elements[index].get("table_hint")
-            or (
-                elements[index].get("layout_class") == LayoutClass.TABLE
-                and index not in prose_indices
-            )
-        ]
-        count = len(table_like)
-        # Real data tables carry numbers; a title page's centered
-        # author/date block also gets classified "table" but is mostly
-        # digit-free prose and must keep translating.
-        digit_bearing = sum(
-            1
-            for index in table_like
-            if any(
-                char.isdigit()
-                for char in str(elements[index].get("content", ""))
+        preserved.extend(
+            _preserve_page_tables(
+                int(page_num) + 1,
+                info.get("elements") or [],
+                (page_rects or {}).get(page_num),
+                dominant_fontsize,
+                rollbacks,
             )
         )
-        numeric_enough = digit_bearing * 5 >= count * 2
-        page_is_tabular = numeric_enough and (
-            count >= 10 or (count >= 4 and count * 2 >= len(text_indices))
+    return preserved
+
+
+def _preserve_page_tables(
+    page_number: int,
+    elements: list[dict],
+    page_rect,
+    dominant_fontsize: float,
+    rollbacks: list[dict] | None,
+) -> list[dict]:
+    """Apply the table policy to one page; return its preservation entries."""
+    text_indices = [
+        index
+        for index, elem in enumerate(elements)
+        if elem.get("type") == ElementType.TEXT
+    ]
+    prose_indices = {
+        index
+        for index in text_indices
+        if _pdf_element_is_body_prose(elements[index], dominant_fontsize)
+    }
+    # Region geometry stays authoritative: a cell inside a detected grid
+    # is preserved whatever it reads like.  The classifier is the noisy
+    # signal, so it may not speak for prose.
+    table_like = [
+        index
+        for index in text_indices
+        if elements[index].get("table_hint")
+        or (
+            elements[index].get("layout_class") == LayoutClass.TABLE
+            and index not in prose_indices
         )
-        marked_rects = []
-        for index in table_like:
+    ]
+    page_is_tabular = _pdf_page_is_tabular(elements, table_like, len(text_indices))
+    entries, marked_rects = _seed_pdf_table_marks(
+        page_number, elements, table_like, page_is_tabular
+    )
+    if len(marked_rects) >= 4:
+        entries.extend(
+            _sweep_pdf_table_grid(page_number, elements, text_indices, prose_indices, page_rect)
+        )
+    if _release_pdf_table_marks_freezing_prose(
+        page_number, elements, prose_indices, entries, rollbacks
+    ):
+        return []
+    return entries
+
+
+def _pdf_page_is_tabular(elements: list[dict], table_like: list[int], text_count: int) -> bool:
+    count = len(table_like)
+    # Real data tables carry numbers; a title page's centered
+    # author/date block also gets classified "table" but is mostly
+    # digit-free prose and must keep translating.
+    digit_bearing = sum(
+        1
+        for index in table_like
+        if any(char.isdigit() for char in str(elements[index].get("content", "")))
+    )
+    numeric_enough = digit_bearing * 5 >= count * 2
+    return numeric_enough and (count >= 10 or (count >= 4 and count * 2 >= text_count))
+
+
+def _seed_pdf_table_marks(
+    page_number: int,
+    elements: list[dict],
+    table_like: list[int],
+    page_is_tabular: bool,
+) -> tuple[list[dict], list[fitz.Rect]]:
+    """Mark region cells, and classifier table cells on tabular pages."""
+    entries = []
+    marked_rects = []
+    for index in table_like:
+        elem = elements[index]
+        if elem.get("skip_translate_reason"):
+            continue
+        if not (elem.get("table_hint") or page_is_tabular):
+            continue
+        elem["skip_translate_reason"] = SkipReason.TABLE_PRESERVED
+        entries.append(
+            {
+                "page": page_number,
+                "element": index,
+                "trigger": "region" if elem.get("table_hint") else "page-density",
+            }
+        )
+        try:
+            rect = _get_pdf_elem_rect(elem)
+        except Exception:
+            continue
+        if not rect.is_empty:
+            marked_rects.append(rect)
+    return entries, marked_rects
+
+
+def _sweep_pdf_table_grid(
+    page_number: int,
+    elements: list[dict],
+    text_indices: list[int],
+    prose_indices: set[int],
+    page_rect,
+) -> list[dict]:
+    """Grow marks to cells the classifier stamped inconsistently.
+
+    The classifier occasionally stamps individual cells (a column header, a
+    first data row, the second line of a table note) as scattered/body.  Each
+    unmarked element is compared against the marked elements themselves
+    rather than against one box grown from all of them: a single box merges a
+    table in the left text column with a chart in the right one, spans the
+    page, and then walks up both text columns row by row (2026-07-27: a whole
+    page of a two-column paper delivered in English).  Chaining locally
+    cannot jump columns, because every step needs horizontal overlap with the
+    element it grows from, and cannot cross a paragraph, because prose is not
+    eligible.
+    """
+    entries = []
+    changed = True
+    while changed:
+        changed = False
+        anchors = [
+            (index, _get_pdf_elem_rect(elements[index]))
+            for index in text_indices
+            if elements[index].get("skip_translate_reason") == SkipReason.TABLE_PRESERVED
+        ]
+        for index in text_indices:
             elem = elements[index]
-            if elem.get("skip_translate_reason"):
+            if elem.get("skip_translate_reason") or index in prose_indices:
                 continue
-            if not (elem.get("table_hint") or page_is_tabular):
+            # The sweep exists to recover cells the classifier stamped
+            # inconsistently.  ``body`` is not an inconsistent stamp, it is
+            # the classifier saying "running text" — and a page of stacked
+            # reference entries reads to every other signal exactly like a
+            # page of table rows.
+            if elem.get("layout_class") == LayoutClass.BODY:
                 continue
-            elem["skip_translate_reason"] = SkipReason.TABLE_PRESERVED
-            preserved.append(
-                {
-                    "page": int(page_num) + 1,
-                    "element": index,
-                    "trigger": (
-                        "region" if elem.get("table_hint") else "page-density"
-                    ),
-                }
-            )
+            # The running footer sits a few points under the last note line
+            # of a chart box in the same column; it belongs to the page, not
+            # to the table.
+            if _pdf_element_in_page_footer_band(elem, page_rect):
+                continue
             try:
                 rect = _get_pdf_elem_rect(elem)
             except Exception:
                 continue
-            if not rect.is_empty:
-                marked_rects.append(rect)
-        # Grid sweep: the classifier occasionally stamps individual cells (a
-        # column header, a first data row, the second line of a table note)
-        # as scattered/body.  Each unmarked element is compared against the
-        # marked elements themselves rather than against one box grown from
-        # all of them: a single box merges a table in the left text column
-        # with a chart in the right one, spans the page, and then walks up
-        # both text columns row by row (2026-07-27: a whole page of a
-        # two-column paper delivered in English).  Chaining locally cannot
-        # jump columns, because every step needs horizontal overlap with the
-        # element it grows from, and cannot cross a paragraph, because prose
-        # is not eligible.
-        page_rect = (page_rects or {}).get(page_num)
-        if len(marked_rects) >= 4:
+            if rect.is_empty or not _pdf_rect_attaches_to_table_anchor(rect, elem, anchors):
+                continue
+            elem["skip_translate_reason"] = SkipReason.TABLE_PRESERVED
             changed = True
-            while changed:
-                changed = False
-                anchors = [
-                    (index, fitz.Rect(elements[index].get("bbox", elements[index].get("rect"))))
-                    for index in text_indices
-                    if elements[index].get("skip_translate_reason")
-                    == SkipReason.TABLE_PRESERVED
-                ]
-                for index in text_indices:
-                    elem = elements[index]
-                    if elem.get("skip_translate_reason"):
-                        continue
-                    if index in prose_indices:
-                        continue
-                    # The sweep exists to recover cells the classifier stamped
-                    # inconsistently.  ``body`` is not an inconsistent stamp,
-                    # it is the classifier saying "running text" — and a page
-                    # of stacked reference entries reads to every other signal
-                    # exactly like a page of table rows.
-                    if elem.get("layout_class") == LayoutClass.BODY:
-                        continue
-                    # The running footer sits a few points under the last
-                    # note line of a chart box in the same column; it belongs
-                    # to the page, not to the table.
-                    if _pdf_element_in_page_footer_band(elem, page_rect):
-                        continue
-                    try:
-                        rect = _get_pdf_elem_rect(elem)
-                    except Exception:
-                        continue
-                    if rect.is_empty:
-                        continue
-                    # Intra-table row gaps run a few points; a paragraph gap is
-                    # wider and stays outside.  Deliberately the same limit the
-                    # box-growing sweep used: this rewrite is here to stop the
-                    # sweep reaching ACROSS a page, not to let it reach further.
-                    gap_limit = max(
-                        4.0, 0.45 * float(elem.get("fontsize", 12.0) or 12.0)
-                    )
-                    attached = False
-                    for anchor_index, anchor in anchors:
-                        if anchor.is_empty:
-                            continue
-                        overlap = min(rect.x1, anchor.x1) - max(
-                            rect.x0, anchor.x0
-                        )
-                        if overlap < min(rect.width, anchor.width) * 0.5:
-                            continue
-                        gap = max(anchor.y0 - rect.y1, rect.y0 - anchor.y1)
-                        if gap > gap_limit:
-                            continue
-                        attached = True
-                        break
-                    if not attached:
-                        continue
-                    elem["skip_translate_reason"] = SkipReason.TABLE_PRESERVED
-                    changed = True
-                    preserved.append(
-                        {
-                            "page": int(page_num) + 1,
-                            "element": index,
-                            "trigger": "grid-union",
-                        }
-                    )
-        # Circuit breaker.  Verbatim preservation exists so a table keeps its
-        # geometry; it must never be the reason a reader gets a page of
-        # untranslated prose.  If this page's marks would freeze most of its
-        # running text anyway — a table region mis-detected over a whole
-        # column, some layout nobody has seen yet — drop every mark the policy
-        # made here and let the page translate.  Delivering a translated page
-        # with a reflowed table beats delivering the source page.
-        prose_total = sum(
-            len(str(elements[index].get("content", "")))
-            for index in prose_indices
-        )
-        prose_frozen = sum(
-            len(str(elements[index].get("content", "")))
-            for index in prose_indices
-            if elements[index].get("skip_translate_reason") == SkipReason.TABLE_PRESERVED
-        )
-        if prose_total >= 200 and prose_frozen * 2 > prose_total:
-            page_marks = [
-                entry
-                for entry in preserved
-                if entry["page"] == int(page_num) + 1
-            ]
-            for entry in page_marks:
-                elem = elements[entry["element"]]
-                if elem.get("skip_translate_reason") == SkipReason.TABLE_PRESERVED:
-                    elem.pop("skip_translate_reason", None)
-                preserved.remove(entry)
-            if rollbacks is not None:
-                rollbacks.append({
-                    "page": int(page_num) + 1,
-                    "reason": "table-preservation-would-freeze-page-prose",
-                    "released_elements": len(page_marks),
-                    "prose_chars": int(prose_total),
-                    "frozen_prose_chars": int(prose_frozen),
-                })
-    return preserved
+            entries.append({"page": page_number, "element": index, "trigger": "grid-union"})
+    return entries
+
+
+def _pdf_rect_attaches_to_table_anchor(rect: fitz.Rect, elem: dict, anchors) -> bool:
+    # Intra-table row gaps run a few points; a paragraph gap is wider and
+    # stays outside.  Deliberately the same limit the box-growing sweep used:
+    # the local sweep is here to stop reaching ACROSS a page, not to let it
+    # reach further.
+    gap_limit = max(4.0, 0.45 * float(elem.get("fontsize", 12.0) or 12.0))
+    for _anchor_index, anchor in anchors:
+        if anchor.is_empty:
+            continue
+        overlap = min(rect.x1, anchor.x1) - max(rect.x0, anchor.x0)
+        if overlap < min(rect.width, anchor.width) * 0.5:
+            continue
+        gap = max(anchor.y0 - rect.y1, rect.y0 - anchor.y1)
+        if gap <= gap_limit:
+            return True
+    return False
+
+
+def _release_pdf_table_marks_freezing_prose(
+    page_number: int,
+    elements: list[dict],
+    prose_indices: set[int],
+    entries: list[dict],
+    rollbacks: list[dict] | None,
+) -> bool:
+    """Circuit breaker: undo a page's marks when they would freeze its prose.
+
+    Verbatim preservation exists so a table keeps its geometry; it must never
+    be the reason a reader gets a page of untranslated prose.  If this page's
+    marks would freeze most of its running text anyway — a table region
+    mis-detected over a whole column, some layout nobody has seen yet — drop
+    every mark the policy made here and let the page translate.  Delivering a
+    translated page with a reflowed table beats delivering the source page.
+    """
+    prose_total = sum(len(str(elements[index].get("content", ""))) for index in prose_indices)
+    prose_frozen = sum(
+        len(str(elements[index].get("content", "")))
+        for index in prose_indices
+        if elements[index].get("skip_translate_reason") == SkipReason.TABLE_PRESERVED
+    )
+    if not (prose_total >= 200 and prose_frozen * 2 > prose_total):
+        return False
+    for entry in entries:
+        elem = elements[entry["element"]]
+        if elem.get("skip_translate_reason") == SkipReason.TABLE_PRESERVED:
+            elem.pop("skip_translate_reason", None)
+    if rollbacks is not None:
+        rollbacks.append({
+            "page": page_number,
+            "reason": "table-preservation-would-freeze-page-prose",
+            "released_elements": len(entries),
+            "prose_chars": int(prose_total),
+            "frozen_prose_chars": int(prose_frozen),
+        })
+    return True
