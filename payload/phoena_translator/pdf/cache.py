@@ -6,6 +6,12 @@ import logging
 from dataclasses import dataclass
 from typing import Callable
 from phoena_translator.config import get_app_config
+from phoena_translator.storage_layout import (
+    pdf_audit_path,
+    pdf_layout_cache_path,
+    pdf_page_cache_dir,
+    pdf_page_cache_path,
+)
 import hashlib
 import json
 import os
@@ -72,7 +78,7 @@ def _pdf_source_sha256(path: str) -> str:
 
 
 def _pdf_page_cache_path(task_id: str, page_num: int) -> str:
-    return os.path.join(_cache_progress_dir(), f"{task_id}_pages", f"page_{page_num}.json")
+    return pdf_page_cache_path(_cache_progress_dir(), task_id, page_num)
 
 
 def _load_pdf_page_translation_cache(
@@ -375,7 +381,7 @@ def _save_pdf_page_translation_cache(
     source_sha256: str,
     elements: list[dict] | None = None,
 ) -> str:
-    page_cache_dir = os.path.join(_cache_progress_dir(), f"{task_id}_pages")
+    page_cache_dir = pdf_page_cache_dir(_cache_progress_dir(), task_id)
     os.makedirs(page_cache_dir, exist_ok=True)
     path = _pdf_page_cache_path(task_id, page_num)
     normalized_translations = {
@@ -408,7 +414,7 @@ def _load_pdf_cached_page_indices(
     task_id: str,
     source_sha256: str | None = None,
 ) -> set[int]:
-    page_cache_dir = os.path.join(_cache_progress_dir(), f"{task_id}_pages")
+    page_cache_dir = pdf_page_cache_dir(_cache_progress_dir(), task_id)
     if not os.path.isdir(page_cache_dir):
         return set()
 
@@ -431,11 +437,11 @@ def _load_pdf_cached_page_indices(
 
 
 def _pdf_layout_cache_path(task_id: str) -> str:
-    return os.path.join(_cache_progress_dir(), f"{task_id}_layout.json")
+    return pdf_layout_cache_path(_cache_progress_dir(), task_id)
 
 
 def _pdf_audit_path(task_id: str) -> str:
-    return os.path.join(_cache_progress_dir(), f"{task_id}_audit.json")
+    return pdf_audit_path(_cache_progress_dir(), task_id)
 
 
 def _save_pdf_audit(task_id: str, audit: dict) -> str:

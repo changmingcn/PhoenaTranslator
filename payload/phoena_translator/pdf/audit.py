@@ -66,7 +66,6 @@ class PDFAuditDependencies:
     check_output_structure: Callable[..., dict]
     trim_process_memory: Callable[[], None]
     save_progress: Callable[[str, dict], None]
-    tasks: dict[str, dict]
 
 def _collect_pdf_superscript_expectations(page_extractions: dict) -> list[dict]:
     expectations = []
@@ -1829,16 +1828,14 @@ def _save_pdf_translation_progress(
     *,
     dependencies: PDFAuditDependencies,
 ):
-    tasks = dependencies.tasks
     save_progress = dependencies.save_progress
+    # filename/out_filename/type are carried over by the task store.
     payload = {
         "status": "translating",
         "progress": len(completed_indices),
         "total": total_pages,
         "current_file": current_file,
         "completed_files": [str(i) for i in sorted(completed_indices)],
-        "filename": tasks[task_id].get("filename", ""),
-        "out_filename": tasks[task_id].get("out_filename", ""),
         "type": "pdf",
     }
     if source_page_fallbacks:

@@ -31,7 +31,7 @@ class PDFRecoveryContext:
     structure_retry: int
     fail_open_to_source_page: bool
     pdf_audit: dict
-    tasks: dict[str, dict]
+    load_task: Callable[[str], dict | None]
     logger: logging.Logger
     save_progress: Callable[[str, dict], None]
     trim_process_memory: Callable[[], None]
@@ -221,7 +221,7 @@ def _retry_structural_repair(
 
 
 def _task_record(context: PDFRecoveryContext) -> dict:
-    return context.tasks.get(context.task_id, {})
+    return dict(context.load_task(context.task_id) or {})
 
 
 def _trim_recovery_memory(context: PDFRecoveryContext) -> None:

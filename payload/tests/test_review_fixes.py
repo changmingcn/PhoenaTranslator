@@ -3612,7 +3612,6 @@ def test_pipeline_dependencies_preserve_legacy_bool_constructor():
         assembly_semaphore=threading.Semaphore(1),
         extraction_semaphore=threading.Semaphore(1),
         logger=log,
-        tasks={},
         build_glossary=no_op,
         make_prompt_with_glossary=no_op,
         load_progress=no_op,

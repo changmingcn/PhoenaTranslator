@@ -59,7 +59,6 @@ class PDFOutputStageContext:
     bold_font_path: str
     assembly_semaphore: Any
     logger: logging.Logger
-    tasks: dict[str, dict]
     pdf_audit: dict
     page_extractions: dict[int, dict]
     page_rects: dict[int, Any]
@@ -556,7 +555,6 @@ def finalize_output(
         if completed_audit["source_page_fallbacks"]
         else "completed"
     )
-    task = context.tasks[context.task_id]
     context.save_progress(
         context.task_id,
         {
@@ -566,8 +564,6 @@ def finalize_output(
             "total": context.total_pages,
             "current_file": "",
             "completed_files": [str(index) for index in range(context.total_pages)],
-            "filename": task.get("filename", ""),
-            "out_filename": task.get("out_filename", ""),
             "type": "pdf",
             "output": context.out_path,
             "source_page_fallbacks": completed_audit["source_page_fallbacks"],

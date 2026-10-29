@@ -116,7 +116,7 @@ def _reported_total_pages(
 ) -> int | None:
     candidates = [
         pdf_audit.get("total_pages"),
-        dependencies.tasks.get(task_id, {}).get("total"),
+        (dependencies.load_progress(task_id) or {}).get("total"),
     ]
     for candidate in candidates:
         try:
@@ -255,7 +255,6 @@ def _run_pdf_attempt(
         bold_font_path=bold_font_path,
         assembly_semaphore=dependencies.assembly_semaphore,
         logger=dependencies.logger,
-        tasks=dependencies.tasks,
         pdf_audit=pdf_audit,
         page_extractions=page_extractions,
         page_rects=page_rects,
@@ -286,7 +285,7 @@ def _recovery_context(
         structure_retry=structure_retry,
         fail_open_to_source_page=dependencies.fail_open_to_source_page,
         pdf_audit=pdf_audit,
-        tasks=dependencies.tasks,
+        load_task=dependencies.load_progress,
         logger=dependencies.logger,
         save_progress=dependencies.save_progress,
         trim_process_memory=dependencies.trim_process_memory,

@@ -38,7 +38,6 @@ class PDFPipelineDependencies:
     assembly_semaphore: Any
     extraction_semaphore: Any
     logger: logging.Logger
-    tasks: dict[str, dict]
     build_glossary: Callable[..., str]
     make_prompt_with_glossary: Callable[[str, str], str]
     load_progress: Callable[[str], dict | None]

@@ -49,6 +49,7 @@ from phoena_translator.pdf.targets import (
     _pdf_element_requires_translation,
 )
 from phoena_translator.pdf.translation import _validate_pdf_page_translations
+from phoena_translator.storage_layout import pdf_page_cache_dir
 from phoena_translator.pdf.types import (
     PDFPageExtractionError,
     PDFTranslationIntegrityError,
@@ -122,7 +123,7 @@ def _load_resume_state(
 ) -> tuple[set[int], set[int]]:
     progress_data = context.load_progress(context.task_id)
     os.makedirs(
-        os.path.join(context.progress_dir, f"{context.task_id}_pages"),
+        pdf_page_cache_dir(context.progress_dir, context.task_id),
         exist_ok=True,
     )
     cached_indices = set(_load_pdf_cached_page_indices(context.task_id, source_sha256))

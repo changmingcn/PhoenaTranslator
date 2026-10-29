@@ -11,6 +11,15 @@ import time
 from pathlib import Path
 from typing import Any, Mapping
 
+from .storage_layout import (
+    epub_checkpoint_path,
+    is_pdf_task_sidecar,
+    pdf_audit_path,
+    pdf_layout_cache_path,
+    pdf_page_cache_dir,
+    task_record_path,
+)
+
 
 _TASK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 _PRESERVED_FIELDS = ("filename", "out_filename", "type")
@@ -52,16 +61,16 @@ class TaskStore:
             return self._locks.setdefault(task_id, threading.RLock())
 
     def progress_path(self, task_id: str) -> Path:
-        return self.progress_dir / f"{_validate_task_id(task_id)}.json"
+        return Path(task_record_path(self.progress_dir, _validate_task_id(task_id)))
 
     def layout_cache_path(self, task_id: str) -> Path:
-        return self.progress_dir / f"{_validate_task_id(task_id)}_layout.json"
+        return Path(pdf_layout_cache_path(self.progress_dir, _validate_task_id(task_id)))
 
     def audit_path(self, task_id: str) -> Path:
-        return self.progress_dir / f"{_validate_task_id(task_id)}_audit.json"
+        return Path(pdf_audit_path(self.progress_dir, _validate_task_id(task_id)))
 
     def page_cache_dir(self, task_id: str) -> Path:
-        return self.progress_dir / f"{_validate_task_id(task_id)}_pages"
+        return Path(pdf_page_cache_dir(self.progress_dir, _validate_task_id(task_id)))
 
     @staticmethod
     def _timestamp(value: Any) -> float | None:
@@ -162,7 +171,7 @@ class TaskStore:
         if not self.progress_dir.is_dir():
             return result
         for path in sorted(self.progress_dir.glob("*.json")):
-            if path.name.endswith(("_layout.json", "_audit.json")):
+            if is_pdf_task_sidecar(path.name):
                 continue
             task_id = path.stem
             try:
@@ -198,6 +207,7 @@ class TaskStore:
         if output is not None:
             paths.insert(1, output)
             if ext == "epub":
-                paths.append(Path(str(output) + ".segments.json"))
-                paths.append(Path(str(output) + ".segments.json.tmp"))
+                checkpoint = epub_checkpoint_path(output)
+                paths.append(checkpoint)
+                paths.append(Path(f"{checkpoint}.tmp"))
         return paths

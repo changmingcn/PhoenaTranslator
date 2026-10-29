@@ -527,7 +527,6 @@ def _pdf_audit_dependencies() -> PDFAuditDependencies:
         check_output_structure=_check_pdf_output_structure,
         trim_process_memory=_trim_process_memory,
         save_progress=save_progress,
-        tasks=tasks,
     )
 
 
@@ -598,7 +597,6 @@ def translate_pdf(
         assembly_semaphore=_pdf_assembly_semaphore,
         extraction_semaphore=_pdf_extraction_semaphore,
         logger=log,
-        tasks=tasks,
         build_glossary=build_glossary,
         make_prompt_with_glossary=_make_prompt_with_glossary,
         load_progress=load_progress,

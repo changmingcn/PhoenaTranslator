@@ -29,6 +29,7 @@ from .segments import (
     validate_segment_translation,
 )
 from ..prompts import PROMPT_RULE_BLOCKS
+from ..storage_layout import epub_checkpoint_path
 from .xhtml import DEFAULT_CHUNK_MAX_BYTES
 
 
@@ -416,7 +417,7 @@ class EPUBPipeline:
         dependencies = self.dependencies
         self._coverage = {}
         self._last_progress = {}
-        self._checkpoint_path = Path(output_path + ".segments.json")
+        self._checkpoint_path = epub_checkpoint_path(output_path)
         temporary_root = Path(tempfile.mkdtemp(prefix="epub_"))
         try:
             dependencies.logger.info(
