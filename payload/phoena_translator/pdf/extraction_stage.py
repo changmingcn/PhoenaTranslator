@@ -54,6 +54,13 @@ from phoena_translator.pdf.types import (
     PDFPageExtractionError,
     PDFTranslationIntegrityError,
 )
+from phoena_translator.pdf.model import (
+    ElementType,
+    LayoutClass,
+    PageExtraction,
+    PdfAudit,
+    SkipReason,
+)
 
 
 @dataclass(frozen=True)
@@ -67,7 +74,7 @@ class PDFExtractionStageContext:
     element_policy: ImmutableElementPolicy
     extraction_semaphore: Any
     logger: logging.Logger
-    pdf_audit: dict
+    pdf_audit: PdfAudit
     load_progress: Callable[[str], dict | None]
     save_translation_progress: Callable[..., None]
     extract_page_elements: Callable[..., list[dict]]
@@ -86,7 +93,7 @@ class PDFExtractionResult:
     source_sha256: str
     completed_indices: set[int]
     cached_indices: set[int]
-    page_extractions: dict[int, dict]
+    page_extractions: dict[int, PageExtraction]
     page_rects: dict[int, fitz.Rect]
     forced_fallbacks_by_index: dict[int, dict]
 
@@ -97,7 +104,7 @@ class PDFTranslationPlan:
     prompt: str
 
 
-def _normalize_source_fallbacks(pdf_audit: dict, total_pages: int) -> dict[int, dict]:
+def _normalize_source_fallbacks(pdf_audit: PdfAudit, total_pages: int) -> dict[int, dict]:
     normalized = []
     for raw_entry in pdf_audit["source_page_fallbacks"]:
         page_number = int(raw_entry.get("page", 0) or 0)
@@ -608,7 +615,7 @@ def _pdf_element_is_body_prose(elem: dict, dominant_fontsize: float) -> bool:
     * and either enough words that no cell would hold them, or a line wrap —
       a cell is laid out to fit its row, a paragraph wraps.
     """
-    if elem.get("type") != "text":
+    if elem.get("type") != ElementType.TEXT:
         return False
     plain = _collapsed_plain_text(elem.get("content") or "")
     words = len(re.findall(r"[A-Za-z][A-Za-z'’-]*", plain))
@@ -656,7 +663,7 @@ def _pdf_element_in_page_footer_band(elem: dict, page_rect) -> bool:
 
 
 def _mark_pdf_table_preserved_elements(
-    page_extractions: dict,
+    page_extractions: dict[int, PageExtraction],
     rollbacks: list[dict] | None = None,
     page_rects: dict | None = None,
 ) -> list[dict]:
@@ -678,7 +685,7 @@ def _mark_pdf_table_preserved_elements(
         text_indices = [
             index
             for index, elem in enumerate(elements)
-            if elem.get("type") == "text"
+            if elem.get("type") == ElementType.TEXT
         ]
         prose_indices = {
             index
@@ -693,7 +700,7 @@ def _mark_pdf_table_preserved_elements(
             for index in text_indices
             if elements[index].get("table_hint")
             or (
-                elements[index].get("layout_class") == "table"
+                elements[index].get("layout_class") == LayoutClass.TABLE
                 and index not in prose_indices
             )
         ]
@@ -720,7 +727,7 @@ def _mark_pdf_table_preserved_elements(
                 continue
             if not (elem.get("table_hint") or page_is_tabular):
                 continue
-            elem["skip_translate_reason"] = "table_preserved"
+            elem["skip_translate_reason"] = SkipReason.TABLE_PRESERVED
             preserved.append(
                 {
                     "page": int(page_num) + 1,
@@ -756,7 +763,7 @@ def _mark_pdf_table_preserved_elements(
                     (index, fitz.Rect(elements[index].get("bbox", elements[index].get("rect"))))
                     for index in text_indices
                     if elements[index].get("skip_translate_reason")
-                    == "table_preserved"
+                    == SkipReason.TABLE_PRESERVED
                 ]
                 for index in text_indices:
                     elem = elements[index]
@@ -769,7 +776,7 @@ def _mark_pdf_table_preserved_elements(
                     # it is the classifier saying "running text" — and a page
                     # of stacked reference entries reads to every other signal
                     # exactly like a page of table rows.
-                    if elem.get("layout_class") == "body":
+                    if elem.get("layout_class") == LayoutClass.BODY:
                         continue
                     # The running footer sits a few points under the last
                     # note line of a chart box in the same column; it belongs
@@ -805,7 +812,7 @@ def _mark_pdf_table_preserved_elements(
                         break
                     if not attached:
                         continue
-                    elem["skip_translate_reason"] = "table_preserved"
+                    elem["skip_translate_reason"] = SkipReason.TABLE_PRESERVED
                     changed = True
                     preserved.append(
                         {
@@ -828,7 +835,7 @@ def _mark_pdf_table_preserved_elements(
         prose_frozen = sum(
             len(str(elements[index].get("content", "")))
             for index in prose_indices
-            if elements[index].get("skip_translate_reason") == "table_preserved"
+            if elements[index].get("skip_translate_reason") == SkipReason.TABLE_PRESERVED
         )
         if prose_total >= 200 and prose_frozen * 2 > prose_total:
             page_marks = [
@@ -838,7 +845,7 @@ def _mark_pdf_table_preserved_elements(
             ]
             for entry in page_marks:
                 elem = elements[entry["element"]]
-                if elem.get("skip_translate_reason") == "table_preserved":
+                if elem.get("skip_translate_reason") == SkipReason.TABLE_PRESERVED:
                     elem.pop("skip_translate_reason", None)
                 preserved.remove(entry)
             if rollbacks is not None:
@@ -895,7 +902,7 @@ PDF_UNTRANSLATED_PAGE_MIN_TRANSLATED_SHARE = 0.25
 
 
 def collect_untranslated_delivered_pages(
-    page_extractions: dict,
+    page_extractions: dict[int, PageExtraction],
     page_rects: dict | None = None,
 ) -> list[dict]:
     """Report pages whose body prose will ship almost entirely as source.
@@ -996,7 +1003,7 @@ def build_translation_plan(
         element["content"] + "\n"
         for page_num in range(result.total_pages)
         for element in result.page_extractions.get(page_num, {}).get("elements", [])
-        if element["type"] == "text"
+        if element["type"] == ElementType.TEXT
     )
     incremental_fill = bool(pages_to_translate) and all(
         "cached_seed" in result.page_extractions.get(page_num, {})

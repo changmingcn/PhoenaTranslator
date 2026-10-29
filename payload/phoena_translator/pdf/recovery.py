@@ -23,6 +23,7 @@ from phoena_translator.pdf.types import (
     PDFPageRenderError,
     PDFStructureValidationError,
 )
+from phoena_translator.pdf.model import PdfAudit
 
 
 @dataclass(frozen=True)
@@ -30,7 +31,7 @@ class PDFRecoveryContext:
     task_id: str
     structure_retry: int
     fail_open_to_source_page: bool
-    pdf_audit: dict
+    pdf_audit: PdfAudit
     load_task: Callable[[str], dict | None]
     logger: logging.Logger
     save_progress: Callable[[str, dict], None]

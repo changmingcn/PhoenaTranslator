@@ -46,6 +46,7 @@ from phoena_translator.pdf.semantic_text import (
     _looks_like_pdf_paragraph_lead,
     _pick_pdf_dominant_value,
 )
+from phoena_translator.pdf.model import ElementType, SkipReason
 
 
 def _split_pdf_formula_adjacent_paragraph_elements(
@@ -64,7 +65,7 @@ def _split_pdf_formula_adjacent_paragraph_elements(
     one semantic unit instead of promoting the whole paragraph.
     """
     formula_elements = [
-        elem for elem in elements or [] if elem.get("type") == "formula_image"
+        elem for elem in elements or [] if elem.get("type") == ElementType.FORMULA_IMAGE
     ]
     protected_rects = [
         _get_pdf_elem_rect(elem) for elem in formula_elements
@@ -86,11 +87,11 @@ def _split_pdf_formula_adjacent_paragraph_elements(
         # promotion.  A mixed formula/prose block fails this probe and still
         # goes through the line-run splitter below.
         keep_whole_safe_paragraph = False
-        if elem.get("type") == "text" and len(paragraphs) == 1:
+        if elem.get("type") == ElementType.TEXT and len(paragraphs) == 1:
             probe = dict(elem)
             _promote_pdf_formula_overlaps([probe, *formula_elements])
             keep_whole_safe_paragraph = bool(
-                probe.get("type") == "text" and probe.get("formula_adjacent_text")
+                probe.get("type") == ElementType.TEXT and probe.get("formula_adjacent_text")
             )
         expanded_paragraphs = []
         for paragraph in paragraphs:
@@ -155,7 +156,7 @@ def _split_pdf_formula_adjacent_paragraph_elements(
                 expanded_paragraphs.append(paragraph_copy)
         paragraphs = expanded_paragraphs
         if (
-            elem.get("type") != "text"
+            elem.get("type") != ElementType.TEXT
             or len(paragraphs) < 2
             or not all(paragraph.get("source_bbox") for paragraph in paragraphs)
             or not _pdf_rect_intersects_protected(
@@ -319,7 +320,7 @@ def _pdf_wrapped_math_continuation_pair_can_merge(
     """
     for elem in (previous, current):
         if (
-            elem.get("type") != "text"
+            elem.get("type") != ElementType.TEXT
             or elem.get("skip_translate_reason")
             or elem.get("watermark")
             or elem.get("non_horizontal")
@@ -582,24 +583,24 @@ def _merge_pdf_wrapped_inline_math_continuation_fragments(
     protected_rects = [
         _get_pdf_elem_rect(elem)
         for elem in elements
-        if elem.get("type") == "formula_image"
+        if elem.get("type") == ElementType.FORMULA_IMAGE
     ]
     blocker_rects = [
         _get_pdf_elem_rect(elem)
         for elem in elements
-        if elem.get("type") in {"table_image", "image"}
+        if elem.get("type") in {ElementType.TABLE_IMAGE, ElementType.IMAGE}
     ]
     merge_count = 0
     index = 0
     while index < len(elements):
         current = elements[index]
-        if current.get("type") != "text":
+        if current.get("type") != ElementType.TEXT:
             index += 1
             continue
         cursor = index + 1
         blocked = False
-        while cursor < len(elements) and elements[cursor].get("type") != "text":
-            if elements[cursor].get("type") != "formula_image":
+        while cursor < len(elements) and elements[cursor].get("type") != ElementType.TEXT:
+            if elements[cursor].get("type") != ElementType.FORMULA_IMAGE:
                 blocked = True
             cursor += 1
         if cursor >= len(elements):
@@ -635,13 +636,13 @@ def _promote_pdf_formula_overlaps(
     can still delete the whole neighboring glyph. Promote that source text to
     an immutable element before translation instead.
     """
-    formulas = [elem for elem in elements or [] if elem.get("type") == "formula_image"]
+    formulas = [elem for elem in elements or [] if elem.get("type") == ElementType.FORMULA_IMAGE]
     protected_rects = [
         _get_pdf_elem_rect(elem) for elem in formulas
     ]
     promoted = 0
     for elem in elements or []:
-        if elem.get("type") != "text":
+        if elem.get("type") != ElementType.TEXT:
             continue
         layout_rect = _get_pdf_elem_rect(elem)
         # Recovered table cells intentionally carry a larger render rectangle
@@ -792,13 +793,13 @@ def _promote_pdf_formula_overlaps(
         reasons = {"formula_geometry_overlap"}
         for formula in touching:
             reasons.update(formula.get("math_reasons") or [])
-        elem["type"] = "formula_image"
+        elem["type"] = ElementType.FORMULA_IMAGE
         elem["math_reasons"] = sorted(reasons)
         elem["math_mixed"] = True
         elem["math_line_count"] = max(1, len(elem.get("paragraphs") or []))
         elem["math_candidate_symbol_count"] = _unicode_math_symbol_count(
             _plain_text(elem.get("content", ""))
         )
-        elem["skip_translate_reason"] = "formula_geometry_overlap"
+        elem["skip_translate_reason"] = SkipReason.FORMULA_GEOMETRY_OVERLAP
         promoted += 1
     return promoted

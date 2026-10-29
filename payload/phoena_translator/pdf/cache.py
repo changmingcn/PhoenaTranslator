@@ -39,6 +39,12 @@ from phoena_translator.pdf.translation import (
     _pdf_element_translation_needs_retry,
 )
 from phoena_translator.pdf.geometry import _get_pdf_elem_rect
+from phoena_translator.pdf.model import (
+    ElementType,
+    PageExtraction,
+    PdfAudit,
+    SkipReason,
+)
 
 log = logging.getLogger("translator")
 
@@ -146,12 +152,12 @@ def _load_pdf_page_translation_cache(
 
     migrated: dict[str, str] = {}
     for current_index, elem in enumerate(elements or []):
-        if elem.get("type") != "text":
+        if elem.get("type") != ElementType.TEXT:
             continue
         key = str(current_index)
         if not _pdf_element_requires_translation(elem):
             source_text = (
-                "" if elem.get("skip_translate_reason") == "watermark"
+                "" if elem.get("skip_translate_reason") == SkipReason.WATERMARK
                 else elem.get("rich_content") or elem.get("content", "")
             )
             migrated[key] = _translate_pdf_deterministic_labels(source_text)
@@ -183,7 +189,7 @@ def _load_pdf_page_translation_cache(
         # through the provider again on every render-recovery round.
         fallback_element = dict(elem)
         fallback_element["skip_translate_reason"] = (
-            "translation_integrity_fallback"
+            SkipReason.TRANSLATION_INTEGRITY_FALLBACK
         )
         fallback_identities = []
         for identity in (
@@ -218,7 +224,7 @@ def _load_pdf_page_translation_cache(
             source = elem.get("content", "")
             if candidate == source:
                 elem["skip_translate_reason"] = (
-                    "translation_integrity_fallback"
+                    SkipReason.TRANSLATION_INTEGRITY_FALLBACK
                 )
                 migrated[key] = candidate
     return migrated
@@ -237,7 +243,7 @@ def _pdf_cache_identity(
     complete source text, rich markup, paragraph structure, geometry, and
     relevant classification/style metadata still agree.
     """
-    if not isinstance(elem, dict) or elem.get("type") != "text":
+    if not isinstance(elem, dict) or elem.get("type") != ElementType.TEXT:
         return None
 
     try:
@@ -354,13 +360,13 @@ def _reconcile_pdf_page_translation_cache(
         key = str(elem_index)
         if key not in reconciled:
             continue
-        if elem.get("type") != "text":
+        if elem.get("type") != ElementType.TEXT:
             del reconciled[key]
             repaired += 1
             continue
 
         source_text = elem.get("rich_content") or elem.get("content", "")
-        if elem.get("skip_translate_reason") == "watermark":
+        if elem.get("skip_translate_reason") == SkipReason.WATERMARK:
             if reconciled[key] != "":
                 reconciled[key] = ""
                 repaired += 1
@@ -449,7 +455,7 @@ def _pdf_audit_path(task_id: str) -> str:
     return pdf_audit_path(_cache_progress_dir(), task_id)
 
 
-def _save_pdf_audit(task_id: str, audit: dict) -> str:
+def _save_pdf_audit(task_id: str, audit: PdfAudit) -> str:
     path = _pdf_audit_path(task_id)
     _write_json_atomically(path, audit, separators=(",", ":"))
     return path
@@ -465,7 +471,7 @@ def _json_safe_pdf_layout(value):
     return value
 
 
-def _save_pdf_layout_cache(task_id: str, page_extractions: dict, page_rects: dict):
+def _save_pdf_layout_cache(task_id: str, page_extractions: dict[int, PageExtraction], page_rects: dict):
     payload = {
         "page_extractions": _json_safe_pdf_layout(page_extractions),
         "page_rects": _json_safe_pdf_layout(page_rects),
@@ -517,7 +523,7 @@ def _append_pdf_source_page_fallback(entries: list[dict], entry: dict) -> dict:
 
 
 def _exclude_pdf_audit_expectations_for_source_pages(
-    audit: dict,
+    audit: PdfAudit,
     page_numbers: set[int] | list[int],
 ) -> None:
     """Exclude knowingly untranslated source pages from translation-only checks."""
@@ -544,7 +550,7 @@ def _exclude_pdf_audit_expectations_for_source_pages(
 
 
 def _record_pdf_element_source_fallback(
-    audit: dict,
+    audit: PdfAudit,
     page_number: int,
     element_index: int,
     stage: str,
@@ -570,7 +576,7 @@ def _record_pdf_element_source_fallback(
 
 
 def _exclude_pdf_audit_expectations_for_element(
-    audit: dict,
+    audit: PdfAudit,
     page_number: int,
     element_index: int,
 ) -> None:

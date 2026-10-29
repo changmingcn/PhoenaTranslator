@@ -27,6 +27,7 @@ from phoena_translator.pdf.types import (
     PDFPageTranslationError,
     PDFTranslationIntegrityError,
 )
+from phoena_translator.pdf.model import PageExtraction, PdfAudit, SkipReason
 
 
 @dataclass
@@ -39,8 +40,8 @@ class PDFTranslationStageContext:
     workers: int
     fail_open_to_source_page: bool
     logger: logging.Logger
-    page_extractions: dict[int, dict]
-    pdf_audit: dict
+    page_extractions: dict[int, PageExtraction]
+    pdf_audit: PdfAudit
     completed_indices: set[int]
     save_translation_progress: Callable[..., None]
 
@@ -133,7 +134,7 @@ def _commit_page_with_element_fallbacks(
         return False
     for element_index, _reason in element_entries:
         element = elements[element_index]
-        element["skip_translate_reason"] = "translation_integrity_fallback"
+        element["skip_translate_reason"] = SkipReason.TRANSLATION_INTEGRITY_FALLBACK
         translations[element_index] = element.get("content", "")
     _commit_translated_page(context, page_num, translations, progress_lock)
     for element_index, reason in element_entries:

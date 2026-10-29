@@ -30,6 +30,7 @@ from phoena_translator.pdf.math_detection import (
     _collapsed_plain_text,
     _select_pdf_inline_math_fragments_for_text,
 )
+from phoena_translator.pdf.model import ElementType, SkipReason
 
 log = logging.getLogger("translator")
 
@@ -807,7 +808,7 @@ def _normalize_pdf_footnote_alignment(elem: dict, page_rect: fitz.Rect) -> bool:
     block. Generic alignment inference then mistakes it for right-aligned text,
     while neighboring wrapped footnotes are detected as left-aligned.
     """
-    if elem.get("type") != "text" or elem.get("table_hint"):
+    if elem.get("type") != ElementType.TEXT or elem.get("table_hint"):
         return False
 
     paragraphs = [
@@ -853,7 +854,7 @@ def _derive_pdf_page_layout_styles(
     text_elements = [
         elem
         for elem in elements
-        if elem.get("type") == "text" and not elem.get("skip_translate_reason")
+        if elem.get("type") == ElementType.TEXT and not elem.get("skip_translate_reason")
     ]
     if not text_elements:
         return {
@@ -1108,7 +1109,7 @@ def _make_pdf_text_element_from_lines(
     )
 
     return {
-        "type": "text",
+        "type": ElementType.TEXT,
         "y": group_rect.y0,
         "x": group_rect.x0,
         "rect": group_rect,
@@ -1148,7 +1149,7 @@ def _make_pdf_text_element_from_lines(
 def _is_pdf_single_visual_line_element(elem: dict) -> bool:
     """Return whether an extracted text element represents one visual line."""
     if (
-        elem.get("type") != "text"
+        elem.get("type") != ElementType.TEXT
         or elem.get("table_hint")
         or elem.get("preserve_source_style")
         or elem.get("non_horizontal")
@@ -1313,7 +1314,7 @@ def _split_pdf_text_elements_into_semantic_fragments(
             if (paragraph.get("plain") or "").strip()
         ]
         if (
-            elem.get("type") != "text"
+            elem.get("type") != ElementType.TEXT
             or len(paragraphs) <= 1
             or elem.get("table_hint")
             or elem.get("preserve_source_style")
@@ -1522,7 +1523,7 @@ def _is_heading_like_elem(elem: dict) -> bool:
 def _pdf_element_prefers_single_line_heading(elem: dict, page_rect: fitz.Rect) -> bool:
     """Return whether a short source heading should stay on one rendered line."""
     if (
-        elem.get("type") != "text"
+        elem.get("type") != ElementType.TEXT
         or elem.get("table_hint")
         or elem.get("non_horizontal")
     ):
@@ -1568,8 +1569,8 @@ def _merge_adjacent_heading_elements(elements: list[dict]) -> list[dict]:
         prev = merged[-1] if merged else None
         if (
             prev is not None
-            and prev.get("type") == "text"
-            and elem.get("type") == "text"
+            and prev.get("type") == ElementType.TEXT
+            and elem.get("type") == ElementType.TEXT
             and _is_heading_like_elem(prev)
             and _is_heading_like_elem(elem)
             and not prev.get("table_hint")
@@ -1630,7 +1631,7 @@ def _mark_watermark_elements(page_extractions, page_rects, total_pages: int):
         page_area = max(page_rect.width * page_rect.height, 1)
 
         for elem_idx, elem in enumerate(elements):
-            if elem.get("type") != "text":
+            if elem.get("type") != ElementType.TEXT:
                 continue
 
             raw_text = elem.get("content", "")
@@ -1702,13 +1703,13 @@ def _mark_watermark_elements(page_extractions, page_rects, total_pages: int):
                 continue
 
             elem = page_extractions[record["page_num"]]["elements"][record["elem_idx"]]
-            elem["skip_translate_reason"] = "watermark"
+            elem["skip_translate_reason"] = SkipReason.WATERMARK
 
     marked = sum(
         1
         for info in page_extractions.values()
         for elem in info.get("elements", [])
-        if elem.get("skip_translate_reason") == "watermark"
+        if elem.get("skip_translate_reason") == SkipReason.WATERMARK
     )
     if marked:
         log.info(f"Marked {marked} text blocks as watermarks")

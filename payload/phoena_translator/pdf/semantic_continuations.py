@@ -41,6 +41,7 @@ from phoena_translator.pdf.semantic_text import (
     _pdf_visual_line_info_from_element,
     _pick_pdf_dominant_value,
 )
+from phoena_translator.pdf.model import ElementType, LayoutClass
 
 
 def _pdf_detached_list_marker_target_score(
@@ -53,7 +54,7 @@ def _pdf_detached_list_marker_target_score(
         return None
     for elem in (marker, candidate):
         if (
-            elem.get("type") != "text"
+            elem.get("type") != ElementType.TEXT
             or elem.get("table_hint")
             or elem.get("preserve_source_style")
             or elem.get("non_horizontal")
@@ -132,7 +133,7 @@ def _merge_pdf_detached_list_marker_elements(
     for marker_index, marker in enumerate(merged_elements):
         marker_plain = _collapsed_plain_text(marker.get("content", ""))
         if (
-            marker.get("type") != "text"
+            marker.get("type") != ElementType.TEXT
             or not _looks_like_pdf_list_marker(marker_plain)
             or marker.get("table_hint")
             or marker.get("preserve_source_style")
@@ -295,7 +296,7 @@ def _pdf_semantic_continuation_elements_can_merge(
     previous = group[-1]
     for elem in (first, previous, current):
         if (
-            elem.get("type") != "text"
+            elem.get("type") != ElementType.TEXT
             or elem.get("table_hint")
             or elem.get("preserve_source_style")
             or elem.get("non_horizontal")
@@ -722,12 +723,12 @@ def _merge_pdf_wrapped_line_elements(
 
 def _pdf_strong_continuation_element_is_eligible(elem: dict) -> bool:
     if (
-        elem.get("type") != "text"
+        elem.get("type") != ElementType.TEXT
         or elem.get("table_hint")
         or elem.get("preserve_source_style")
         or elem.get("non_horizontal")
         or elem.get("watermark")
-        or elem.get("layout_class") in {"heading", "footer", "table"}
+        or elem.get("layout_class") in {LayoutClass.HEADING, LayoutClass.FOOTER, LayoutClass.TABLE}
         or elem.get("glossary_cell_hint")
         or elem.get("glossary_term_hint")
         or elem.get("glossary_definition_hint")
@@ -1054,7 +1055,7 @@ def _pdf_internal_paragraph_lead_residuals(
     )
     residuals = []
     for element_index, elem in enumerate(elements or []):
-        if elem.get("type") != "text":
+        if elem.get("type") != ElementType.TEXT:
             continue
         superscript_footnote_seen = False
         for paragraph in elem.get("paragraphs") or []:

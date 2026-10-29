@@ -89,6 +89,12 @@ from phoena_translator.pdf.semantics import (
     _split_pdf_text_elements_into_semantic_fragments,
     _translate_pdf_citation_labels,
 )
+from phoena_translator.pdf.model import (
+    ElementType,
+    LayoutClass,
+    PdfElement,
+    SkipReason,
+)
 
 log = logging.getLogger("translator")
 
@@ -111,7 +117,7 @@ def _mark_pdf_glossary_term_elements(
     text_indices = [
         index
         for index, element in enumerate(elements or [])
-        if element.get("type") == "text"
+        if element.get("type") == ElementType.TEXT
     ]
     if len(text_indices) < 8:
         return set()
@@ -151,7 +157,7 @@ def _mark_pdf_glossary_term_elements(
     row_pairs = []
     for left_index in text_indices:
         left = elements[left_index]
-        if left.get("layout_class") != "table":
+        if left.get("layout_class") != LayoutClass.TABLE:
             continue
         left_plain = _collapsed_plain_text(left.get("content", ""))
         if (
@@ -285,7 +291,7 @@ def _classify_pdf_page_text_elements(elements: list[dict], page_rect: fitz.Rect)
     _normalize_pdf_glossary_cells(elements, page_rect)
     text_indices = [
         idx for idx, elem in enumerate(elements)
-        if elem.get("type") == "text"
+        if elem.get("type") == ElementType.TEXT
     ]
     if not text_indices:
         return {}
@@ -307,7 +313,7 @@ def _classify_pdf_page_text_elements(elements: list[dict], page_rect: fitz.Rect)
     for idx in text_indices:
         elem = elements[idx]
         plain = _collapsed_plain_text(elem.get("content", ""))
-        if not plain or _is_disclaimer_block(plain) or elem.get("skip_translate_reason") == "watermark":
+        if not plain or _is_disclaimer_block(plain) or elem.get("skip_translate_reason") == SkipReason.WATERMARK:
             continue
 
         rect = _get_pdf_elem_rect(elem)
@@ -386,7 +392,7 @@ def _classify_pdf_page_text_elements(elements: list[dict], page_rect: fitz.Rect)
             )
         )
 
-        if elem.get("skip_translate_reason") == "watermark" or _is_disclaimer_block(plain):
+        if elem.get("skip_translate_reason") == SkipReason.WATERMARK or _is_disclaimer_block(plain):
             layout_class = "scattered"
         elif elem.get("table_hint"):
             layout_class = "table"
@@ -888,7 +894,7 @@ def _pdf_element_is_multiline_display_title(elem: dict) -> bool:
     preservation behavior.
     """
     if (
-        elem.get("type") != "text"
+        elem.get("type") != ElementType.TEXT
         or elem.get("table_hint")
         or elem.get("entity_directory_hint")
         or elem.get("skip_translate_reason")
@@ -978,7 +984,7 @@ def _mark_pdf_entity_directory_elements(elements: list[dict]) -> int:
         " ".join(
             _plain_text(element.get("content", ""))
             for element in elements or []
-            if element.get("type") == "text"
+            if element.get("type") == ElementType.TEXT
         ),
     ).strip()
     page_folded = page_plain.casefold()
@@ -1004,8 +1010,8 @@ def _mark_pdf_entity_directory_elements(elements: list[dict]) -> int:
 
     def row_candidate(element: dict) -> bool:
         return bool(
-            element.get("type") == "text"
-            and element.get("layout_class") in {"table", "scattered"}
+            element.get("type") == ElementType.TEXT
+            and element.get("layout_class") in {LayoutClass.TABLE, LayoutClass.SCATTERED}
             and not element.get("bold")
             and _looks_like_pdf_entity_directory_row(element.get("content", ""))
         )
@@ -1081,14 +1087,14 @@ def _mark_pdf_entity_directory_elements(elements: list[dict]) -> int:
 
 def _pdf_element_requires_translation(elem: dict) -> bool:
     """Return whether a text element needs an API-produced translation."""
-    if elem.get("type") != "text" or elem.get("skip_translate_reason"):
+    if elem.get("type") != ElementType.TEXT or elem.get("skip_translate_reason"):
         return False
     text = elem.get("content", "")
     if _is_disclaimer_block(text) or not _looks_like_translatable_english(text):
         return False
     plain = _collapsed_plain_text(text)
     if (
-        elem.get("layout_class") in {"table", "scattered"}
+        elem.get("layout_class") in {LayoutClass.TABLE, LayoutClass.SCATTERED}
         and not elem.get("bold")
         and not elem.get("single_line_heading")
         and _looks_like_compact_pdf_identifier(plain)
@@ -1096,7 +1102,7 @@ def _pdf_element_requires_translation(elem: dict) -> bool:
         return False
     if (
         elem.get("entity_directory_hint")
-        and elem.get("layout_class") in {"table", "scattered"}
+        and elem.get("layout_class") in {LayoutClass.TABLE, LayoutClass.SCATTERED}
         and not elem.get("bold")
     ):
         return False
@@ -1106,7 +1112,7 @@ def _pdf_element_requires_translation(elem: dict) -> bool:
     # prose cannot be a real heading the flags are meant to protect.  A
     # full-date element leaves the queue because its translation is
     # deterministic (applied by ``_translate_pdf_deterministic_labels``).
-    if elem.get("layout_class") in {"table", "scattered"} and not elem.get("bold"):
+    if elem.get("layout_class") in {LayoutClass.TABLE, LayoutClass.SCATTERED} and not elem.get("bold"):
         if _looks_like_pdf_structured_identifier_row(plain):
             return False
         if _looks_like_pdf_contact_line(text):
@@ -1126,7 +1132,7 @@ def _pdf_element_requires_translation(elem: dict) -> bool:
         return False
     if (
         not elem.get("table_hint")
-        and elem.get("layout_class") in {"table", "scattered"}
+        and elem.get("layout_class") in {LayoutClass.TABLE, LayoutClass.SCATTERED}
         and not elem.get("bold")
         and not elem.get("single_line_heading")
         and _looks_like_pdf_proper_name_label(text)
@@ -1134,7 +1140,7 @@ def _pdf_element_requires_translation(elem: dict) -> bool:
         return False
     if (
         not elem.get("table_hint")
-        and elem.get("layout_class") in {"table", "scattered"}
+        and elem.get("layout_class") in {LayoutClass.TABLE, LayoutClass.SCATTERED}
         and not elem.get("bold")
         and _looks_like_tiny_pdf_label(text)
     ):
@@ -1215,7 +1221,7 @@ def _extract_pdf_table_elements(
             rect = fitz.Rect(region["rect"])
             table_rects.append(rect)
             elements.append({
-                "type": "table_image",
+                "type": ElementType.TABLE_IMAGE,
                 "y": rect.y0,
                 "rect": rect,
                 "bbox": [rect.x0, rect.y0, rect.x1, rect.y1],
@@ -1250,7 +1256,7 @@ def _extract_pdf_image_elements(
                     )
                     if not overlaps_table:
                         elements.append({
-                            "type": "image",
+                            "type": ElementType.IMAGE,
                             "y": rect.y0,
                             "rect": rect,
                             "bbox": [rect.x0, rect.y0, rect.x1, rect.y1],
@@ -1348,7 +1354,7 @@ def _make_pdf_split_layout_element(
     )
     rect = fitz.Rect(cluster_x0, cluster_y0, cluster_x1, cluster_y1)
     return {
-        "type": "text",
+        "type": ElementType.TEXT,
         "y": cluster_y0,
         "x": cluster_x0,
         "rect": rect,
@@ -2118,7 +2124,7 @@ def _enrich_pdf_page_elements(
     # rejected the finished document with one
     # ``source-formula-signature-missing`` warning per stripped element.
     for index, element in enumerate(elements):
-        if element.get("type") != "formula_image":
+        if element.get("type") != ElementType.FORMULA_IMAGE:
             continue
         try:
             element["math_signature"] = _pdf_formula_region_signature(
@@ -2135,7 +2141,7 @@ def _enrich_pdf_page_elements(
     return elements
 
 
-def _extract_page_elements(page, doc):
+def _extract_page_elements(page, doc) -> list[PdfElement]:
     """Extract and semantically normalize ordered elements from one PDF page."""
     del doc  # retained for the legacy callback contract
     table_elements, table_rects, table_regions = _extract_pdf_table_elements(

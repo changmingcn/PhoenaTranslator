@@ -30,6 +30,7 @@ from phoena_translator.pdf.translation_stage import (
     PDFTranslationStageContext,
     translate_pages,
 )
+from phoena_translator.pdf.model import PdfAudit
 
 
 # A source page can advance recovery only once, and structural repair advances
@@ -43,7 +44,7 @@ def _new_pdf_audit(
     task_id: str,
     minimum_htmlbox_scale: float,
     source_page_fallbacks: list[dict],
-) -> dict:
+) -> PdfAudit:
     return {
         "schema_version": 2,
         "task_id": task_id,
@@ -111,7 +112,7 @@ def _retry_makes_progress(
 
 def _reported_total_pages(
     task_id: str,
-    pdf_audit: dict,
+    pdf_audit: PdfAudit,
     dependencies: PDFPipelineDependencies,
 ) -> int | None:
     candidates = [
@@ -132,7 +133,7 @@ def _tighten_recovery_round_limit(
     current_limit: int,
     *,
     task_id: str,
-    pdf_audit: dict,
+    pdf_audit: PdfAudit,
     dependencies: PDFPipelineDependencies,
     initial_fallback_pages: tuple[int, ...],
     initial_structure_retry: int,
@@ -154,7 +155,7 @@ def _run_pdf_attempt(
     src_path: str,
     out_path: str,
     pdf_password: str,
-    pdf_audit: dict,
+    pdf_audit: PdfAudit,
     *,
     dependencies: PDFPipelineDependencies,
 ) -> None:
@@ -277,7 +278,7 @@ def _run_pdf_attempt(
 def _recovery_context(
     task_id: str,
     structure_retry: int,
-    pdf_audit: dict,
+    pdf_audit: PdfAudit,
     dependencies: PDFPipelineDependencies,
 ) -> PDFRecoveryContext:
     return PDFRecoveryContext(

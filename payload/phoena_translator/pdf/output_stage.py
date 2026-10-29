@@ -39,6 +39,7 @@ from phoena_translator.pdf.fonts import (
     pdf_font_is_safely_embeddable,
 )
 from phoena_translator.pdf.rendering import _compact_pdf_file_in_place
+from phoena_translator.pdf.model import PageExtraction, PdfAudit
 
 
 @dataclass(frozen=True)
@@ -59,8 +60,8 @@ class PDFOutputStageContext:
     bold_font_path: str
     assembly_semaphore: Any
     logger: logging.Logger
-    pdf_audit: dict
-    page_extractions: dict[int, dict]
+    pdf_audit: PdfAudit
+    page_extractions: dict[int, PageExtraction]
     page_rects: dict[int, Any]
     completed_indices: set[int]
     save_progress: Callable[[str, dict], None]
@@ -188,7 +189,7 @@ def _subset_font_renders_like_original(
 
 def _prepare_fonts(
     context: PDFOutputStageContext,
-    page_extractions: dict[int, dict],
+    page_extractions: dict[int, PageExtraction],
 ) -> tuple[str, str, bool, fitz.Archive, str | None]:
     font_path = context.font_path
     bold_font_path = context.bold_font_path

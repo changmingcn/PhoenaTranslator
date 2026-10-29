@@ -61,6 +61,13 @@ from phoena_translator.pdf.types import (
     PDF_HTMLBOX_SUPERSCRIPT_CSS,
     PDFPageRenderError,
 )
+from phoena_translator.pdf.model import (
+    ElementType,
+    LayoutClass,
+    PageExtraction,
+    PdfAudit,
+    SkipReason,
+)
 
 
 @dataclass
@@ -76,8 +83,8 @@ class PDFAssemblyContext:
     assembly_work_path: str | None
     src_path: str
     out_doc: Any
-    page_extractions: dict[int, dict]
-    pdf_audit: dict
+    page_extractions: dict[int, PageExtraction]
+    pdf_audit: PdfAudit
     font_path: str
     bold_font_path: str
     has_distinct_bold_font: bool
@@ -242,7 +249,7 @@ def _try_restore_source_element(
             f"source restore also failed ({restore_message})"
         )
         return False
-    element["skip_translate_reason"] = "render_source_restore"
+    element["skip_translate_reason"] = SkipReason.RENDER_SOURCE_RESTORE
     _record_pdf_element_source_fallback(
         context.pdf_audit,
         page_num + 1,
@@ -286,7 +293,7 @@ def _prepare_page(
 
     elements = info.get("elements", [])
     merged_away_indices = {
-        i for i, elem in enumerate(elements) if elem.get("type") == "text_merged_away"
+        i for i, elem in enumerate(elements) if elem.get("type") == ElementType.MERGED_AWAY
     }
     if "cached" in info:
         page_trans = {int(k): v for k, v in info["cached"].items()}
@@ -304,12 +311,12 @@ def _prepare_page(
     watermark_indices = {
         i
         for i, elem in enumerate(elements)
-        if elem.get("skip_translate_reason") == "watermark"
+        if elem.get("skip_translate_reason") == SkipReason.WATERMARK
     }
     protected_formula_rects = [
         _get_pdf_elem_rect(elem)
         for elem in elements
-        if elem.get("type") == "formula_image"
+        if elem.get("type") == ElementType.FORMULA_IMAGE
     ]
 
     # Find which elements were actually translated
@@ -317,7 +324,7 @@ def _prepare_page(
     for i, elem in enumerate(elements):
         if i in watermark_indices:
             continue
-        if elem["type"] == "text" and i in page_trans:
+        if elem["type"] == ElementType.TEXT and i in page_trans:
             if page_trans[i] != elem.get("content", ""):
                 translated_indices.add(i)
 
@@ -385,7 +392,7 @@ def _prepare_page(
         )
         if merge_fallback_error is not None:
             raise merge_fallback_error
-        elem["skip_translate_reason"] = "render_no_safe_rect_fallback"
+        elem["skip_translate_reason"] = SkipReason.RENDER_NO_SAFE_RECT_FALLBACK
         translated_indices.discard(i)
         page_trans[i] = elem.get("content", "")
         _record_pdf_element_source_fallback(
@@ -440,8 +447,8 @@ def _prepare_page(
     )
     for i in sorted(redraw_source_indices):
         if elements[i].get("skip_translate_reason") in {
-            "formula_risk_preserved",
-            "table_preserved",
+            SkipReason.FORMULA_RISK_PRESERVED,
+            SkipReason.TABLE_PRESERVED,
         }:
             # A math-dense or table-preserved element cannot be redrawn
             # from extracted glyph order without risking mangled notation
@@ -490,11 +497,11 @@ def _redact_page(context: PDFAssemblyContext, plan: PDFPageAssemblyPlan) -> str:
     removal_rects = []
     for i, elem in enumerate(elements):
         if (
-            elem["type"] == "text_merged_away"
+            elem["type"] == ElementType.MERGED_AWAY
             or i in watermark_indices
-            or (elem["type"] == "text" and i in render_indices)
+            or (elem["type"] == ElementType.TEXT and i in render_indices)
         ):
-            if elem.get("type") in {"text", "text_merged_away"}:
+            if elem.get("type") in {ElementType.TEXT, ElementType.MERGED_AWAY}:
                 source_rects = _get_pdf_source_ink_rects(elem)
             else:
                 bbox = elem.get("bbox", elem.get("rect"))
@@ -653,7 +660,7 @@ def _build_paragraph_html(
             white_space = (
                 "white-space:nowrap;"
                 if single_line_heading
-                or (element.get("layout_class", "body") != "body" and nowrap)
+                or (element.get("layout_class", "body") != LayoutClass.BODY and nowrap)
                 else ""
             )
             fragments.append(

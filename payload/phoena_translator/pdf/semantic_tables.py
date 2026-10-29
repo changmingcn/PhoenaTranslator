@@ -20,6 +20,7 @@ from phoena_translator.pdf.semantic_text import (
     _join_pdf_line_fragments,
     _parse_pdf_toc_leader,
 )
+from phoena_translator.pdf.model import ElementType
 
 log = logging.getLogger("translator")
 
@@ -238,7 +239,7 @@ def _pdf_semantic_table_region_candidates(
     for index, elem in enumerate(elements):
         if (
             index in claimed
-            or elem.get("type") != "text"
+            or elem.get("type") != ElementType.TEXT
             or not elem.get("table_hint")
             or elem.get("non_horizontal")
         ):
@@ -780,7 +781,7 @@ def _prepare_pdf_glossary_column_geometry(
     prepared = []
     column_gap = right_x - left_x
     for elem in elements:
-        if elem.get("type") != "text":
+        if elem.get("type") != ElementType.TEXT:
             prepared.append(elem)
             continue
 
@@ -879,7 +880,7 @@ def _normalize_pdf_glossary_cells(
     text_indices = [
         index
         for index, element in enumerate(elements or [])
-        if element.get("type") == "text"
+        if element.get("type") == ElementType.TEXT
     ]
     normalized = {
         index: _collapsed_plain_text(elements[index].get("content", ""))

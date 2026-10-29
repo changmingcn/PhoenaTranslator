@@ -45,6 +45,7 @@ from phoena_translator.pdf.geometry import (
     _pdf_rect_intersects_protected,
     _subtract_pdf_protected_rects,
 )
+from phoena_translator.pdf.model import ElementType
 
 def _looks_like_pdf_wrapped_identifier_query_tail(text: str) -> bool:
     """Recognize a high-confidence query-string continuation line."""
@@ -374,7 +375,7 @@ def _make_pdf_formula_element_from_lines(line_infos: list[dict]) -> dict | None:
         for reason in (line.get("math_reasons") or [])
     })
     return {
-        "type": "formula_image",
+        "type": ElementType.FORMULA_IMAGE,
         "y": rect.y0,
         "x": rect.x0,
         "rect": rect,

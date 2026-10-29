@@ -28,6 +28,7 @@ from phoena_translator.pdf.types import (
     PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,
     PDF_TEXT_NEIGHBOR_GUARD_PADDING,
 )
+from phoena_translator.pdf.model import ElementType
 
 log = logging.getLogger("translator")
 
@@ -53,7 +54,7 @@ def _collect_pdf_overlap_redraw_indices(
         try:
             rects = (
                 _get_pdf_source_ink_rects(elem)
-                if elem.get("type") in {"text", "text_merged_away"}
+                if elem.get("type") in {ElementType.TEXT, ElementType.MERGED_AWAY}
                 else [_get_pdf_elem_rect(elem)]
             )
         except Exception:
@@ -64,7 +65,7 @@ def _collect_pdf_overlap_redraw_indices(
     while active_rects:
         newly_added = []
         for index, elem in enumerate(elements or []):
-            if index in active or elem.get("type") != "text":
+            if index in active or elem.get("type") != ElementType.TEXT:
                 continue
             try:
                 rects = [
@@ -708,7 +709,7 @@ def _constrain_pdf_htmlbox_rect_ladder_to_neighbors(
     for other_index, other in enumerate(elements or []):
         if other_index == element_index or other_index in ignored:
             continue
-        if other.get("type") != "text":
+        if other.get("type") != ElementType.TEXT:
             continue
         try:
             other_rect = _get_pdf_elem_rect(other)

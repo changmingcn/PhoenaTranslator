@@ -32,6 +32,7 @@ from phoena_translator.pdf.semantic_text import (
     _join_pdf_line_fragments,
     _pick_pdf_dominant_value,
 )
+from phoena_translator.pdf.model import ElementType, LayoutClass
 
 
 def _looks_like_pdf_reference_entry_lead(text: str) -> bool:
@@ -122,7 +123,7 @@ def _complete_pdf_citation_separator_inline_math_fragments(
     """Restore citation-separator records lost by late semantic coalescing."""
     added = 0
     for elem in elements or []:
-        if elem.get("type") != "text":
+        if elem.get("type") != ElementType.TEXT:
             continue
         plain = _plain_text(elem.get("content", ""))
         expected = _pdf_citation_separator_pipe_count(plain)
@@ -156,7 +157,7 @@ def _pdf_reference_entry_lead_counts(
     text_elements = [
         (index, elem)
         for index, elem in enumerate(elements)
-        if elem.get("type") == "text"
+        if elem.get("type") == ElementType.TEXT
     ]
     normalized_texts = [
         _collapsed_plain_text(elem.get("content", ""))
@@ -244,7 +245,7 @@ def _mark_pdf_reference_entry_elements(elements: list[dict]) -> int:
         elem.pop("reference_entry_hint", None)
         if (
             reference_context
-            and elem.get("type") == "text"
+            and elem.get("type") == ElementType.TEXT
             and lead_counts.get(index, 0) == 1
             and _looks_like_pdf_reference_entry_lead(
                 _plain_text(elem.get("content", ""))
@@ -370,7 +371,7 @@ def _split_pdf_reference_entry_elements(
     fragments: list[dict] = []
     split_count = 0
     for index, elem in enumerate(elements):
-        if elem.get("type") != "text" or lead_counts.get(index, 0) < 1:
+        if elem.get("type") != ElementType.TEXT or lead_counts.get(index, 0) < 1:
             fragments.append(elem)
             continue
         source_lines = [
@@ -436,10 +437,10 @@ def _pdf_reference_entry_elements_can_merge(
     previous = group[-1]
     for elem in (first, previous, current):
         if (
-            elem.get("type") != "text"
+            elem.get("type") != ElementType.TEXT
             or elem.get("non_horizontal")
             or elem.get("watermark")
-            or elem.get("layout_class") in {"heading", "footer"}
+            or elem.get("layout_class") in {LayoutClass.HEADING, LayoutClass.FOOTER}
             or _is_heading_like_elem(elem)
         ):
             return False

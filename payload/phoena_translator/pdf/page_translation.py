@@ -41,6 +41,7 @@ from phoena_translator.pdf.translation import (
     _split_pdf_reference_entry_translation_parts,
     _validate_pdf_page_translations,
 )
+from phoena_translator.pdf.model import ElementType
 
 
 def _clean_translated_text(
@@ -337,7 +338,7 @@ def _collect_translation_targets(
 
     targets: list[tuple[int, str]] = []
     for index, element in enumerate(elements):
-        if element["type"] != "text" or index in translations:
+        if element["type"] != ElementType.TEXT or index in translations:
             continue
         text = element["content"]
         if _is_disclaimer_block(text):

@@ -58,6 +58,14 @@ from phoena_translator.pdf.geometry import (
     _get_pdf_elem_rect,
     _pdf_extraction_rect_to_display,
 )
+from phoena_translator.pdf.model import (
+    CrossPageMergeDecision,
+    ElementType,
+    LayoutClass,
+    SkipReason,
+    PdfAudit,
+    PageExtraction,
+)
 
 log = logging.getLogger("translator")
 
@@ -69,12 +77,12 @@ class PDFAuditDependencies:
     trim_process_memory: Callable[[], None]
     save_progress: Callable[[str, dict], None]
 
-def _collect_pdf_superscript_expectations(page_extractions: dict) -> list[dict]:
+def _collect_pdf_superscript_expectations(page_extractions: dict[int, PageExtraction]) -> list[dict]:
     expectations = []
     for page_num in sorted(page_extractions):
         info = page_extractions.get(page_num, {})
         for elem_idx, elem in enumerate(info.get("elements", [])):
-            if elem.get("type") != "text":
+            if elem.get("type") != ElementType.TEXT:
                 continue
 
             run_queues = {}
@@ -130,7 +138,7 @@ def _collect_pdf_superscript_expectations(page_extractions: dict) -> list[dict]:
     return expectations
 
 
-def _collect_pdf_formula_expectations(page_extractions: dict) -> list[dict]:
+def _collect_pdf_formula_expectations(page_extractions: dict[int, PageExtraction]) -> list[dict]:
     """Collect hash-only formula expectations suitable for a persisted audit."""
     expectations = []
     allowed_signature_fields = {
@@ -140,7 +148,7 @@ def _collect_pdf_formula_expectations(page_extractions: dict) -> list[dict]:
     for page_num in sorted(page_extractions):
         info = page_extractions.get(page_num, {})
         for elem_idx, elem in enumerate(info.get("elements", [])):
-            if elem.get("type") != "formula_image":
+            if elem.get("type") != ElementType.FORMULA_IMAGE:
                 continue
             bbox = _get_pdf_elem_rect(elem)
             signature = {
@@ -179,12 +187,12 @@ def _pdf_vector_ocr_audit_phrases(text: str) -> list[str]:
     return [" ".join(words[start:start + window]) for start in starts]
 
 
-def _collect_pdf_vector_ocr_expectations(page_extractions: dict) -> list[dict]:
+def _collect_pdf_vector_ocr_expectations(page_extractions: dict[int, PageExtraction]) -> list[dict]:
     expectations = []
     for page_num in sorted(page_extractions):
         info = page_extractions.get(page_num, {})
         for elem_index, elem in enumerate(info.get("elements", [])):
-            if elem.get("type") != "text" or not elem.get("vector_ocr"):
+            if elem.get("type") != ElementType.TEXT or not elem.get("vector_ocr"):
                 continue
             phrases = _pdf_vector_ocr_audit_phrases(elem.get("content", ""))
             if not phrases:
@@ -268,7 +276,7 @@ def _pdf_text_element_unprotected_math_symbols(elem: dict) -> int:
     return max(symbol_count - semantic_inline, 0)
 
 
-def _preserve_pdf_formula_risk_text_elements(page_extractions: dict) -> list[dict]:
+def _preserve_pdf_formula_risk_text_elements(page_extractions: dict[int, PageExtraction]) -> list[dict]:
     """Mark math-dense translatable text elements as keep-original.
 
     Delivery policy is element-granular: rather than preserving a whole page
@@ -287,7 +295,7 @@ def _preserve_pdf_formula_risk_text_elements(page_extractions: dict) -> list[dic
     for page_num in sorted(page_extractions or {}):
         info = page_extractions.get(page_num) or {}
         for elem_index, elem in enumerate(info.get("elements") or []):
-            if elem.get("type") != "text":
+            if elem.get("type") != ElementType.TEXT:
                 continue
             if not _pdf_element_requires_translation(elem):
                 continue
@@ -296,7 +304,7 @@ def _preserve_pdf_formula_risk_text_elements(page_extractions: dict) -> list[dic
                 continue
             if unprotected <= _pdf_prose_inline_math_symbol_tolerance(elem):
                 continue
-            elem["skip_translate_reason"] = "formula_risk_preserved"
+            elem["skip_translate_reason"] = SkipReason.FORMULA_RISK_PRESERVED
             preserved.append({
                 "page": int(page_num) + 1,
                 "element": elem_index,
@@ -312,7 +320,7 @@ PDF_FORMULA_MID_SENTENCE_STUB_MAX_CHARS = 150
 
 
 def _preserve_pdf_formula_mid_sentence_neighbors(
-    page_extractions: dict,
+    page_extractions: dict[int, PageExtraction],
 ) -> list[dict]:
     """Preserve prose whose sentence continues inside a protected formula line.
 
@@ -344,13 +352,13 @@ def _preserve_pdf_formula_mid_sentence_neighbors(
         formula_rects = [
             _get_pdf_elem_rect(elem)
             for elem in elements
-            if elem.get("type") == "formula_image"
+            if elem.get("type") == ElementType.FORMULA_IMAGE
             and not elem.get("math_mixed")
         ]
         if not formula_rects:
             continue
         for elem_index, elem in enumerate(elements):
-            if elem.get("type") != "text":
+            if elem.get("type") != ElementType.TEXT:
                 continue
             if not _pdf_element_requires_translation(elem):
                 continue
@@ -360,7 +368,7 @@ def _preserve_pdf_formula_mid_sentence_neighbors(
             if (
                 elem.get("table_hint")
                 or elem.get("non_horizontal")
-                or elem.get("layout_class") == "table"
+                or elem.get("layout_class") == LayoutClass.TABLE
                 or _is_heading_like_elem(elem)
                 or float(elem.get("fontsize", dominant_fontsize))
                 > dominant_fontsize * 1.15
@@ -411,7 +419,7 @@ def _preserve_pdf_formula_mid_sentence_neighbors(
                 # fails the whole page.
                 if any(
                     other is not elem
-                    and other.get("type") == "text"
+                    and other.get("type") == ElementType.TEXT
                     and not other.get("skip_translate_reason")
                     and _pdf_element_requires_translation(other)
                     and _get_pdf_elem_rect(other).y0 >= rect.y1 - line_height * 0.5
@@ -423,7 +431,7 @@ def _preserve_pdf_formula_mid_sentence_neighbors(
                 break
             if not coupled:
                 continue
-            elem["skip_translate_reason"] = "formula_risk_preserved"
+            elem["skip_translate_reason"] = SkipReason.FORMULA_RISK_PRESERVED
             preserved.append({
                 "page": int(page_num) + 1,
                 "element": elem_index,
@@ -436,7 +444,7 @@ def _preserve_pdf_formula_mid_sentence_neighbors(
 def _summarize_pdf_formula_protection(
     expectations: list[dict],
     total_pages: int,
-    page_extractions: dict | None = None,
+    page_extractions: dict[int, PageExtraction] | None = None,
 ) -> dict:
     per_page = {
         str(page_number): {
@@ -485,12 +493,12 @@ def _summarize_pdf_formula_protection(
         for page_num, info in page_extractions.items():
             page_key = str(int(page_num) + 1)
             for elem in info.get("elements", []):
-                if elem.get("type") == "formula_image":
+                if elem.get("type") == ElementType.FORMULA_IMAGE:
                     queued = int(_pdf_element_requires_translation(elem))
                     formula_queue_entries += queued
                     if page_key in per_page:
                         per_page[page_key]["formula_queue_entries"] += queued
-                elif elem.get("type") == "text":
+                elif elem.get("type") == ElementType.TEXT:
                     text_symbol_count = _pdf_text_element_formula_audit_symbol_count(
                         elem
                     )
@@ -555,7 +563,7 @@ def _summarize_pdf_formula_protection(
 
 def _pdf_formula_protection_fallback_pages(
     summary: dict,
-    page_extractions: dict,
+    page_extractions: dict[int, PageExtraction],
 ) -> list[int]:
     """Return one-based pages that cannot safely enter the translation queue.
 
@@ -662,7 +670,7 @@ def _pdf_merge_original_element_text(elem: dict) -> str:
 
 
 def _pdf_merge_raw_element(
-    page_extractions: dict,
+    page_extractions: dict[int, PageExtraction],
     page_number,
     element_index,
 ) -> dict | None:
@@ -691,7 +699,7 @@ def _pdf_merge_raw_element(
 
 
 def _pdf_merge_audit_element(
-    page_extractions: dict,
+    page_extractions: dict[int, PageExtraction],
     page_number,
     element_index,
 ) -> dict | None:
@@ -708,7 +716,7 @@ def _pdf_merge_audit_element(
 
 def _pdf_merge_start_evidence(
     decision: dict,
-    page_extractions: dict,
+    page_extractions: dict[int, PageExtraction],
 ) -> tuple[dict, dict, str, str | None] | None:
     source_elem = _pdf_merge_audit_element(
         page_extractions,
@@ -776,7 +784,7 @@ def _pdf_tails_absorbed_as_merge_source(
 
 def _validate_pdf_orphan_tail_decision(
     decision: dict,
-    page_extractions: dict | None,
+    page_extractions: dict[int, PageExtraction] | None,
     merge_decisions: list[dict] | None = None,
 ) -> str | None:
     """Verify one accepted orphan-tail absorption end to end.
@@ -825,8 +833,8 @@ def _validate_pdf_orphan_tail_decision(
     if source is None or destination is None:
         return "merge-evidence-missing"
     if (
-        source.get("layout_class") != "body"
-        or destination.get("layout_class") not in {"body", "scattered"}
+        source.get("layout_class") != LayoutClass.BODY
+        or destination.get("layout_class") not in {LayoutClass.BODY, LayoutClass.SCATTERED}
         or source.get("footnote_hint")
         or destination.get("footnote_hint")
         or source.get("table_hint")
@@ -925,7 +933,7 @@ def _validate_pdf_orphan_tail_decision(
     if not destination_original.startswith(tail):
         return "orphan-tail-destination-mismatch"
     remainder = destination_original[len(tail):].strip()
-    if destination.get("type") == "text_merged_away":
+    if destination.get("type") == ElementType.MERGED_AWAY:
         if remainder:
             return "orphan-tail-destination-mismatch"
         return None
@@ -947,14 +955,14 @@ def _validate_pdf_orphan_tail_decision(
 
 def _validate_pdf_merge_audit(
     merge_decisions: list[dict],
-    page_extractions: dict | None = None,
+    page_extractions: dict[int, PageExtraction] | None = None,
 ) -> list[dict]:
     warnings = []
     for index, decision in enumerate(merge_decisions or []):
         if not isinstance(decision, dict) or decision.get("decision") != "accepted":
             continue
         kind = str(decision.get("kind") or "cross-page-merge")
-        if kind == "cross-page-orphan-tail":
+        if kind == CrossPageMergeDecision.KIND:
             orphan_invariant = _validate_pdf_orphan_tail_decision(
                 decision,
                 page_extractions,
@@ -1000,8 +1008,8 @@ def _validate_pdf_merge_audit(
                         evidence
                     )
                     if (
-                        source_elem.get("layout_class") != "body"
-                        or destination_elem.get("layout_class") != "body"
+                        source_elem.get("layout_class") != LayoutClass.BODY
+                        or destination_elem.get("layout_class") != LayoutClass.BODY
                     ):
                         invariant = "body-layout"
                     elif reported_start != actual_start:
@@ -1615,7 +1623,7 @@ def _check_pdf_output_structure(
     vector_ocr_expectations: list[dict] | None = None,
     source_path: str | None = None,
     source_password: str = "",
-    page_extractions: dict | None = None,
+    page_extractions: dict[int, PageExtraction] | None = None,
 ) -> dict:
     """Check superscripts, accepted merges, and immutable formula regions."""
     warnings = _validate_pdf_merge_audit(
@@ -1707,7 +1715,7 @@ def _check_pdf_output_structure_serialized(
     vector_ocr_expectations: list[dict] | None = None,
     source_path: str | None = None,
     source_password: str = "",
-    page_extractions: dict | None = None,
+    page_extractions: dict[int, PageExtraction] | None = None,
     *,
     dependencies: PDFAuditDependencies,
 ) -> dict:
@@ -1789,7 +1797,7 @@ def _require_clean_pdf_structure_check(check: dict) -> None:
     raise PDFStructureValidationError(check)
 
 
-def _save_and_validate_pdf_audit(task_id: str, audit: dict) -> str:
+def _save_and_validate_pdf_audit(task_id: str, audit: PdfAudit) -> str:
     path = _save_pdf_audit(task_id, audit)
     check = audit.get("structure_check") or {}
     log_method = log.info if check.get("warning_count", 0) == 0 else log.warning

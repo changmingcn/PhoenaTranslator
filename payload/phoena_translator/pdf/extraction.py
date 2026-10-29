@@ -23,6 +23,7 @@ from phoena_translator.pdf.geometry import (
 from phoena_translator.pdf.math_detection import (
     _plain_text,
 )
+from phoena_translator.pdf.model import ElementType, SkipReason
 
 log = logging.getLogger("translator")
 
@@ -473,7 +474,7 @@ def _mark_pdf_embedded_thumbnail_text_elements(
         contained: list[dict] = []
         for element in elements or []:
             if (
-                element.get("type") != "text"
+                element.get("type") != ElementType.TEXT
                 or element.get("skip_translate_reason")
                 or float(element.get("fontsize", 0.0)) > 4.0
             ):
@@ -492,7 +493,7 @@ def _mark_pdf_embedded_thumbnail_text_elements(
         if len(contained) < 2:
             continue
         for element in contained:
-            element["skip_translate_reason"] = "embedded_thumbnail_text"
+            element["skip_translate_reason"] = SkipReason.EMBEDDED_THUMBNAIL_TEXT
             marked += 1
     return marked
 
@@ -563,7 +564,7 @@ def _pdf_vector_ocr_existing_line_match(line: dict, elements: list[dict]) -> boo
         return False
     line_rect = fitz.Rect(line.get("bbox", (0, 0, 0, 0)))
     for elem in elements or []:
-        if elem.get("type") != "text":
+        if elem.get("type") != ElementType.TEXT:
             continue
         elem_rect = _get_pdf_source_ink_rect(elem)
         intersection = line_rect & elem_rect
@@ -991,7 +992,7 @@ def _make_pdf_vector_ocr_element(
         "lines": [line.get("text", "") for line in useful],
     }, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return {
-        "type": "text",
+        "type": ElementType.TEXT,
         "y": render_rect.y0,
         "x": render_rect.x0,
         "rect": fitz.Rect(render_rect),
@@ -1199,7 +1200,7 @@ def _extract_pdf_vector_ocr_elements(
         for spec in element.get(field, [])
     ]
     for element in elements:
-        if element.get("type") != "text":
+        if element.get("type") != ElementType.TEXT:
             continue
         source_rect = _get_pdf_source_ink_rect(element)
         if source_rect.is_empty:
@@ -1209,7 +1210,7 @@ def _extract_pdf_vector_ocr_elements(
             and (source_rect & paint_rect).get_area() / max(source_rect.get_area(), 1.0) >= 0.12
             for paint_rect in paint_rects
         ):
-            element["type"] = "text_merged_away"
+            element["type"] = ElementType.MERGED_AWAY
             element["vector_ocr_superseded"] = True
 
     log.warning(

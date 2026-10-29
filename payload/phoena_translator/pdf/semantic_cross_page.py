@@ -28,6 +28,12 @@ from phoena_translator.pdf.semantic_text import (
     _is_heading_like_elem,
     _pick_pdf_dominant_value,
 )
+from phoena_translator.pdf.model import (
+    CrossPageMergeDecision,
+    ElementType,
+    LayoutClass,
+    SkipReason,
+)
 
 
 def _looks_like_right_aligned_signoff(elem: dict, page_rect: fitz.Rect | None) -> bool:
@@ -83,7 +89,7 @@ def _cross_page_dominant_fontsize(page_extractions) -> float:
     weighted = []
     for info in page_extractions.values():
         for elem in info.get("elements", []):
-            if elem.get("type") != "text":
+            if elem.get("type") != ElementType.TEXT:
                 continue
             text = _plain_text(elem.get("content", "")).strip()
             if not text:
@@ -120,7 +126,7 @@ def _is_cross_page_body_elem(
     policy `_cross_page_whole_fragment_tail` already applies; the column
     geometry, font-size and lowercase-start gates still exclude captions
     and labels."""
-    if elem.get("type") != "text" or elem.get("skip_translate_reason"):
+    if elem.get("type") != ElementType.TEXT or elem.get("skip_translate_reason"):
         return False
     if elem.get("layout_class") not in allowed_layout_classes:
         return False
@@ -256,7 +262,7 @@ def _is_cross_page_non_body_context(
     if _CROSS_PAGE_DIRECT_LABEL_RE.match(text):
         return True
     if (
-        elem.get("layout_class") == "scattered"
+        elem.get("layout_class") == LayoutClass.SCATTERED
         and len(text) <= 180
         and _cross_page_text_line_count(elem) <= 2
         and _CROSS_PAGE_NUMBERED_HEADING_RE.match(text)
@@ -264,7 +270,7 @@ def _is_cross_page_non_body_context(
         return True
 
     for page_element in page_elements:
-        if page_element.get("type") != "text":
+        if page_element.get("type") != ElementType.TEXT:
             continue
         page_heading = _plain_text(page_element.get("content", "")).strip()
         if not _CROSS_PAGE_NON_BODY_SECTION_RE.fullmatch(page_heading):
@@ -289,7 +295,7 @@ def _is_cross_page_non_body_context(
     normalized = _cross_page_normalized_label(text)
     if len(normalized) >= 8:
         for previous in previous_page_elements or []:
-            if previous is elem or previous.get("type") != "text":
+            if previous is elem or previous.get("type") != ElementType.TEXT:
                 continue
             previous_text = _cross_page_normalized_label(
                 previous.get("content", "")
@@ -307,7 +313,7 @@ def _is_cross_page_non_body_context(
                 return True
 
     if (
-        elem.get("layout_class") != "scattered"
+        elem.get("layout_class") != LayoutClass.SCATTERED
         or _cross_page_text_line_count(elem) > 1
     ):
         return False
@@ -319,7 +325,7 @@ def _is_cross_page_non_body_context(
     nearby_table = False
     nearby_label = False
     for other in page_elements:
-        if other is elem or other.get("type") != "text":
+        if other is elem or other.get("type") != ElementType.TEXT:
             continue
         try:
             other_rect = _get_pdf_elem_rect(other)
@@ -334,7 +340,7 @@ def _is_cross_page_non_body_context(
         ):
             nearby_label = True
         if (
-            (other.get("table_hint") or other.get("layout_class") == "table")
+            (other.get("table_hint") or other.get("layout_class") == LayoutClass.TABLE)
             and other_rect.y0 >= candidate_rect.y0
             and other_rect.y0 <= candidate_rect.y0 + band
         ):
@@ -593,7 +599,7 @@ def _cross_page_destination_has_local_predecessor(
         destination_rect = _get_pdf_elem_rect(destination)
     except (IndexError, TypeError, ValueError, AssertionError):
         return False
-    if destination.get("type") != "text":
+    if destination.get("type") != ElementType.TEXT:
         return False
 
     destination_size = max(
@@ -601,7 +607,7 @@ def _cross_page_destination_has_local_predecessor(
         1.0,
     )
     for index, previous in enumerate(page_elements):
-        if index == resolved_index or previous.get("type") != "text":
+        if index == resolved_index or previous.get("type") != ElementType.TEXT:
             continue
         previous_text = _collapsed_plain_text(previous.get("content", ""))
         if (
@@ -611,7 +617,7 @@ def _cross_page_destination_has_local_predecessor(
             )
             or previous.get("non_horizontal")
             or previous.get("footnote_hint")
-            or previous.get("skip_translate_reason") == "watermark"
+            or previous.get("skip_translate_reason") == SkipReason.WATERMARK
         ):
             continue
         try:
@@ -828,7 +834,7 @@ def _cross_page_whole_fragment_tail(
     `_cross_page_tail_start_acceptable`.  A trailing footnote marker
     (``exchange.4``, ``respectively.10``) is tolerated and carried along
     inside the rich text so the reference survives next to its sentence."""
-    if elem.get("type") != "text" or elem.get("skip_translate_reason"):
+    if elem.get("type") != ElementType.TEXT or elem.get("skip_translate_reason"):
         return None
     if (
         elem.get("table_hint")
@@ -836,7 +842,7 @@ def _cross_page_whole_fragment_tail(
         or elem.get("non_horizontal")
     ):
         return None
-    if elem.get("layout_class") not in {"body", "scattered"}:
+    if elem.get("layout_class") not in {LayoutClass.BODY, LayoutClass.SCATTERED}:
         return None
     paragraphs = [
         paragraph
@@ -884,7 +890,7 @@ def _cross_page_unterminated_fragment_tail(
     document). The page-top fragment is still the carried sentence when the
     pair satisfies either OR signal and the next BODY element starts a new
     capitalized sentence."""
-    if elem.get("type") != "text" or elem.get("skip_translate_reason"):
+    if elem.get("type") != ElementType.TEXT or elem.get("skip_translate_reason"):
         return None
     if (
         elem.get("table_hint")
@@ -892,7 +898,7 @@ def _cross_page_unterminated_fragment_tail(
         or elem.get("non_horizontal")
     ):
         return None
-    if elem.get("layout_class") not in {"body", "scattered"}:
+    if elem.get("layout_class") not in {LayoutClass.BODY, LayoutClass.SCATTERED}:
         return None
     paragraphs = [
         paragraph
@@ -917,7 +923,7 @@ def _cross_page_unterminated_fragment_tail(
         other
         for index, other in next_body_ordered
         if index != elem_idx
-        and other.get("type") == "text"
+        and other.get("type") == ElementType.TEXT
         and _plain_text(other.get("content", "")).strip()
         and float(other.get("y", 0.0)) > float(elem.get("y", 0.0))
     ]
@@ -969,22 +975,18 @@ def _merge_cross_page_sentences(
     ):
         if audit_log is None:
             return
-        entry = {
-            "kind": "cross-page-orphan-tail",
-            "source_page": source_page + 1,
-            "destination_page": source_page + 2,
-            "source_element": source_idx,
-            "destination_element": dest_idx,
-            "decision": "accepted",
-            "reason": "accepted",
-            "source_continuation_reason": source_continuation_reason,
-            "carried_tail": tail,
-            "source_layout": source_elem.get("layout_class"),
-            "destination_layout": dest_elem.get("layout_class"),
-        }
-        if unterminated:
-            entry["tail_unterminated"] = True
-        audit_log.append(entry)
+        audit_log.append(
+            CrossPageMergeDecision(
+                source_page=source_page,
+                source_element=source_idx,
+                destination_element=dest_idx,
+                source_continuation_reason=source_continuation_reason,
+                carried_tail=tail,
+                source_layout=source_elem.get("layout_class"),
+                destination_layout=dest_elem.get("layout_class"),
+                tail_unterminated=unterminated,
+            ).to_audit()
+        )
 
     for page_num in range(total_pages - 1):
         info = page_extractions.get(page_num, {})
@@ -1124,7 +1126,7 @@ def _merge_cross_page_sentences(
             elif tail_rich != tail_plain:
                 base = last_elem["content"][: -len(" " + tail_plain)]
                 last_elem["rich_content"] = base + " " + tail_rich
-            first_elem["type"] = "text_merged_away"
+            first_elem["type"] = ElementType.MERGED_AWAY
             absorbed += 1
             log.info(
                 "Page %s: absorbed stranded sentence tail %r from page %s",
@@ -1202,7 +1204,7 @@ def _merge_cross_page_sentences(
                 rest_rich if rest_rich != rest else None
             )
         else:
-            first_elem["type"] = "text_merged_away"
+            first_elem["type"] = ElementType.MERGED_AWAY
         absorbed += 1
         log.info(
             "Page %s: absorbed leading sentence tail %r from page %s",

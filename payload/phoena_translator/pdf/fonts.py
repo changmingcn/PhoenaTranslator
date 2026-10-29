@@ -9,6 +9,7 @@ from phoena_translator.pdf.math_detection import (
     _normalize_pdf_translation,
     _plain_text,
 )
+from phoena_translator.pdf.model import ElementType
 
 try:
     from fontTools import subset as fonttools_subset
@@ -86,7 +87,7 @@ def _collect_pdf_font_chars(page_extractions, translated_texts) -> str:
         # font; include source characters so a restored fragment (including
         # Greek letters and math symbols) never renders as .notdef boxes.
         for elem in info.get("elements", []):
-            if elem.get("type") == "text":
+            if elem.get("type") == ElementType.TEXT:
                 chars.update(_plain_text(elem.get("content") or ""))
 
     return "".join(sorted(chars))

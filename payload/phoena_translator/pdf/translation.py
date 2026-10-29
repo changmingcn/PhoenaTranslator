@@ -51,6 +51,7 @@ from phoena_translator.pdf.types import (
     _PDF_UNTRANSLATED_LEAK_WORD_RE,
     _PDF_WORK_TITLE_QUOTE_CHARS,
 )
+from phoena_translator.pdf.model import ElementType
 
 @dataclass(frozen=True)
 class PDFTranslationDependencies:
@@ -527,7 +528,7 @@ def _pdf_collect_untranslated_english_leaks(
         for index, elem in enumerate(elements or []):
             if len(entries) >= max_entries:
                 break
-            if elem.get("type") != "text" or elem.get("skip_translate_reason"):
+            if elem.get("type") != ElementType.TEXT or elem.get("skip_translate_reason"):
                 continue
             final_text = (translations or {}).get(index)
             if final_text is None:
