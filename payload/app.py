@@ -3,13 +3,7 @@
 
 from __future__ import annotations
 
-from phoena_translator import application
 from phoena_translator.application import APP_CONFIG, app, initialize_runtime
-
-
-def __getattr__(name: str):
-    # Former ``app.<name>`` globals resolve through the deprecation shim.
-    return getattr(application, name)
 
 
 if __name__ == "__main__":

@@ -225,20 +225,14 @@ def test_test_dependency_is_declared_separately():
     ).lower()
 
 
-def test_application_surface_is_the_runtime_with_deprecated_former_globals():
+def test_application_surface_is_only_the_runtime_wiring():
     from phoena_translator import application
     from phoena_translator.pdf import context
 
     assert "ImmutableElementPolicy" not in context.__all__
     assert sorted(application.__all__) == ["APP_CONFIG", "app", "initialize_runtime", "runtime"]
     assert application.runtime.config is application.APP_CONFIG
-    with pytest.warns(DeprecationWarning, match="use runtime.tasks.save"):
-        assert application.save_progress == application.runtime.tasks.save
-    with pytest.warns(DeprecationWarning, match="use APP_CONFIG.task_queue_max"):
-        assert application.TASK_QUEUE_MAX == application.APP_CONFIG.task_queue_max
-    with pytest.warns(DeprecationWarning):
-        assert application.UPLOAD_DIR == str(application.APP_CONFIG.upload_dir)
-    # Private names of the removed legacy_exports facade no longer resolve.
-    for name in ("_PDF_FOOTNOTE_MARKER_RE", "_create_chat_completion", "tasks"):
+    # Former module globals and the removed legacy_exports names do not resolve.
+    for name in ("save_progress", "TASK_QUEUE_MAX", "UPLOAD_DIR", "_PDF_FOOTNOTE_MARKER_RE"):
         with pytest.raises(AttributeError):
             getattr(application, name)
