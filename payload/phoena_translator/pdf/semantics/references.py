@@ -290,52 +290,9 @@ def _make_pdf_reference_fragment_from_source_lines(
         [line.get("rich") or line.get("plain", "") for line in lines]
     )
     fontsize = max(float(parent.get("fontsize", DEFAULT_FONTSIZE)), 1.0)
-    first_x0 = float(lines[0]["bbox"][0])
-    body_x0 = min(
-        (float(line["bbox"][0]) for line in lines[1:]),
-        default=first_x0,
-    )
-    hanging_indent = body_x0 - first_x0 >= indent_step_threshold(fontsize)
-    if hanging_indent:
-        margin_left = max(0.0, body_x0 - rect.x0)
-        text_indent = first_x0 - body_x0
-    else:
-        margin_left = 0.0
-        text_indent = 0.0
-    paragraph = {
-        "plain": plain,
-        "rich": rich,
-        "source_bbox": [float(value) for value in rect],
-        "source_line_bboxes": [
-            [float(value) for value in line["bbox"]] for line in lines
-        ],
-        "source_lines": lines,
-        "margin_left": min(margin_left, rect.width * PARAGRAPH_MAX_MARGIN_SHARE),
-        "text_indent": max(-rect.width * PARAGRAPH_MAX_HANGING_SHARE, text_indent),
-        "gap_before": 0.0,
-        "text_align": "left",
-        "nowrap": None,
-        "first_line_indent": False,
-        "toc_leader": None,
-    }
-    superscript_texts = [
-        _plain_text(html.unescape(match)).strip()
-        for match in re.findall(
-            r"<sup(?:\s[^>]*)?>(.*?)</sup>",
-            rich,
-            flags=re.IGNORECASE | re.DOTALL,
-        )
-        if _plain_text(html.unescape(match)).strip()
-    ]
+    paragraph = _pdf_reference_entry_paragraph(lines, rect, plain, rich, fontsize)
     superscript_scale = float(parent.get("superscript_scale") or 0.60)
-    superscript_runs = [
-        {
-            "text": text,
-            "scale": superscript_scale,
-            "source": "reference-entry-split",
-        }
-        for text in superscript_texts
-    ]
+    superscript_runs = _pdf_reference_superscript_runs(rich, superscript_scale)
     clone = dict(parent)
     for stale_key in (
         "strong_semantic_continuation_merged",
@@ -374,6 +331,64 @@ def _make_pdf_reference_fragment_from_source_lines(
         }
     )
     return clone
+
+
+def _pdf_reference_entry_paragraph(
+    lines: list[dict],
+    rect: fitz.Rect,
+    plain: str,
+    rich: str,
+    fontsize: float,
+) -> dict:
+    """One left-aligned paragraph, with a hanging indent when the lines show one."""
+    first_x0 = float(lines[0]["bbox"][0])
+    body_x0 = min(
+        (float(line["bbox"][0]) for line in lines[1:]),
+        default=first_x0,
+    )
+    if body_x0 - first_x0 >= indent_step_threshold(fontsize):
+        margin_left = max(0.0, body_x0 - rect.x0)
+        text_indent = first_x0 - body_x0
+    else:
+        margin_left = 0.0
+        text_indent = 0.0
+    return {
+        "plain": plain,
+        "rich": rich,
+        "source_bbox": [float(value) for value in rect],
+        "source_line_bboxes": [
+            [float(value) for value in line["bbox"]] for line in lines
+        ],
+        "source_lines": lines,
+        "margin_left": min(margin_left, rect.width * PARAGRAPH_MAX_MARGIN_SHARE),
+        "text_indent": max(-rect.width * PARAGRAPH_MAX_HANGING_SHARE, text_indent),
+        "gap_before": 0.0,
+        "text_align": "left",
+        "nowrap": None,
+        "first_line_indent": False,
+        "toc_leader": None,
+    }
+
+
+def _pdf_reference_superscript_runs(rich: str, scale: float) -> list[dict]:
+    """Superscript runs recovered from the entry's ``<sup>`` markup."""
+    superscript_texts = [
+        _plain_text(html.unescape(match)).strip()
+        for match in re.findall(
+            r"<sup(?:\s[^>]*)?>(.*?)</sup>",
+            rich,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if _plain_text(html.unescape(match)).strip()
+    ]
+    return [
+        {
+            "text": text,
+            "scale": scale,
+            "source": "reference-entry-split",
+        }
+        for text in superscript_texts
+    ]
 
 
 def _split_pdf_reference_entry_elements(
