@@ -1,0 +1,27 @@
+name: release
+
+# Builds the reinstall package from the current commit and publishes it as
+# the GitHub release named by VERSION.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build package
+        run: python3 build_release.py --dist dist
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(tr -d '\r\n' < VERSION)"
+          gh release create "$version" dist/*.tar.gz dist/*.tar.gz.sha256 \
+            --target "$GITHUB_SHA" \
+            --title "PhoenaTranslator $version" \
+            --notes-file dist/release-notes.md \
+            --latest
