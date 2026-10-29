@@ -19,8 +19,8 @@ from phoena_translator.pdf.output_stage import (
     PDFOutputStageContext,
     assemble_output,
     finalize_output,
-    resolve_output_fonts,
 )
+from phoena_translator.pdf.fonts import resolve_output_fonts
 from phoena_translator.pdf.recovery import (
     PDFRecoveryContext,
     PDFRecoveryDecision,

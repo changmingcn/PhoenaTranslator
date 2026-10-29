@@ -324,7 +324,7 @@ def test_font_embeddability_policy(tmp_path):
 
 
 def test_resolve_output_fonts_rejects_unsubsettable_large_font(tmp_path):
-    from phoena_translator.pdf.output_stage import resolve_output_fonts
+    from phoena_translator.pdf.fonts import resolve_output_fonts
 
     big_cff = tmp_path / "big.otf"
     big_cff.write_bytes(b"OTTO" + b"\x00" * (5 * 1024 * 1024))
@@ -4024,7 +4024,7 @@ def test_pdf_lexical_angle_phrase_survives_translation_protection_and_rendering(
         _restore_pdf_inline_math_fragments,
     )
     from phoena_translator.pdf.inline_markup import _normalize_pdf_translation
-    from phoena_translator.pdf.rendering import _pdf_text_to_html
+    from phoena_translator.pdf.paragraph_html import _pdf_text_to_html
 
     source = "valuation losses of inventories <JPY short position> caused by appreciation"
     normalized = _normalize_pdf_translation(source)

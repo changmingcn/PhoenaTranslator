@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import gc
-import html
 import logging
 import os
 import shutil
@@ -35,9 +34,8 @@ from phoena_translator.pdf.source_fallbacks import (
 )
 from phoena_translator.pdf.fonts import (
     _collect_pdf_font_chars,
-    _get_chinese_font_path,
+    _subset_font_renders_like_original,
     _subset_pdf_font,
-    pdf_font_is_safely_embeddable,
 )
 from phoena_translator.pdf.rendering import _compact_pdf_file_in_place
 from phoena_translator.pdf.model import PageExtraction, PdfAudit
@@ -115,77 +113,6 @@ def _open_output_document(
                     cleanup_error,
                 )
         raise
-
-
-def resolve_output_fonts(
-    regular_override: str | None = None,
-    bold_override: str | None = None,
-) -> tuple[str, str]:
-    """Fail fast on missing render prerequisites before provider work begins."""
-
-    regular = _get_chinese_font_path(override=regular_override)
-    bold = _get_chinese_font_path(bold=True, override=bold_override or regular_override)
-    for font_path in {regular, bold}:
-        if not pdf_font_is_safely_embeddable(font_path):
-            raise RuntimeError(
-                f"Chinese font {font_path} is too large for per-insert HTML-box "
-                "embedding and cannot be subset (CFF-flavored or fontTools "
-                "missing); configure a TrueType (.ttf) font via "
-                "TRANSLATOR_PDF_FONT_REGULAR / TRANSLATOR_PDF_FONT_BOLD"
-            )
-    return regular, bold
-
-
-def _htmlbox_font_ink(fontfile: str, sample: str) -> int:
-    """Rasterize a short sample through the HTML-box @font-face path."""
-    document = fitz.open()
-    try:
-        page = document.new_page(width=240, height=80)
-        css = (
-            f'@font-face{{font-family:probe;src:url("{os.path.basename(fontfile)}");}}'
-            "*{font-family:probe;}"
-        )
-        archive = fitz.Archive(os.path.dirname(fontfile))
-        page.insert_htmlbox(
-            fitz.Rect(5, 5, 235, 75),
-            f'<p style="font-size:22px">{html.escape(sample)}</p>',
-            css=css,
-            archive=archive,
-        )
-        pix = page.get_pixmap()
-        return sum(
-            1 for index in range(0, len(pix.samples), pix.n)
-            if pix.samples[index] < 128
-        )
-    finally:
-        document.close()
-
-
-def _subset_font_renders_like_original(
-    subset_path: str,
-    original_path: str,
-    used_chars: str,
-) -> bool:
-    """Fail closed if the subset draws materially less ink than the original.
-
-    A structurally plausible subset can still resolve CJK codepoints to wrong
-    or empty glyphs in MuPDF's @font-face loader; comparing rendered ink for a
-    small CJK sample catches that before a whole document is assembled with an
-    unreadable font.
-    """
-    sample = "".join(
-        char for char in used_chars if ord(char) >= 0x2E80
-    )[:6]
-    if not sample:
-        return True
-    try:
-        subset_ink = _htmlbox_font_ink(subset_path, sample)
-        original_ink = _htmlbox_font_ink(original_path, sample)
-    except Exception:
-        return False
-    if original_ink <= 0:
-        return True
-    return subset_ink >= original_ink * 0.5
 
 
 def _prepare_fonts(
@@ -612,5 +539,4 @@ __all__ = [
     "PDFOutputStageContext",
     "assemble_output",
     "finalize_output",
-    "resolve_output_fonts",
 ]

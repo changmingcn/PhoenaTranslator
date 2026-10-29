@@ -333,7 +333,7 @@ from phoena_translator.pdf.translation_targets import (
     _pdf_element_requires_translation,  # noqa: F401 - legacy facade
     _pdf_translation_language_views,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.assembly import (
+from phoena_translator.pdf.paragraph_html import (
     PDF_HTMLBOX_SUPERSCRIPT_CSS,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.rendering import (
@@ -377,7 +377,7 @@ from phoena_translator.pdf.translation import (
 from phoena_translator.pdf.page_translation import (
     _pdf_vector_ocr_translation_hint,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.assembly import (
+from phoena_translator.pdf.paragraph_html import (
     _split_pdf_translated_paragraphs,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.leak_audit import (
@@ -443,7 +443,6 @@ from phoena_translator.pdf.fonts import (
     pdf_font_subsetting_available,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.rendering import (
-    _PDFInlineHTMLParser,  # noqa: F401 - legacy facade
     _build_htmlbox_rect_ladder,  # noqa: F401 - legacy facade
     _build_pdf_rotated_text_rects,  # noqa: F401 - legacy facade
     _collect_pdf_overlap_redraw_indices,  # noqa: F401 - legacy facade
@@ -455,11 +454,16 @@ from phoena_translator.pdf.rendering import (
     _insert_pdf_rotated_textbox_with_fit,  # noqa: F401 - legacy facade
     _insert_pdf_textbox_with_fit,  # noqa: F401 - legacy facade
     _paint_pdf_vector_ocr_element_background,  # noqa: F401 - legacy facade
-    _pdf_plain_text_to_html,  # noqa: F401 - legacy facade
-    _pdf_text_to_html,  # noqa: F401 - legacy facade
     _resolve_pdf_render_style,  # noqa: F401 - legacy facade
     _restore_pdf_source_text_element,  # noqa: F401 - legacy facade
     _sanitize_pdf_text_rect,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.paragraph_html import (
+    _PDFInlineHTMLParser,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.paragraph_html import (
+    _pdf_plain_text_to_html,  # noqa: F401 - legacy facade
+    _pdf_text_to_html,  # noqa: F401 - legacy facade
     _wrap_pdf_latin_runs,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.output_audit import (

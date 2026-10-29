@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import re
-import html
 import logging
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -40,30 +38,24 @@ from phoena_translator.pdf.rendering import (
     _insert_pdf_rotated_textbox_with_fit,
     _insert_pdf_textbox_with_fit,
     _paint_pdf_vector_ocr_element_background,
-    _pdf_plain_text_to_html,
-    _pdf_text_to_html,
     _resolve_pdf_render_style,
     _restore_pdf_source_text_element,
 )
+from phoena_translator.pdf.paragraph_html import (
+    PDF_HTMLBOX_SUPERSCRIPT_CSS,
+    _build_paragraph_html,
+    _split_pdf_translated_paragraphs,
+)
 from phoena_translator.pdf.page_styles import _derive_pdf_page_layout_styles
-from phoena_translator.pdf.toc import _strip_pdf_toc_label
 from phoena_translator.pdf.deterministic_labels import _translate_pdf_fixed_short_label
 from phoena_translator.pdf.leak_audit import _pdf_collect_untranslated_english_leaks
-from phoena_translator.pdf.toc import _pdf_toc_entries
 from phoena_translator.pdf.errors import PDFPageRenderError
 from phoena_translator.pdf.model import (
     ElementType,
-    LayoutClass,
     PageExtraction,
     PdfAudit,
     SkipReason,
 )
-
-
-PDF_HTMLBOX_SUPERSCRIPT_CSS = (
-    'sup{line-height:0;vertical-align:super;white-space:nowrap;}'
-)
-
 
 
 @dataclass
@@ -576,97 +568,6 @@ def _redact_page(context: PDFAssemblyContext, plan: PDFPageAssemblyPlan) -> str:
     css_parts.append(PDF_HTMLBOX_SUPERSCRIPT_CSS)
     css = "".join(css_parts)
     return css
-
-
-def _build_paragraph_html(
-    element: dict,
-    source_paragraphs: list[dict],
-    translated_paragraphs: list[str],
-    fontsize: float,
-    color_hex: str,
-    line_height: float,
-) -> list[str]:
-    """Render paragraph metadata into deterministic HTML fragments."""
-
-    fragments = []
-    for metadata, translated_text in zip(source_paragraphs, translated_paragraphs):
-        if not translated_text.strip():
-            continue
-        margin_top = max(0.0, metadata.get("gap_before", 0.0))
-        margin_left = max(0.0, metadata.get("margin_left", 0.0))
-        text_indent = metadata.get("text_indent", 0.0)
-        text_align = metadata.get("text_align", "left")
-        nowrap = metadata.get("nowrap", False)
-        toc_metadata = metadata.get("toc_leader")
-        source_toc_entries = _pdf_toc_entries(metadata.get("plain", ""))
-        translated_toc_entries = _pdf_toc_entries(translated_text)
-        entries_match = (
-            len(source_toc_entries) > 1
-            and len(source_toc_entries) == len(translated_toc_entries)
-            and [page for _, page in source_toc_entries]
-            == [page for _, page in translated_toc_entries]
-        )
-        if entries_match:
-            rows = []
-            for (_, page_reference), (translated_label, _) in zip(
-                source_toc_entries,
-                translated_toc_entries,
-            ):
-                safe_label = _pdf_plain_text_to_html(translated_label)
-                safe_page = html.escape(page_reference)
-                rows.append(
-                    "<tr>"
-                    f'<td style="padding:0;vertical-align:baseline;overflow:hidden;">{safe_label}</td>'
-                    '<td style="padding:0 4px;vertical-align:baseline;white-space:nowrap;'
-                    'width:3.2em;text-align:center;">......</td>'
-                    f'<td style="padding:0;vertical-align:baseline;white-space:nowrap;'
-                    f'width:3.2em;text-align:right;">{safe_page}</td>'
-                    "</tr>"
-                )
-            fragments.append(
-                f'<table style="width:100%;border-collapse:collapse;table-layout:fixed;'
-                f"margin:{margin_top:.1f}px 0 0 {margin_left:.1f}px;padding:0;"
-                f"font-size:{fontsize:.1f}px;color:{color_hex};"
-                f'line-height:{line_height:.1f}px;">{"".join(rows)}</table>'
-            )
-        elif toc_metadata:
-            label = (
-                _strip_pdf_toc_label(translated_text, toc_metadata["page"])
-                or toc_metadata["label"]
-            )
-            safe_label = _pdf_plain_text_to_html(label)
-            safe_page = html.escape(toc_metadata["page"])
-            fragments.append(
-                f'<table style="width:100%;border-collapse:collapse;table-layout:fixed;'
-                f"margin:{margin_top:.1f}px 0 0 {margin_left:.1f}px;padding:0;"
-                f"font-size:{fontsize:.1f}px;color:{color_hex};"
-                f'line-height:{line_height:.1f}px;"><tr>'
-                f'<td style="padding:0;vertical-align:baseline;overflow:hidden;">{safe_label}</td>'
-                '<td style="padding:0 4px;vertical-align:baseline;white-space:nowrap;'
-                'width:3.2em;text-align:center;">......</td>'
-                '<td style="padding:0;vertical-align:baseline;white-space:nowrap;'
-                f'width:3.2em;text-align:right;">{safe_page}</td></tr></table>'
-            )
-        else:
-            safe_text = _pdf_text_to_html(
-                translated_text,
-                superscript_scale=float(element.get("superscript_scale") or 0.60),
-            )
-            single_line_heading = bool(element.get("single_line_heading"))
-            white_space = (
-                "white-space:nowrap;"
-                if single_line_heading
-                or (element.get("layout_class", "body") != LayoutClass.BODY and nowrap)
-                else ""
-            )
-            fragments.append(
-                f'<p style="font-size:{fontsize:.1f}px;color:{color_hex};'
-                f"line-height:{line_height:.1f}px;"
-                f"margin:{margin_top:.1f}px 0 0 {margin_left:.1f}px;"
-                f"padding:0;text-indent:{text_indent:.1f}px;"
-                f'text-align:{text_align};{white_space}">{safe_text}</p>'
-            )
-    return fragments
 
 
 def _prepare_element_render(
@@ -1380,27 +1281,3 @@ def assemble_document_pages(context: PDFAssemblyContext) -> None:
 __all__ = ["PDFAssemblyContext", "assemble_document_pages"]
 
 
-def _split_pdf_translated_paragraphs(text: str, expected_count: int) -> list[str]:
-    normalized = _normalize_pdf_translation(text)
-    paragraphs = [p.strip() for p in re.split(r'\n\s*\n+', normalized) if p.strip()]
-
-    if expected_count <= 1:
-        if not paragraphs and normalized.strip():
-            return [re.sub(r'\s+', ' ', normalized).strip()]
-        return [re.sub(r'\s+', ' ', p).strip() for p in paragraphs] or [""]
-
-    if len(paragraphs) != expected_count:
-        line_paragraphs = [re.sub(r'\s+', ' ', p).strip() for p in normalized.splitlines() if p.strip()]
-        if len(line_paragraphs) == expected_count:
-            paragraphs = line_paragraphs
-
-    paragraphs = [re.sub(r'\s+', ' ', p).strip() for p in paragraphs if p.strip()]
-    if not paragraphs:
-        paragraphs = [re.sub(r'\s+', ' ', normalized).strip()] if normalized.strip() else [""]
-
-    if len(paragraphs) < expected_count:
-        paragraphs.extend([""] * (expected_count - len(paragraphs)))
-    elif len(paragraphs) > expected_count:
-        paragraphs = paragraphs[:expected_count - 1] + [" ".join(paragraphs[expected_count - 1:]).strip()]
-
-    return paragraphs

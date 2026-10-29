@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import logging
-import html
 import hashlib
 import math
 import os
 import re
 import tempfile
-from html.parser import HTMLParser
 from pathlib import Path
 import fitz
 from phoena_translator.pdf.geometry import (
@@ -780,13 +778,6 @@ def _constrain_pdf_htmlbox_rect_ladder_to_neighbors(
     return constrained
 
 
-def _pdf_plain_text_to_html(text: str) -> str:
-    normalized = _plain_text(_normalize_pdf_translation(text))
-    normalized = re.sub(r'\s*\n\s*', ' ', normalized)
-    escaped = html.escape(normalized)
-    return _wrap_pdf_latin_runs(escaped)
-
-
 def _resolve_pdf_render_style(elem: dict, layout_styles: dict[str, dict]) -> dict:
     layout_class = elem.get("layout_class", "body")
     class_style = layout_styles.get(layout_class, layout_styles.get("body", {}))
@@ -804,92 +795,6 @@ def _resolve_pdf_render_style(elem: dict, layout_styles: dict[str, dict]) -> dic
         "padding_ratio": 0.14 if len(elem.get("paragraphs") or []) <= 1 else 0.20,
         "preserve_source_style": True,
     }
-
-
-def _wrap_pdf_latin_runs(text: str) -> str:
-    parts = re.split(r'(&(?:[A-Za-z]+|#\d+|#x[0-9A-Fa-f]+);)', text)
-    wrapped = []
-    for part in parts:
-        if not part:
-            continue
-        if part.startswith("&") and part.endswith(";"):
-            wrapped.append(part)
-            continue
-        wrapped.append(re.sub(
-            r'([A-Za-z][A-Za-z0-9.,\-\'&;/():%]*(?:\s+[A-Za-z][A-Za-z0-9.,\-\'&;/():%]*)*)',
-            r'<span class="en">\1</span>',
-            part,
-        ))
-    return "".join(wrapped)
-
-
-class _PDFInlineHTMLParser(HTMLParser):
-    def __init__(self, superscript_scale: float):
-        super().__init__(convert_charrefs=True)
-        self.parts = []
-        self.stack = []
-        self.superscript_scale = max(0.45, min(float(superscript_scale), 0.80))
-
-    def handle_starttag(self, tag, attrs):
-        tag = tag.lower()
-        if tag not in {"b", "sup"}:
-            # Unknown angle-bracketed material is source text, not markup.
-            # Preserve it visibly and escape it before insert_htmlbox; this
-            # covers domain notation such as ``<JPY short position>`` without
-            # allowing an arbitrary provider-emitted tag into the HTML.
-            self.parts.append(html.escape(
-                self.get_starttag_text() or f"<{tag}>"
-            ))
-            return
-        if tag == "b":
-            self.parts.append("<b>")
-        else:
-            percent = self.superscript_scale * 100.0
-            self.parts.append(
-                '&#8288;'
-                f'<sup style="font-size:{percent:.1f}%;line-height:0;vertical-align:super">'
-            )
-        self.stack.append(tag)
-
-    def handle_endtag(self, tag):
-        tag = tag.lower()
-        if tag not in {"b", "sup"}:
-            self.parts.append(html.escape(f"</{tag}>"))
-            return
-        if tag not in self.stack:
-            return
-        while self.stack:
-            open_tag = self.stack.pop()
-            self.parts.append(f"</{open_tag}>")
-            if open_tag == tag:
-                break
-
-    def handle_startendtag(self, tag, attrs):
-        tag = tag.lower()
-        if tag not in {"b", "sup"}:
-            self.parts.append(html.escape(
-                self.get_starttag_text() or f"<{tag}/>"
-            ))
-            return
-        self.handle_starttag(tag, attrs)
-        self.handle_endtag(tag)
-
-    def handle_data(self, data):
-        escaped = html.escape(re.sub(r'\s*\n\s*', ' ', data))
-        self.parts.append(_wrap_pdf_latin_runs(escaped))
-
-    def finish(self) -> str:
-        while self.stack:
-            self.parts.append(f"</{self.stack.pop()}>")
-        return "".join(self.parts)
-
-
-def _pdf_text_to_html(text: str, superscript_scale: float = 0.60) -> str:
-    """Escape translated text while preserving supported inline markup."""
-    parser = _PDFInlineHTMLParser(superscript_scale)
-    parser.feed(_normalize_pdf_translation(text))
-    parser.close()
-    return parser.finish()
 
 
 def _paint_pdf_vector_ocr_element_background(
