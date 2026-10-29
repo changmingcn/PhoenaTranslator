@@ -96,12 +96,16 @@ tests/test_epub_pipeline.py
 tests/test_epub_resume.py
 tests/test_epub_segments.py
 tests/test_golden_pipeline.py
+tests/test_pdf_assembly.py
 tests/test_pdf_core.py
 tests/test_pdf_extract.py
+tests/test_pdf_formulae.py
 tests/test_pdf_model.py
 tests/test_pdf_render.py
 tests/test_pdf_semantics.py
+tests/test_pdf_textbox_fit.py
 tests/test_pdf_translate.py
+tests/test_pdf_vector_ocr.py
 tests/test_pdf_verify.py
 tests/test_prompt_rules.py
 tests/test_runtime.py
