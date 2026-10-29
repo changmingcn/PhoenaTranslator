@@ -9,6 +9,7 @@ import math
 import os
 import re
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import fitz
@@ -93,54 +94,6 @@ def _collect_pdf_overlap_redraw_indices(
     return redraw
 
 
-def _expand_pdf_htmlbox_rect(
-    rect: fitz.Rect,
-    page_rect: fitz.Rect,
-    text: str,
-    fontsize: float,
-    paragraphs: list[dict],
-    aggressive: bool = False,
-) -> fitz.Rect:
-    expanded = fitz.Rect(rect)
-    plain = _collapsed_plain_text(text)
-    compact = re.sub(r"\s+", "", plain)
-    if not compact:
-        return expanded
-
-    non_empty_paragraphs = [p for p in (paragraphs or []) if (p.get("plain") or "").strip()]
-    aligns = {p.get("text_align", "left") for p in non_empty_paragraphs} or {"left"}
-    single_paragraph = len(non_empty_paragraphs) <= 1
-    narrow_box = expanded.width <= max(fontsize * 2.2, 20.0)
-    shortish_text = len(compact) <= (28 if aggressive else 22)
-
-    if not aggressive and not (single_paragraph and narrow_box and shortish_text):
-        return expanded
-
-    if aligns == {"right"}:
-        target_width = max(expanded.width, fontsize * (4.0 if not aggressive else 4.8), 30.0 if not aggressive else 40.0)
-    elif aligns == {"center"}:
-        target_width = max(expanded.width, fontsize * (4.2 if not aggressive else 5.0), 30.0 if not aggressive else 40.0)
-    else:
-        target_width = max(expanded.width, fontsize * (3.8 if not aggressive else 4.6), 30.0 if not aggressive else 40.0)
-
-    target_width = min(target_width, page_rect.width * (0.18 if not aggressive else 0.24))
-    if target_width <= expanded.width + 0.1:
-        return expanded
-
-    extra = target_width - expanded.width
-    if aligns == {"right"}:
-        expanded.x0 = max(page_rect.x0 + 4.0, expanded.x0 - extra)
-    elif aligns == {"left"}:
-        expanded.x1 = min(page_rect.x1 - 4.0, expanded.x1 + extra)
-    else:
-        expanded.x0 = max(page_rect.x0 + 4.0, expanded.x0 - extra / 2.0)
-        expanded.x1 = min(page_rect.x1 - 4.0, expanded.x1 + extra / 2.0)
-
-    if expanded.x1 <= expanded.x0:
-        return fitz.Rect(rect)
-    return expanded
-
-
 def _sanitize_pdf_text_rect(rect: fitz.Rect, page_rect: fitz.Rect, min_width: float = 2.0, min_height: float = 2.0) -> fitz.Rect | None:
     coords = [float(rect.x0), float(rect.y0), float(rect.x1), float(rect.y1)]
     if not all(math.isfinite(value) for value in coords):
@@ -202,6 +155,30 @@ def _insert_pdf_htmlbox_at_readable_scale(
     )
 
 
+@dataclass(frozen=True)
+class _PDFTextPen:
+    """How fallback text is drawn: alignment, colour and the registered font."""
+
+    align: int
+    color: tuple[float, float, float]
+    fontname: str
+    fontfile: str
+
+
+def _pdf_fallback_font_name(fontfile: str) -> str:
+    """A stable PyMuPDF font name for ``fontfile``.
+
+    ``fontfile=`` does not by itself select that font in PyMuPDF's textbox
+    APIs: when ``fontname`` is omitted they continue to use the built-in
+    Helvetica face, whose missing CJK glyphs are written as literal ``?``.
+    Callers register this name and select it explicitly before drawing.
+    """
+    font_digest = hashlib.sha256(
+        os.path.abspath(fontfile).encode("utf-8")
+    ).hexdigest()[:8]
+    return f"PhoenaFallback{font_digest}"
+
+
 def _insert_pdf_textbox_with_fit(
     page,
     rect: fitz.Rect,
@@ -240,7 +217,62 @@ def _insert_pdf_textbox_with_fit(
     base_fontsize = max(float(fontsize), 1.0)
     lineheight_factor = max(float(lineheight_points) / base_fontsize, 1.0)
     lineheight_factor = min(lineheight_factor, 1.65)
+    rects = _pdf_textbox_candidate_rects(
+        requested_rect, page_rect, fit_rects, protected_rects
+    )
+    if not rects:
+        return False, "no formula-safe text rect", None
 
+    # Register the font before either the normal textbox path or the
+    # last-resort single-line path can draw.
+    fontname = _pdf_fallback_font_name(fontfile)
+    try:
+        page.insert_font(fontname=fontname, fontfile=fontfile)
+    except Exception as exc:
+        return False, f"textbox font registration failed: {exc}", None
+    pen = _PDFTextPen(align=align, color=color, fontname=fontname, fontfile=fontfile)
+
+    fitted, last_msg = _fit_pdf_textbox(
+        page,
+        rects,
+        fallback_text,
+        pen,
+        base_fontsize=base_fontsize,
+        lineheight_factor=lineheight_factor,
+        scales=tuple(
+            scale
+            for scale in (1.0, 0.92, 0.84, 0.76, 0.68, 0.60)
+            if scale + 1e-9 >= minimum_scale
+        ),
+        minimum_fontsize=(
+            max(base_fontsize * minimum_scale, 1.0)
+            if allow_compact_fontsize
+            else 5.5
+        ),
+    )
+    if fitted is not None:
+        return fitted
+    return _insert_pdf_single_line_fallback(
+        page,
+        page_rect,
+        rects,
+        fallback_text,
+        pen,
+        base_fontsize=base_fontsize,
+        minimum_scale=minimum_scale,
+        vetted=fit_rects is not None,
+        protected_rects=protected_rects,
+        last_msg=last_msg,
+    )
+
+
+def _pdf_textbox_candidate_rects(
+    requested_rect: fitz.Rect,
+    page_rect: fitz.Rect,
+    fit_rects: list | None,
+    protected_rects: list | None,
+) -> list[fitz.Rect]:
+    """Distinct formula-safe textbox rectangles to try, in order."""
     if fit_rects is None:
         rects = [
             requested_rect,
@@ -275,48 +307,35 @@ def _insert_pdf_textbox_with_fit(
         ):
             seen_rects.add(key)
             unique_rects.append(candidate)
+    return unique_rects
 
-    if not unique_rects:
-        return False, "no formula-safe text rect", None
-    base_rect = unique_rects[0]
 
-    # ``fontfile=`` does not by itself select that font in PyMuPDF's textbox
-    # APIs: when ``fontname`` is omitted they continue to use the built-in
-    # Helvetica face, whose missing CJK glyphs are written as literal ``?``.
-    # Register and explicitly select a stable custom font name before either
-    # the normal textbox path or the last-resort single-line path can draw.
-    font_digest = hashlib.sha256(
-        os.path.abspath(fontfile).encode("utf-8")
-    ).hexdigest()[:8]
-    fontname = f"PhoenaFallback{font_digest}"
-    try:
-        page.insert_font(fontname=fontname, fontfile=fontfile)
-    except Exception as exc:
-        return False, f"textbox font registration failed: {exc}", None
-
+def _fit_pdf_textbox(
+    page,
+    rects: list[fitz.Rect],
+    text: str,
+    pen: _PDFTextPen,
+    *,
+    base_fontsize: float,
+    lineheight_factor: float,
+    scales: tuple[float, ...],
+    minimum_fontsize: float,
+) -> tuple[tuple[bool, str, float] | None, str]:
+    """Walk rectangles, then scales; return the drawn result (or None) and the last error."""
+    base_rect = rects[0]
     last_msg = ""
-    scales = tuple(
-        scale
-        for scale in (1.0, 0.92, 0.84, 0.76, 0.68, 0.60)
-        if scale + 1e-9 >= minimum_scale
-    )
-    minimum_fontsize = (
-        max(base_fontsize * minimum_scale, 1.0)
-        if allow_compact_fontsize
-        else 5.5
-    )
-    for candidate_rect in unique_rects:
+    for candidate_rect in rects:
         for scale in scales:
             trial_fontsize = max(base_fontsize * scale, minimum_fontsize)
             trial_lineheight = max(min(lineheight_factor * min(1.0, scale + 0.08), 1.45), 1.05)
             try:
                 rc = page.insert_textbox(
                     candidate_rect,
-                    fallback_text,
-                    align=align,
-                    color=color,
-                    fontname=fontname,
-                    fontfile=fontfile,
+                    text,
+                    align=pen.align,
+                    color=pen.color,
+                    fontname=pen.fontname,
+                    fontfile=pen.fontfile,
                     fontsize=trial_fontsize,
                     lineheight=trial_lineheight,
                 )
@@ -329,10 +348,27 @@ def _insert_pdf_textbox_with_fit(
                         True,
                         f"fit after resize fontsize={trial_fontsize:.1f}, spare={rc:.1f}",
                         trial_fontsize,
-                    )
-                return True, f"spare={rc:.1f}", trial_fontsize
+                    ), last_msg
+                return (True, f"spare={rc:.1f}", trial_fontsize), last_msg
             last_msg = f"textbox deficit {-rc:.1f}"
+    return None, last_msg
 
+
+def _insert_pdf_single_line_fallback(
+    page,
+    page_rect: fitz.Rect,
+    rects: list[fitz.Rect],
+    text: str,
+    pen: _PDFTextPen,
+    *,
+    base_fontsize: float,
+    minimum_scale: float,
+    vetted: bool,
+    protected_rects: list | None,
+    last_msg: str,
+) -> tuple[bool, str, float | None]:
+    """Last resort: one unclipped line that stays on the page and off formulas."""
+    base_rect = rects[0]
     try:
         fallback_fontsize = max(min(base_fontsize, 8.0), 5.5)
         if (
@@ -344,11 +380,11 @@ def _insert_pdf_textbox_with_fit(
                 "single-line fallback would violate minimum render scale",
                 None,
             )
-        line_text = re.sub(r"\s+", " ", fallback_text)[:1200]
+        line_text = re.sub(r"\s+", " ", text)[:1200]
         # insert_text draws an unclipped line: measure it first so it can
         # neither run off the page nor overwrite a protected formula region.
         try:
-            line_width = fitz.Font(fontfile=fontfile).text_length(
+            line_width = fitz.Font(fontfile=pen.fontfile).text_length(
                 line_text, fontsize=fallback_fontsize
             )
         except Exception:
@@ -366,12 +402,12 @@ def _insert_pdf_textbox_with_fit(
             base_rect.x0 + line_width,
             baseline_y + fallback_fontsize * 0.35,
         )
-        if fit_rects is not None and not any(
+        if vetted and not any(
             line_rect.x0 >= candidate.x0 - 0.05
             and line_rect.y0 >= candidate.y0 - 0.05
             and line_rect.x1 <= candidate.x1 + 0.05
             and line_rect.y1 <= candidate.y1 + 0.05
-            for candidate in unique_rects
+            for candidate in rects
         ):
             return (
                 False,
@@ -384,13 +420,12 @@ def _insert_pdf_textbox_with_fit(
                 "single-line fallback would cross a protected formula region",
                 None,
             )
-        point = fitz.Point(base_rect.x0, baseline_y)
         page.insert_text(
-            point,
+            fitz.Point(base_rect.x0, baseline_y),
             line_text,
-            color=color,
-            fontname=fontname,
-            fontfile=fontfile,
+            color=pen.color,
+            fontname=pen.fontname,
+            fontfile=pen.fontfile,
             fontsize=fallback_fontsize,
         )
         return True, f"used single-line fallback after {last_msg}", fallback_fontsize
@@ -445,10 +480,7 @@ def _restore_pdf_source_text_element(
     )
     if base_rect is None:
         return False, f"{fit_msg}; invalid source rect"
-    font_digest = hashlib.sha256(
-        os.path.abspath(fontfile).encode("utf-8")
-    ).hexdigest()[:8]
-    fontname = f"PhoenaFallback{font_digest}"
+    fontname = _pdf_fallback_font_name(fontfile)
     try:
         page.insert_font(fontname=fontname, fontfile=fontfile)
     except Exception as exc:

@@ -33,7 +33,6 @@ from phoena_translator.pdf.render.primitives import (
     _build_pdf_rotated_text_rects,
     _collect_pdf_overlap_redraw_indices,
     _constrain_pdf_htmlbox_rect_ladder_to_neighbors,
-    _expand_pdf_htmlbox_rect,
     _insert_pdf_htmlbox_at_readable_scale,
     _insert_pdf_rotated_textbox_with_fit,
     _insert_pdf_textbox_with_fit,
@@ -110,7 +109,6 @@ class PDFElementRenderPlan:
 
     index: int
     element: dict
-    render_style: dict
     source_paragraphs: list[dict]
     source_rect: fitz.Rect
     render_rect: fitz.Rect
@@ -264,62 +262,60 @@ def _try_restore_source_element(
     return True
 
 
+@dataclass(frozen=True)
+class _PageLayout:
+    """Page geometry the preflight needs before the assembly plan exists."""
+
+    page_num: int
+    out_page: fitz.Page
+    elements: list[dict]
+    layout_styles: dict
+    watermark_indices: set[int]
+    protected_formula_rects: list[fitz.Rect]
+
+
 def _prepare_page(
     context: PDFAssemblyContext,
     page_num: int,
 ) -> PDFPageAssemblyPlan | None:
     """Resolve translations and validate formula-safe placement before redaction."""
 
-    task_id = context.task_id
-    out_doc = context.out_doc
-    page_extractions = context.page_extractions
-    pdf_audit = context.pdf_audit
-    log = context.logger
-    out_page = out_doc[page_num]
-
-    info = page_extractions.get(page_num, {})
-
-    if info.get("source_page_fallback"):
-        return
-    if "appendix" in info or ("elements" not in info and "cached" not in info):
-        return
-
+    out_page = context.out_doc[page_num]
+    info = context.page_extractions.get(page_num, {})
+    page_trans = _page_translations(info)
+    if page_trans is None:
+        return None
     elements = info.get("elements", [])
     merged_away_indices = {
         i for i, elem in enumerate(elements) if elem.get("type") == ElementType.MERGED_AWAY
     }
-    if "cached" in info:
-        page_trans = {int(k): v for k, v in info["cached"].items()}
-    elif merged_away_indices:
-        # Cross-page semantic merging may consume the only text element on a
-        # page.  Such a page still needs an assembly plan so its stale source
-        # ink is redacted even though it has no translation payload.
-        page_trans = {}
-    else:
-        return
 
-    layout_styles = info.get("layout_styles") or _derive_pdf_page_layout_styles(
-        elements, _pdf_page_extraction_rect(out_page)
+    layout = _PageLayout(
+        page_num=page_num,
+        out_page=out_page,
+        elements=elements,
+        layout_styles=info.get("layout_styles") or _derive_pdf_page_layout_styles(
+            elements, _pdf_page_extraction_rect(out_page)
+        ),
+        watermark_indices={
+            i
+            for i, elem in enumerate(elements)
+            if elem.get("skip_translate_reason") == SkipReason.WATERMARK
+        },
+        protected_formula_rects=[
+            _get_pdf_elem_rect(elem)
+            for elem in elements
+            if elem.get("type") == ElementType.FORMULA_IMAGE
+        ],
     )
-    watermark_indices = {
+    translated_indices = {
         i
         for i, elem in enumerate(elements)
-        if elem.get("skip_translate_reason") == SkipReason.WATERMARK
+        if i not in layout.watermark_indices
+        and elem["type"] == ElementType.TEXT
+        and i in page_trans
+        and page_trans[i] != elem.get("content", "")
     }
-    protected_formula_rects = [
-        _get_pdf_elem_rect(elem)
-        for elem in elements
-        if elem.get("type") == ElementType.FORMULA_IMAGE
-    ]
-
-    # Find which elements were actually translated
-    translated_indices = set()
-    for i, elem in enumerate(elements):
-        if i in watermark_indices:
-            continue
-        if elem["type"] == ElementType.TEXT and i in page_trans:
-            if page_trans[i] != elem.get("content", ""):
-                translated_indices.add(i)
 
     # Validate formula-safe placement before redacting any source text.
     # Previously this check happened only during insertion, after the
@@ -327,86 +323,169 @@ def _prepare_page(
     # result could therefore create a silent blank. Nothing has been
     # redacted yet, so an unplaceable element can simply keep its
     # original source ink while the rest of the page still translates.
-    unplaceable_indices = set()
+    for i in sorted(_unplaceable_indices(context, layout, page_trans, translated_indices)):
+        _keep_source_ink(context, layout, i, page_trans, translated_indices)
+    _audit_untranslated_english(context, page_num, elements, page_trans)
+
+    if not translated_indices and not layout.watermark_indices and not merged_away_indices:
+        return None  # nothing to change on this page
+
+    redraw_source_indices = _overlap_redraw_indices(
+        page_num,
+        elements,
+        set(translated_indices) | set(layout.watermark_indices) | merged_away_indices,
+    )
+    if redraw_source_indices:
+        context.logger.info(
+            f"[{context.task_id}] Page {page_num + 1}: redrawing {len(redraw_source_indices)} "
+            "unchanged overlapping text element(s) after redaction"
+        )
+    return PDFPageAssemblyPlan(
+        page_num=page_num,
+        out_page=out_page,
+        elements=elements,
+        translations=page_trans,
+        layout_styles=layout.layout_styles,
+        watermark_indices=layout.watermark_indices,
+        protected_formula_rects=layout.protected_formula_rects,
+        translated_indices=translated_indices,
+        redraw_source_indices=redraw_source_indices,
+        render_indices=set(translated_indices) | redraw_source_indices,
+    )
+
+
+def _page_translations(info: PageExtraction) -> dict[int, str] | None:
+    """The page's translations by element index, or ``None`` to leave it as is."""
+    if info.get("source_page_fallback"):
+        return None
+    if "appendix" in info or ("elements" not in info and "cached" not in info):
+        return None
+    if "cached" in info:
+        return {int(k): v for k, v in info["cached"].items()}
+    if any(
+        elem.get("type") == ElementType.MERGED_AWAY for elem in info.get("elements", [])
+    ):
+        # Cross-page semantic merging may consume the only text element on a
+        # page.  Such a page still needs an assembly plan so its stale source
+        # ink is redacted even though it has no translation payload.
+        return {}
+    return None
+
+
+def _formula_safe_htmlbox_ladder(
+    context: PDFAssemblyContext,
+    page: _PageLayout | PDFPageAssemblyPlan,
+    index: int,
+    render_rect: fitz.Rect,
+    fontsize: float,
+) -> list[tuple[str, fitz.Rect]]:
+    """Formula-safe HTML-box rectangles for one element, preferred first."""
+    element = page.elements[index]
+    if element.get("table_hint") or element.get("glossary_cell_hint"):
+        # Table rules and neighboring cells remain fixed. Let a translated
+        # cell scale inside its original geometry; a downward extension
+        # would turn the row into overlapping text while the table lines
+        # stay in place.
+        ladder = [("base", fitz.Rect(render_rect))]
+    else:
+        ladder = _constrain_pdf_htmlbox_rect_ladder_to_neighbors(
+            _build_htmlbox_rect_ladder(
+                render_rect,
+                _pdf_page_extraction_rect(page.out_page),
+                fontsize,
+                prefer_widen=bool(element.get("single_line_heading")),
+            ),
+            render_rect,
+            page.elements,
+            index,
+            fontsize,
+            ignored_indices=page.watermark_indices,
+        )
+    return context.filter_formula_safe_rects(
+        ladder,
+        page.protected_formula_rects,
+        anchor_rect=render_rect,
+    )
+
+
+def _unplaceable_indices(
+    context: PDFAssemblyContext,
+    layout: _PageLayout,
+    page_trans: dict[int, str],
+    translated_indices: set[int],
+) -> set[int]:
+    """Translated elements that have no formula-safe place to be drawn."""
+    unplaceable = set()
     for i in sorted(translated_indices):
-        elem = elements[i]
-        text_to_insert = page_trans[i]
-        render_style = _resolve_pdf_render_style(elem, layout_styles)
-        bbox = elem.get("bbox", elem.get("rect"))
-        render_rect = fitz.Rect(bbox) if isinstance(bbox, list) else fitz.Rect(bbox)
+        elem = layout.elements[i]
+        render_style = _resolve_pdf_render_style(elem, layout.layout_styles)
+        render_rect = _get_pdf_elem_rect(elem)
         fontsize = float(render_style.get("fontsize", elem.get("fontsize", DEFAULT_FONTSIZE)))
         if elem.get("non_horizontal"):
             if not _build_pdf_rotated_text_rects(
                 render_rect,
-                _pdf_page_extraction_rect(out_page),
+                _pdf_page_extraction_rect(layout.out_page),
                 fontsize,
                 int(elem.get("rotation", 90) or 90),
-                protected_formula_rects,
+                layout.protected_formula_rects,
             ):
-                unplaceable_indices.add(i)
-            continue
-        if context.use_htmlbox or _pdf_superscript_signature(text_to_insert):
-            is_table_cell = bool(
-                elem.get("table_hint") or elem.get("glossary_cell_hint")
-            )
-            ladder = (
-                [("base", fitz.Rect(render_rect))]
-                if is_table_cell
-                else _build_htmlbox_rect_ladder(
-                    render_rect,
-                    _pdf_page_extraction_rect(out_page),
-                    fontsize,
-                    prefer_widen=bool(elem.get("single_line_heading")),
-                )
-            )
-            if not is_table_cell:
-                ladder = _constrain_pdf_htmlbox_rect_ladder_to_neighbors(
-                    ladder,
-                    render_rect,
-                    elements,
-                    i,
-                    fontsize,
-                    ignored_indices=watermark_indices,
-                )
-            if not context.filter_formula_safe_rects(
-                ladder,
-                protected_formula_rects,
-                anchor_rect=render_rect,
-            ):
-                unplaceable_indices.add(i)
+                unplaceable.add(i)
+        elif (
+            context.use_htmlbox or _pdf_superscript_signature(page_trans[i])
+        ) and not _formula_safe_htmlbox_ladder(context, layout, i, render_rect, fontsize):
+            unplaceable.add(i)
+    return unplaceable
 
-    for i in sorted(unplaceable_indices):
-        elem = elements[i]
-        merge_fallback_error = _cross_page_merge_fallback_error(
-            context,
-            page_num,
-            i,
-            "no formula-safe rectangle for translated merge endpoint",
-        )
-        if merge_fallback_error is not None:
-            raise merge_fallback_error
-        elem["skip_translate_reason"] = SkipReason.RENDER_NO_SAFE_RECT_FALLBACK
-        translated_indices.discard(i)
-        page_trans[i] = elem.get("content", "")
-        _record_pdf_element_source_fallback(
-            pdf_audit,
-            page_num + 1,
-            i,
-            "render-preflight",
-            "no formula-safe rectangle; source ink kept in place",
-            source_text=elem.get("content", ""),
-        )
-        _exclude_pdf_audit_expectations_for_element(
-            pdf_audit,
-            page_num + 1,
-            i,
-        )
-        log.warning(
-            f"[{task_id}] Page {page_num + 1} elem {i}: no formula-safe "
-            "rectangle; keeping the element's exact source ink and "
-            "translating the rest of the page"
-        )
 
+def _keep_source_ink(
+    context: PDFAssemblyContext,
+    layout: _PageLayout,
+    index: int,
+    page_trans: dict[int, str],
+    translated_indices: set[int],
+) -> None:
+    """Leave an unplaceable element's source ink untouched and record why."""
+    elem = layout.elements[index]
+    page_number = layout.page_num + 1
+    merge_fallback_error = _cross_page_merge_fallback_error(
+        context,
+        layout.page_num,
+        index,
+        "no formula-safe rectangle for translated merge endpoint",
+    )
+    if merge_fallback_error is not None:
+        raise merge_fallback_error
+    elem["skip_translate_reason"] = SkipReason.RENDER_NO_SAFE_RECT_FALLBACK
+    translated_indices.discard(index)
+    page_trans[index] = elem.get("content", "")
+    _record_pdf_element_source_fallback(
+        context.pdf_audit,
+        page_number,
+        index,
+        "render-preflight",
+        "no formula-safe rectangle; source ink kept in place",
+        source_text=elem.get("content", ""),
+    )
+    _exclude_pdf_audit_expectations_for_element(
+        context.pdf_audit,
+        page_number,
+        index,
+    )
+    context.logger.warning(
+        f"[{context.task_id}] Page {page_number} elem {index}: no formula-safe "
+        "rectangle; keeping the element's exact source ink and "
+        "translating the rest of the page"
+    )
+
+
+def _audit_untranslated_english(
+    context: PDFAssemblyContext,
+    page_num: int,
+    elements: list[dict],
+    page_trans: dict[int, str],
+) -> None:
+    """Record translatable English that would survive into the output."""
+    log = context.logger
     try:
         leak_entries = _pdf_collect_untranslated_english_leaks(
             page_num + 1,
@@ -414,26 +493,27 @@ def _prepare_page(
             page_trans,
         )
         if leak_entries:
-            pdf_audit.setdefault("untranslated_english_leaks", []).extend(leak_entries)
+            context.pdf_audit.setdefault("untranslated_english_leaks", []).extend(leak_entries)
             for leak_entry in leak_entries:
                 log.warning(
-                    f"[{task_id}] Page {page_num + 1} elem "
+                    f"[{context.task_id}] Page {page_num + 1} elem "
                     f"{leak_entry['element']}: translatable English "
                     "prose survived untranslated in final output: "
                     f"{leak_entry['text']!r}"
                 )
     except Exception as leak_exc:
         log.warning(
-            f"[{task_id}] Page {page_num + 1}: untranslated-English "
+            f"[{context.task_id}] Page {page_num + 1}: untranslated-English "
             f"leak audit skipped: {type(leak_exc).__name__}"
         )
 
-    if not translated_indices and not watermark_indices and not merged_away_indices:
-        return  # nothing to change on this page
 
-    removal_seed_indices = (
-        set(translated_indices) | set(watermark_indices) | merged_away_indices
-    )
+def _overlap_redraw_indices(
+    page_num: int,
+    elements: list[dict],
+    removal_seed_indices: set[int],
+) -> set[int]:
+    """Unchanged text that redaction would erase as collateral and must redraw."""
     redraw_source_indices = _collect_pdf_overlap_redraw_indices(
         elements,
         removal_seed_indices,
@@ -454,125 +534,156 @@ def _prepare_page(
                 f"{elements[i].get('skip_translate_reason')} element would "
                 "need a redraw after neighboring redaction",
             )
-    render_indices = set(translated_indices) | redraw_source_indices
-    if redraw_source_indices:
-        log.info(
-            f"[{task_id}] Page {page_num + 1}: redrawing {len(redraw_source_indices)} "
-            "unchanged overlapping text element(s) after redaction"
-        )
-    return PDFPageAssemblyPlan(
-        page_num=page_num,
-        out_page=out_page,
-        elements=elements,
-        translations=page_trans,
-        layout_styles=layout_styles,
-        watermark_indices=watermark_indices,
-        protected_formula_rects=protected_formula_rects,
-        translated_indices=translated_indices,
-        redraw_source_indices=redraw_source_indices,
-        render_indices=render_indices,
-    )
+    return redraw_source_indices
 
 
 def _redact_page(context: PDFAssemblyContext, plan: PDFPageAssemblyPlan) -> str:
     """Remove source ink safely and return the page HTML-box stylesheet."""
 
-    task_id = context.task_id
-    page_num = plan.page_num
-    out_page = plan.out_page
-    elements = plan.elements
-    watermark_indices = plan.watermark_indices
-    protected_formula_rects = plan.protected_formula_rects
-    translated_indices = plan.translated_indices
-    render_indices = plan.render_indices
-    font_basename = context.font_basename
-    log = context.logger
-    removal_rects = []
-    for i, elem in enumerate(elements):
-        if (
-            elem["type"] == ElementType.MERGED_AWAY
-            or i in watermark_indices
-            or (elem["type"] == ElementType.TEXT and i in render_indices)
-        ):
-            if elem.get("type") in {ElementType.TEXT, ElementType.MERGED_AWAY}:
-                source_rects = _get_pdf_source_ink_rects(elem)
-            else:
-                bbox = elem.get("bbox", elem.get("rect"))
-                source_rects = [
-                    fitz.Rect(bbox) if isinstance(bbox, list) else fitz.Rect(bbox)
-                ]
-            for source_rect in source_rects:
-                removal_rects.extend(
-                    _subtract_pdf_protected_rects(
-                        source_rect,
-                        protected_formula_rects,
-                    )
-                )
+    removal_rects = _source_removal_rects(plan)
     if removal_rects:
-        redacted = False
-        try:
-            for rect in removal_rects:
-                out_page.add_redact_annot(rect, fill=False)
-            out_page.apply_redactions(
-                images=fitz.PDF_REDACT_IMAGE_NONE,
-                graphics=fitz.PDF_REDACT_LINE_ART_NONE,
-                text=fitz.PDF_REDACT_TEXT_REMOVE,
-            )
-            redacted = True
-        except Exception as exc:
-            log.warning(
-                f"[{task_id}] Page {page_num + 1}: text redaction failed ({exc}); falling back to whiteout"
-            )
-            # Pending redact annotations would otherwise be saved into the
-            # delivered file and render as marked boxes in viewers.
-            try:
-                for annot in list(
-                    out_page.annots(types=(fitz.PDF_ANNOT_REDACT,))
-                ):
-                    out_page.delete_annot(annot)
-            except Exception:
-                pass
-        if not redacted:
-            # Paint exactly the recorded ink rects: an expanded margin would
-            # cover neighboring glyph edges and the line art the redaction
-            # path deliberately preserves, and nothing redraws that sliver.
-            for rect in removal_rects:
-                for safe_rect in _subtract_pdf_protected_rects(
-                    fitz.Rect(rect), protected_formula_rects
-                ):
-                    shape = out_page.new_shape()
-                    shape.draw_rect(safe_rect)
-                    shape.finish(fill=(1, 1, 1), color=(1, 1, 1))
-                    shape.commit()
+        _remove_source_ink(context, plan, removal_rects)
 
     # Text converted to vector outlines is invisible to PDF text
     # redaction.  Paint only the detected glyph area (or the interior
     # of a detected diagram cell), preserving surrounding borders and
     # connector line art, before writing the translated semantic unit.
-    for i in sorted(translated_indices):
-        elem = elements[i]
+    for i in sorted(plan.translated_indices):
         _paint_pdf_vector_ocr_element_background(
-            out_page,
-            elem,
-            protected_formula_rects,
+            plan.out_page,
+            plan.elements[i],
+            plan.protected_formula_rects,
         )
+    return _page_htmlbox_css(context.font_basename)
 
-    css_parts = [
-        f'@font-face{{font-family:zh;src:url("{font_basename}");}}',
-    ]
-    css_parts.append(
-        "*{font-family:zh;margin:0;padding:0;letter-spacing:0px;word-spacing:0px;font-weight:normal;}"
+
+def _source_removal_rects(plan: PDFPageAssemblyPlan) -> list[fitz.Rect]:
+    """Source-ink rectangles to remove, minus the immutable formula regions."""
+    removal_rects = []
+    for i, elem in enumerate(plan.elements):
+        if not (
+            elem["type"] == ElementType.MERGED_AWAY
+            or i in plan.watermark_indices
+            or (elem["type"] == ElementType.TEXT and i in plan.render_indices)
+        ):
+            continue
+        if elem.get("type") in {ElementType.TEXT, ElementType.MERGED_AWAY}:
+            source_rects = _get_pdf_source_ink_rects(elem)
+        else:
+            source_rects = [_get_pdf_elem_rect(elem)]
+        for source_rect in source_rects:
+            removal_rects.extend(
+                _subtract_pdf_protected_rects(
+                    source_rect,
+                    plan.protected_formula_rects,
+                )
+            )
+    return removal_rects
+
+
+def _remove_source_ink(
+    context: PDFAssemblyContext,
+    plan: PDFPageAssemblyPlan,
+    removal_rects: list[fitz.Rect],
+) -> None:
+    """Redact the text under ``removal_rects``, or white it out if redaction fails."""
+    out_page = plan.out_page
+    try:
+        for rect in removal_rects:
+            out_page.add_redact_annot(rect, fill=False)
+        out_page.apply_redactions(
+            images=fitz.PDF_REDACT_IMAGE_NONE,
+            graphics=fitz.PDF_REDACT_LINE_ART_NONE,
+            text=fitz.PDF_REDACT_TEXT_REMOVE,
+        )
+        return
+    except Exception as exc:
+        context.logger.warning(
+            f"[{context.task_id}] Page {plan.page_num + 1}: text redaction failed ({exc}); falling back to whiteout"
+        )
+        # Pending redact annotations would otherwise be saved into the
+        # delivered file and render as marked boxes in viewers.
+        try:
+            for annot in list(
+                out_page.annots(types=(fitz.PDF_ANNOT_REDACT,))
+            ):
+                out_page.delete_annot(annot)
+        except Exception:
+            pass
+    # Paint exactly the recorded ink rects: an expanded margin would
+    # cover neighboring glyph edges and the line art the redaction
+    # path deliberately preserves, and nothing redraws that sliver.
+    for rect in removal_rects:
+        for safe_rect in _subtract_pdf_protected_rects(
+            fitz.Rect(rect), plan.protected_formula_rects
+        ):
+            shape = out_page.new_shape()
+            shape.draw_rect(safe_rect)
+            shape.finish(fill=(1, 1, 1), color=(1, 1, 1))
+            shape.commit()
+
+
+def _page_htmlbox_css(font_basename: str) -> str:
+    return "".join(
+        [
+            f'@font-face{{font-family:zh;src:url("{font_basename}");}}',
+            "*{font-family:zh;margin:0;padding:0;letter-spacing:0px;word-spacing:0px;font-weight:normal;}",
+            ".en{letter-spacing:0px;word-spacing:normal;}",
+            # A compound citation such as ``<sup>41, 42</sup>`` is one
+            # semantic marker.  MuPDF otherwise treats the ordinary space
+            # after the comma as a line-break opportunity and can strand
+            # ``42`` at the left edge of the next line.  Keep the marker
+            # indivisible while still allowing the whole superscript to move
+            # to the next line when the preceding line is full.
+            PDF_HTMLBOX_SUPERSCRIPT_CSS,
+        ]
     )
-    css_parts.append(".en{letter-spacing:0px;word-spacing:normal;}")
-    # A compound citation such as ``<sup>41, 42</sup>`` is one
-    # semantic marker.  MuPDF otherwise treats the ordinary space
-    # after the comma as a line-break opportunity and can strand
-    # ``42`` at the left edge of the next line.  Keep the marker
-    # indivisible while still allowing the whole superscript to move
-    # to the next line when the preceding line is full.
-    css_parts.append(PDF_HTMLBOX_SUPERSCRIPT_CSS)
-    css = "".join(css_parts)
-    return css
+
+
+def _restore_source_or_raise(
+    context: PDFAssemblyContext,
+    page_plan: PDFPageAssemblyPlan,
+    index: int,
+    element: dict,
+    *,
+    fontsize: float,
+    color: tuple[float, float, float],
+    line_height: float,
+    reason: str,
+) -> None:
+    """Restore the element's source text in place, or fail the page."""
+    if not _try_restore_source_element(
+        context,
+        page_plan.out_page,
+        page_plan.page_num,
+        page_plan.protected_formula_rects,
+        index,
+        element,
+        _get_pdf_elem_rect(element),
+        fontsize,
+        color,
+        line_height,
+        reason,
+    ):
+        raise PDFPageRenderError(page_plan.page_num + 1, index, reason)
+
+
+def _restore_planned_source_or_raise(
+    context: PDFAssemblyContext,
+    page_plan: PDFPageAssemblyPlan,
+    element_plan: PDFElementRenderPlan,
+    reason: str,
+) -> None:
+    _restore_source_or_raise(
+        context,
+        page_plan,
+        element_plan.index,
+        element_plan.element,
+        fontsize=element_plan.fontsize,
+        color=element_plan.color,
+        line_height=element_plan.line_height,
+        reason=reason,
+    )
 
 
 def _prepare_element_render(
@@ -584,8 +695,7 @@ def _prepare_element_render(
 
     element = page_plan.elements[index]
     style = _resolve_pdf_render_style(element, page_plan.layout_styles)
-    bbox = element.get("bbox", element.get("rect"))
-    source_rect = fitz.Rect(bbox) if isinstance(bbox, list) else fitz.Rect(bbox)
+    source_rect = _get_pdf_elem_rect(element)
     fontsize = float(style.get("fontsize", element.get("fontsize", DEFAULT_FONTSIZE)))
     color_int = int(style.get("color", element.get("color", 0)))
     red, green, blue = (
@@ -602,42 +712,15 @@ def _prepare_element_render(
     )
     line_height = float(style.get("line_height", fontsize * 1.35))
     if element.get("non_horizontal"):
-        font_path = (
-            context.bold_font_path
-            if bool(element.get("bold")) and context.has_distinct_bold_font
-            else context.font_path
-        )
-        inserted, message = _insert_pdf_rotated_textbox_with_fit(
-            page_plan.out_page,
-            source_rect,
+        _render_rotated_element(
+            context,
+            page_plan,
+            index,
             text,
-            rotation=int(element.get("rotation", 90) or 90),
-            color=color,
-            fontfile=font_path,
             fontsize=fontsize,
-            protected_rects=page_plan.protected_formula_rects,
+            color=color,
+            line_height=line_height,
         )
-        if not inserted:
-            reason = f"rotated textbox failed: {message}"
-            if not _try_restore_source_element(
-                context,
-                page_plan.out_page,
-                page_plan.page_num,
-                page_plan.protected_formula_rects,
-                index,
-                element,
-                source_rect,
-                fontsize,
-                color,
-                line_height,
-                reason,
-            ):
-                raise PDFPageRenderError(page_plan.page_num + 1, index, reason)
-        else:
-            context.logger.info(
-                f"[{context.task_id}] Page {page_plan.page_num + 1} elem "
-                f"{index}: rotated textbox {message}"
-            )
         return None
     source_paragraphs = element.get("paragraphs") or [
         {
@@ -647,14 +730,10 @@ def _prepare_element_render(
             "text_align": "left",
         }
     ]
-    translated_paragraphs = _split_pdf_translated_paragraphs(
-        text,
-        len(source_paragraphs),
-    )
     paragraph_html = _build_paragraph_html(
         element,
         source_paragraphs,
-        translated_paragraphs,
+        _split_pdf_translated_paragraphs(text, len(source_paragraphs)),
         fontsize,
         color_hex,
         line_height,
@@ -667,21 +746,16 @@ def _prepare_element_render(
             element.get("rich_content") or element.get("content", "")
         ).strip()
         if source_plain:
-            reason = "translated payload rendered no visible text"
-            if not _try_restore_source_element(
+            _restore_source_or_raise(
                 context,
-                page_plan.out_page,
-                page_plan.page_num,
-                page_plan.protected_formula_rects,
+                page_plan,
                 index,
                 element,
-                source_rect,
-                fontsize,
-                color,
-                line_height,
-                reason,
-            ):
-                raise PDFPageRenderError(page_plan.page_num + 1, index, reason)
+                fontsize=fontsize,
+                color=color,
+                line_height=line_height,
+                reason="translated payload rendered no visible text",
+            )
         return None
     table_cell = bool(element.get("table_hint") or element.get("glossary_cell_hint"))
     top_padding = max(
@@ -695,7 +769,6 @@ def _prepare_element_render(
     return PDFElementRenderPlan(
         index=index,
         element=element,
-        render_style=style,
         source_paragraphs=source_paragraphs,
         source_rect=source_rect,
         render_rect=fitz.Rect(source_rect),
@@ -709,6 +782,73 @@ def _prepare_element_render(
     )
 
 
+def _render_rotated_element(
+    context: PDFAssemblyContext,
+    page_plan: PDFPageAssemblyPlan,
+    index: int,
+    text: str,
+    *,
+    fontsize: float,
+    color: tuple[float, float, float],
+    line_height: float,
+) -> None:
+    """Draw a rotated chart or table label at its native rotation."""
+    element = page_plan.elements[index]
+    font_path = (
+        context.bold_font_path
+        if bool(element.get("bold")) and context.has_distinct_bold_font
+        else context.font_path
+    )
+    inserted, message = _insert_pdf_rotated_textbox_with_fit(
+        page_plan.out_page,
+        _get_pdf_elem_rect(element),
+        text,
+        rotation=int(element.get("rotation", 90) or 90),
+        color=color,
+        fontfile=font_path,
+        fontsize=fontsize,
+        protected_rects=page_plan.protected_formula_rects,
+    )
+    if not inserted:
+        _restore_source_or_raise(
+            context,
+            page_plan,
+            index,
+            element,
+            fontsize=fontsize,
+            color=color,
+            line_height=line_height,
+            reason=f"rotated textbox failed: {message}",
+        )
+        return
+    context.logger.info(
+        f"[{context.task_id}] Page {page_plan.page_num + 1} elem "
+        f"{index}: rotated textbox {message}"
+    )
+
+
+def _htmlbox_placement_event(
+    page_plan: PDFPageAssemblyPlan,
+    element_plan: PDFElementRenderPlan,
+    step_name: str,
+    rect: fitz.Rect,
+    render_rect: fitz.Rect,
+    scale: float,
+) -> dict:
+    return {
+        "page": page_plan.page_num + 1,
+        "element": element_plan.index,
+        "step": step_name,
+        "rect": [round(float(value), 3) for value in rect],
+        "source_rect": [round(float(value), 3) for value in render_rect],
+        "scale": scale,
+        "neighbor_constrained": "neighbor-trim" in step_name,
+        "formula_trimmed": "formula-trim" in step_name,
+        "table_cell": element_plan.table_cell,
+        "text": _plain_text(element_plan.text)[:160],
+    }
+
+
 def _try_htmlbox(
     context: PDFAssemblyContext,
     page_plan: PDFPageAssemblyPlan,
@@ -717,200 +857,183 @@ def _try_htmlbox(
 ) -> PDFHTMLBoxResult:
     """Try the no-shrink ladder and one readable-scale HTML-box fallback."""
 
-    task_id = context.task_id
+    render_rect = fitz.Rect(element_plan.render_rect)
+    disabled = RuntimeError("PDF htmlbox rendering disabled")
+    if not (context.use_htmlbox or element_plan.has_semantic_superscript):
+        return PDFHTMLBoxResult(False, disabled, render_rect, None)
+    ladder = _formula_safe_htmlbox_ladder(
+        context,
+        page_plan,
+        element_plan.index,
+        render_rect,
+        element_plan.fontsize,
+    )
+    if not ladder:
+        raise PDFPageRenderError(
+            page_plan.page_num + 1,
+            element_plan.index,
+            "no formula-safe htmlbox rectangle",
+        )
+    textbox_fit_rects = [fitz.Rect(candidate_rect) for _, candidate_rect in ladder]
+    inserted, error = _insert_htmlbox_without_shrinking(
+        context, page_plan, element_plan, css, ladder, render_rect
+    )
+    if not inserted and error is None:
+        inserted, error = _insert_htmlbox_at_readable_scale(
+            context, page_plan, element_plan, css, ladder[-1], render_rect
+        )
+    if inserted:
+        return PDFHTMLBoxResult(True, disabled, render_rect, textbox_fit_rects)
+    return PDFHTMLBoxResult(False, error, ladder[-1][1], textbox_fit_rects)
+
+
+def _insert_htmlbox_without_shrinking(
+    context: PDFAssemblyContext,
+    page_plan: PDFPageAssemblyPlan,
+    element_plan: PDFElementRenderPlan,
+    css: str,
+    ladder: list[tuple[str, fitz.Rect]],
+    render_rect: fitz.Rect,
+) -> tuple[bool, Exception | None]:
+    """Walk the ladder at full size; return (inserted, the error that stopped it).
+
+    No-shrink policy: insert_htmlbox with scale_low near 1 writes nothing
+    when the text cannot fit (returns spare=-1 instead of raising), so the
+    ladder can be walked on the real page.
+    """
+    for step_name, candidate_rect in ladder:
+        try:
+            spare, _scale = page_plan.out_page.insert_htmlbox(
+                candidate_rect,
+                element_plan.box_html,
+                css=css,
+                archive=context.font_archive,
+                scale_low=0.98,
+            )
+        except Exception as exc:
+            return False, exc
+        if spare >= 0:
+            context.pdf_audit["htmlbox_placement_events"].append(
+                _htmlbox_placement_event(
+                    page_plan, element_plan, step_name, candidate_rect, render_rect, 1.0
+                )
+            )
+            if step_name != "base":
+                context.logger.info(
+                    f"[{context.task_id}] Page {page_plan.page_num + 1} elem "
+                    f"{element_plan.index}: htmlbox kept fontsize via {step_name}"
+                )
+            return True, None
+    return False, None
+
+
+def _insert_htmlbox_at_readable_scale(
+    context: PDFAssemblyContext,
+    page_plan: PDFPageAssemblyPlan,
+    element_plan: PDFElementRenderPlan,
+    css: str,
+    last_step: tuple[str, fitz.Rect],
+    render_rect: fitz.Rect,
+) -> tuple[bool, Exception | None]:
+    """Fit the last ladder rectangle at a readable scale, or say why not."""
+    try:
+        return _insert_scaled_htmlbox(
+            context, page_plan, element_plan, css, last_step, render_rect
+        )
+    except PDFPageRenderError:
+        raise
+    except Exception as exc:
+        return False, exc
+
+
+def _insert_scaled_htmlbox(
+    context: PDFAssemblyContext,
+    page_plan: PDFPageAssemblyPlan,
+    element_plan: PDFElementRenderPlan,
+    css: str,
+    last_step: tuple[str, fitz.Rect],
+    render_rect: fitz.Rect,
+) -> tuple[bool, Exception | None]:
+    pdf_audit = context.pdf_audit
     page_num = page_plan.page_num
     i = element_plan.index
-    out_page = page_plan.out_page
-    elements = page_plan.elements
-    watermark_indices = page_plan.watermark_indices
-    protected_formula_rects = page_plan.protected_formula_rects
-    redraw_source_indices = page_plan.redraw_source_indices
-    pdf_audit = context.pdf_audit
-    font_archive = context.font_archive
-    log = context.logger
-    elem = element_plan.element
-    render_rect = fitz.Rect(element_plan.render_rect)
-    fontsize = element_plan.fontsize
-    text_to_insert = element_plan.text
-    is_table_cell = element_plan.table_cell
-    box_html = element_plan.box_html
-    has_semantic_superscript = element_plan.has_semantic_superscript
-    htmlbox_err = RuntimeError("PDF htmlbox rendering disabled")
-    inserted = False
-    textbox_fit_rects = None
-    if context.use_htmlbox or has_semantic_superscript:
-        # No-shrink policy: insert_htmlbox with scale_low near 1 writes
-        # nothing when the text cannot fit (returns spare=-1 instead of
-        # raising), so we can safely walk the rect ladder on the real
-        # page and only fall back to scaling when it is exhausted.
-        ladder_exc = None
-        # Table rules and neighboring cells remain fixed. Let a
-        # translated cell scale inside its original geometry; a
-        # downward extension would turn the row into overlapping
-        # text while the table lines stay in place.
-        ladder = (
-            [("base", fitz.Rect(render_rect))]
-            if is_table_cell
-            else _build_htmlbox_rect_ladder(
-                render_rect,
-                _pdf_page_extraction_rect(out_page),
-                fontsize,
-                prefer_widen=bool(elem.get("single_line_heading")),
-            )
-        )
-        if not is_table_cell:
-            ladder = _constrain_pdf_htmlbox_rect_ladder_to_neighbors(
-                ladder,
-                render_rect,
-                elements,
-                i,
-                fontsize,
-                ignored_indices=watermark_indices,
-            )
-        ladder = context.filter_formula_safe_rects(
-            ladder,
-            protected_formula_rects,
-            anchor_rect=render_rect,
-        )
-        if not ladder:
+    scale_step_name, scale_rect = last_step
+    spare, scale = _insert_pdf_htmlbox_at_readable_scale(
+        page_plan.out_page,
+        scale_rect,
+        element_plan.box_html,
+        css=css,
+        archive=context.font_archive,
+        minimum_scale=context.minimum_htmlbox_scale,
+    )
+    if spare >= 0:
+        scale = float(scale)
+        if scale < context.minimum_htmlbox_scale:
+            # ``scale_low`` promises that a lower scale is not drawn. If
+            # PyMuPDF ever violates that contract, abort the assembly
+            # because a fallback would otherwise double-write.
             raise PDFPageRenderError(
                 page_num + 1,
                 i,
-                "no formula-safe htmlbox rectangle",
+                (
+                    f"unreadable htmlbox scale {scale:.2f} below "
+                    f"minimum {context.minimum_htmlbox_scale:.2f}"
+                ),
+                retryable=False,
             )
-        textbox_fit_rects = [fitz.Rect(candidate_rect) for _, candidate_rect in ladder]
-        for step_name, candidate_rect in ladder:
-            try:
-                spare, scale = out_page.insert_htmlbox(
-                    candidate_rect,
-                    box_html,
-                    css=css,
-                    archive=font_archive,
-                    scale_low=0.98,
-                )
-            except Exception as exc:
-                ladder_exc = exc
-                break
-            if spare >= 0:
-                inserted = True
-                pdf_audit["htmlbox_placement_events"].append(
-                    {
-                        "page": page_num + 1,
-                        "element": i,
-                        "step": step_name,
-                        "rect": [round(float(value), 3) for value in candidate_rect],
-                        "source_rect": [
-                            round(float(value), 3) for value in render_rect
-                        ],
-                        "scale": 1.0,
-                        "neighbor_constrained": "neighbor-trim" in step_name,
-                        "formula_trimmed": "formula-trim" in step_name,
-                        "table_cell": is_table_cell,
-                        "text": _plain_text(text_to_insert)[:160],
-                    }
-                )
-                if step_name != "base":
-                    log.info(
-                        f"[{task_id}] Page {page_num + 1} elem {i}: htmlbox kept fontsize via {step_name}"
-                    )
-                break
-        if inserted:
-            return PDFHTMLBoxResult(True, htmlbox_err, render_rect, textbox_fit_rects)
-        if ladder_exc is None:
-            try:
-                spare, scale = _insert_pdf_htmlbox_at_readable_scale(
-                    out_page,
-                    ladder[-1][1],
-                    box_html,
-                    css=css,
-                    archive=font_archive,
-                    minimum_scale=context.minimum_htmlbox_scale,
-                )
-                if spare >= 0:
-                    scale = float(scale)
-                    scale_step_name, scale_rect = ladder[-1]
-                    scale_event = {
-                        "page": page_num + 1,
-                        "element": i,
-                        "scale": round(scale, 4),
-                        "source_fontsize": round(fontsize, 3),
-                        "rendered_fontsize": round(fontsize * scale, 3),
-                        "table_cell": is_table_cell,
-                        "redraw_unchanged_source": i in redraw_source_indices,
-                        "text": _plain_text(text_to_insert)[:160],
-                    }
-                    if scale < context.minimum_htmlbox_scale:
-                        # ``scale_low`` promises that a lower scale
-                        # is not drawn. If PyMuPDF ever violates
-                        # that contract, abort the assembly because
-                        # a fallback would otherwise double-write.
-                        raise PDFPageRenderError(
-                            page_num + 1,
-                            i,
-                            (
-                                f"unreadable htmlbox scale {scale:.2f} below "
-                                f"minimum {context.minimum_htmlbox_scale:.2f}"
-                            ),
-                            retryable=False,
-                        )
-                    pdf_audit["render_scale_events"].append(scale_event)
-                    pdf_audit["htmlbox_placement_events"].append(
-                        {
-                            "page": page_num + 1,
-                            "element": i,
-                            "step": scale_step_name,
-                            "rect": [round(float(value), 3) for value in scale_rect],
-                            "source_rect": [
-                                round(float(value), 3) for value in render_rect
-                            ],
-                            "scale": round(scale, 4),
-                            "neighbor_constrained": "neighbor-trim" in scale_step_name,
-                            "formula_trimmed": "formula-trim" in scale_step_name,
-                            "table_cell": is_table_cell,
-                            "text": _plain_text(text_to_insert)[:160],
-                        }
-                    )
-                    log.warning(
-                        f"[{task_id}] Page {page_num + 1} elem {i}: htmlbox scaled to {scale:.2f} "
-                        "after extension ladder exhausted"
-                    )
-                    return PDFHTMLBoxResult(
-                        True, htmlbox_err, render_rect, textbox_fit_rects
-                    )
-                rejected_scale = float(scale)
-                if rejected_scale > 0:
-                    pdf_audit["rejected_render_scale_events"].append(
-                        {
-                            "page": page_num + 1,
-                            "element": i,
-                            "scale": round(rejected_scale, 4),
-                            "source_fontsize": round(fontsize, 3),
-                            "rendered_fontsize": round(
-                                fontsize * rejected_scale,
-                                3,
-                            ),
-                            "table_cell": is_table_cell,
-                            "redraw_unchanged_source": i in redraw_source_indices,
-                            "inserted": False,
-                            "text": _plain_text(text_to_insert)[:160],
-                        }
-                    )
-                    log.info(
-                        f"[{task_id}] Page {page_num + 1} elem {i}: "
-                        f"htmlbox would require scale {rejected_scale:.2f}; "
-                        "no HTML was inserted, using textbox fallback"
-                    )
-                htmlbox_err = RuntimeError(
-                    f"htmlbox no-fit even at free scale (scale={scale:.2f})"
-                )
-            except PDFPageRenderError:
-                raise
-            except Exception as exc:
-                htmlbox_err = exc
-        else:
-            htmlbox_err = ladder_exc
-        render_rect = ladder[-1][1]
-    return PDFHTMLBoxResult(False, htmlbox_err, render_rect, textbox_fit_rects)
+        pdf_audit["render_scale_events"].append(
+            _scale_event(page_plan, element_plan, scale)
+        )
+        pdf_audit["htmlbox_placement_events"].append(
+            _htmlbox_placement_event(
+                page_plan,
+                element_plan,
+                scale_step_name,
+                scale_rect,
+                render_rect,
+                round(scale, 4),
+            )
+        )
+        context.logger.warning(
+            f"[{context.task_id}] Page {page_num + 1} elem {i}: htmlbox scaled to {scale:.2f} "
+            "after extension ladder exhausted"
+        )
+        return True, None
+    rejected_scale = float(scale)
+    if rejected_scale > 0:
+        pdf_audit["rejected_render_scale_events"].append(
+            _scale_event(page_plan, element_plan, rejected_scale, inserted=False)
+        )
+        context.logger.info(
+            f"[{context.task_id}] Page {page_num + 1} elem {i}: "
+            f"htmlbox would require scale {rejected_scale:.2f}; "
+            "no HTML was inserted, using textbox fallback"
+        )
+    return False, RuntimeError(f"htmlbox no-fit even at free scale (scale={scale:.2f})")
+
+
+def _scale_event(
+    page_plan: PDFPageAssemblyPlan,
+    element_plan: PDFElementRenderPlan,
+    scale: float,
+    *,
+    inserted: bool | None = None,
+) -> dict:
+    """An audit render-scale event, keys in their established order."""
+    fontsize = element_plan.fontsize
+    event = {
+        "page": page_plan.page_num + 1,
+        "element": element_plan.index,
+        "scale": round(scale, 4),
+        "source_fontsize": round(fontsize, 3),
+        "rendered_fontsize": round(fontsize * scale, 3),
+        "table_cell": element_plan.table_cell,
+        "redraw_unchanged_source": element_plan.index in page_plan.redraw_source_indices,
+    }
+    if inserted is not None:
+        event["inserted"] = inserted
+    event["text"] = _plain_text(element_plan.text)[:160]
+    return event
 
 
 def _render_element(
@@ -924,96 +1047,82 @@ def _render_element(
     element_plan = _prepare_element_render(context, plan, i)
     if element_plan is None:
         return
-    task_id = context.task_id
-    page_num = plan.page_num
-    out_page = plan.out_page
-    elements = plan.elements
-    watermark_indices = plan.watermark_indices
-    protected_formula_rects = plan.protected_formula_rects
-    redraw_source_indices = plan.redraw_source_indices
-    pdf_audit = context.pdf_audit
-    font_path = context.font_path
-    log = context.logger
-    elem = element_plan.element
-    render_style = element_plan.render_style
-    source_paragraphs = element_plan.source_paragraphs
-    render_rect = element_plan.render_rect
-    fontsize = element_plan.fontsize
-    r_val = round(element_plan.color[0] * 255)
-    g_val = round(element_plan.color[1] * 255)
-    b_val = round(element_plan.color[2] * 255)
-    text_to_insert = element_plan.text
-    lh = element_plan.line_height
-    is_table_cell = element_plan.table_cell
-    has_semantic_superscript = element_plan.has_semantic_superscript
     htmlbox_result = _try_htmlbox(context, plan, element_plan, css)
     if htmlbox_result.inserted:
         return
-    htmlbox_err = htmlbox_result.error
+    if element_plan.has_semantic_superscript:
+        _restore_planned_source_or_raise(
+            context,
+            plan,
+            element_plan,
+            f"semantic superscript could not be rendered: {htmlbox_result.error}",
+        )
+        return
     render_rect = htmlbox_result.render_rect
     textbox_fit_rects = htmlbox_result.textbox_fit_rects
-
-    if has_semantic_superscript:
-        if _try_restore_source_element(
-            context,
-            out_page,
-            page_num,
-            protected_formula_rects,
-            i,
-            elem,
-            _get_pdf_elem_rect(elem),
-            fontsize,
-            (r_val / 255.0, g_val / 255.0, b_val / 255.0),
-            lh,
-            f"semantic superscript could not be rendered: {htmlbox_err}",
-        ):
-            return
-        raise PDFPageRenderError(
-            page_num + 1,
-            i,
-            f"semantic superscript could not be rendered: {htmlbox_err}",
-        )
-
     if not context.use_htmlbox:
-        textbox_ladder = [("base", fitz.Rect(render_rect))]
-        if not is_table_cell and not render_style.get("preserve_source_style"):
-            expanded_render_rect = _expand_pdf_htmlbox_rect(
-                render_rect,
-                _pdf_page_extraction_rect(out_page),
-                text_to_insert,
-                fontsize,
-                source_paragraphs,
-                aggressive=True,
-            )
-            textbox_ladder.append(("legacy-expand", expanded_render_rect))
-        if not is_table_cell:
-            textbox_ladder = _constrain_pdf_htmlbox_rect_ladder_to_neighbors(
-                textbox_ladder,
-                render_rect,
-                elements,
-                i,
-                fontsize,
-                ignored_indices=watermark_indices,
-            )
-        textbox_ladder = context.filter_formula_safe_rects(
-            textbox_ladder,
-            protected_formula_rects,
-            anchor_rect=render_rect,
+        render_rect, textbox_fit_rects = _textbox_rects(
+            context, plan, element_plan, render_rect
         )
-        if not textbox_ladder:
-            raise PDFPageRenderError(
-                page_num + 1,
-                i,
-                "no neighbor-safe textbox rectangle",
-            )
-        render_rect = textbox_ladder[-1][1]
-        textbox_fit_rects = [
-            fitz.Rect(candidate_rect) for _, candidate_rect in textbox_ladder
-        ]
+    _render_textbox_fallback(
+        context,
+        plan,
+        element_plan,
+        render_rect,
+        textbox_fit_rects,
+        htmlbox_result.error,
+    )
 
-    align_name = source_paragraphs[0].get("text_align", "left")
+
+def _textbox_rects(
+    context: PDFAssemblyContext,
+    plan: PDFPageAssemblyPlan,
+    element_plan: PDFElementRenderPlan,
+    render_rect: fitz.Rect,
+) -> tuple[fitz.Rect, list[fitz.Rect]]:
+    """Neighbor- and formula-safe textbox rectangles when HTML boxes are off."""
+    textbox_ladder = [("base", fitz.Rect(render_rect))]
+    if not element_plan.table_cell:
+        textbox_ladder = _constrain_pdf_htmlbox_rect_ladder_to_neighbors(
+            textbox_ladder,
+            render_rect,
+            plan.elements,
+            element_plan.index,
+            element_plan.fontsize,
+            ignored_indices=plan.watermark_indices,
+        )
+    textbox_ladder = context.filter_formula_safe_rects(
+        textbox_ladder,
+        plan.protected_formula_rects,
+        anchor_rect=render_rect,
+    )
+    if not textbox_ladder:
+        raise PDFPageRenderError(
+            plan.page_num + 1,
+            element_plan.index,
+            "no neighbor-safe textbox rectangle",
+        )
+    return textbox_ladder[-1][1], [
+        fitz.Rect(candidate_rect) for _, candidate_rect in textbox_ladder
+    ]
+
+
+def _render_textbox_fallback(
+    context: PDFAssemblyContext,
+    plan: PDFPageAssemblyPlan,
+    element_plan: PDFElementRenderPlan,
+    render_rect: fitz.Rect,
+    textbox_fit_rects: list[fitz.Rect] | None,
+    htmlbox_err: Exception,
+) -> None:
+    """Draw the translation as plain text after the HTML box was not used."""
+    elem = element_plan.element
+    log = context.logger
+    page_num = plan.page_num
+    i = element_plan.index
+    align_name = element_plan.source_paragraphs[0].get("text_align", "left")
     align_code = {"left": 0, "center": 1, "right": 2, "justify": 3}.get(align_name, 0)
-    fallback_text = _plain_text(_normalize_pdf_translation(text_to_insert)).strip()
+    fallback_text = _plain_text(_normalize_pdf_translation(element_plan.text)).strip()
     if not fallback_text:
         # The ink is already redacted; restore source instead of leaving a
         # silent blank when the source itself had visible text.
@@ -1021,100 +1130,98 @@ def _render_element(
             elem.get("rich_content") or elem.get("content", "")
         ).strip()
         if source_plain:
-            reason = f"empty textbox fallback after htmlbox failure: {htmlbox_err}"
-            if not _try_restore_source_element(
+            _restore_planned_source_or_raise(
                 context,
-                out_page,
-                page_num,
-                protected_formula_rects,
-                i,
-                elem,
-                _get_pdf_elem_rect(elem),
-                fontsize,
-                (r_val / 255.0, g_val / 255.0, b_val / 255.0),
-                lh,
-                reason,
-            ):
-                raise PDFPageRenderError(page_num + 1, i, reason)
+                plan,
+                element_plan,
+                f"empty textbox fallback after htmlbox failure: {htmlbox_err}",
+            )
             return
-        log.warning(f"[{task_id}] Page {page_num + 1} elem {i}: empty textbox fallback")
+        log.warning(f"[{context.task_id}] Page {page_num + 1} elem {i}: empty textbox fallback")
         return
 
+    ok, textbox_msg, textbox_fontsize = _insert_pdf_textbox_with_fit(
+        plan.out_page,
+        render_rect,
+        fallback_text,
+        align=align_code,
+        color=element_plan.color,
+        fontfile=context.font_path,
+        fontsize=element_plan.fontsize,
+        lineheight_points=element_plan.line_height,
+        protected_rects=plan.protected_formula_rects,
+        allow_compact_fontsize=_is_compact_fixed_table_label(
+            elem, element_plan.table_cell, fallback_text
+        ),
+        fit_rects=textbox_fit_rects,
+        minimum_scale=context.minimum_htmlbox_scale,
+    )
+    if not ok:
+        _restore_planned_source_or_raise(
+            context,
+            plan,
+            element_plan,
+            f"textbox fallback failed: {htmlbox_err}; {textbox_msg}",
+        )
+        return
+    if textbox_fontsize is not None:
+        _record_textbox_fallback(
+            context, plan, element_plan, render_rect, textbox_fontsize, textbox_msg
+        )
+    if "fallback" in textbox_msg or "fit after resize" in textbox_msg:
+        log.info(
+            f"[{context.task_id}] Page {page_num + 1} elem {i}: textbox fallback adjusted: {textbox_msg}"
+        )
+
+
+def _is_compact_fixed_table_label(elem: dict, table_cell: bool, fallback_text: str) -> bool:
+    """A fixed table label may shrink below the textbox floor to stay in its cell."""
     source_plain = _collapsed_plain_text(elem.get("rich_content") or elem.get("content", ""))
     fixed_short_label = _plain_text(
         _translate_pdf_fixed_short_label(source_plain)
     ).strip()
-    compact_fixed_table_label = bool(
-        is_table_cell
+    return bool(
+        table_cell
         and fixed_short_label != source_plain
         and fallback_text == fixed_short_label
         and "\n" not in fallback_text
     )
 
-    ok, textbox_msg, textbox_fontsize = _insert_pdf_textbox_with_fit(
-        out_page,
-        render_rect,
-        fallback_text,
-        align=align_code,
-        color=(r_val / 255.0, g_val / 255.0, b_val / 255.0),
-        fontfile=font_path,
-        fontsize=fontsize,
-        lineheight_points=lh,
-        protected_rects=protected_formula_rects,
-        allow_compact_fontsize=compact_fixed_table_label,
-        fit_rects=textbox_fit_rects,
-        minimum_scale=context.minimum_htmlbox_scale,
-    )
-    if not ok:
-        if _try_restore_source_element(
-            context,
-            out_page,
-            page_num,
-            protected_formula_rects,
-            i,
-            elem,
-            _get_pdf_elem_rect(elem),
-            fontsize,
-            (r_val / 255.0, g_val / 255.0, b_val / 255.0),
-            lh,
-            f"textbox fallback failed: {htmlbox_err}; {textbox_msg}",
-        ):
-            return
+
+def _record_textbox_fallback(
+    context: PDFAssemblyContext,
+    plan: PDFPageAssemblyPlan,
+    element_plan: PDFElementRenderPlan,
+    render_rect: fitz.Rect,
+    textbox_fontsize: float,
+    textbox_msg: str,
+) -> None:
+    fontsize = element_plan.fontsize
+    textbox_scale = textbox_fontsize / max(fontsize, 1.0)
+    if textbox_scale < context.minimum_htmlbox_scale:
         raise PDFPageRenderError(
-            page_num + 1,
-            i,
-            f"textbox fallback failed: {htmlbox_err}; {textbox_msg}",
+            plan.page_num + 1,
+            element_plan.index,
+            (
+                f"unreadable textbox scale {textbox_scale:.2f} below "
+                f"minimum {context.minimum_htmlbox_scale:.2f}"
+            ),
+            retryable=False,
         )
-    if textbox_fontsize is not None:
-        textbox_scale = textbox_fontsize / max(fontsize, 1.0)
-        if textbox_scale < context.minimum_htmlbox_scale:
-            raise PDFPageRenderError(
-                page_num + 1,
-                i,
-                (
-                    f"unreadable textbox scale {textbox_scale:.2f} below "
-                    f"minimum {context.minimum_htmlbox_scale:.2f}"
-                ),
-                retryable=False,
-            )
-        pdf_audit["textbox_fallback_events"].append(
-            {
-                "page": page_num + 1,
-                "element": i,
-                "rect": [round(float(value), 3) for value in render_rect],
-                "scale": round(textbox_scale, 4),
-                "source_fontsize": round(fontsize, 3),
-                "rendered_fontsize": round(textbox_fontsize, 3),
-                "table_cell": is_table_cell,
-                "redraw_unchanged_source": i in redraw_source_indices,
-                "reason": textbox_msg,
-                "text": _plain_text(text_to_insert)[:160],
-            }
-        )
-    if "fallback" in textbox_msg or "fit after resize" in textbox_msg:
-        log.info(
-            f"[{task_id}] Page {page_num + 1} elem {i}: textbox fallback adjusted: {textbox_msg}"
-        )
+    context.pdf_audit["textbox_fallback_events"].append(
+        {
+            "page": plan.page_num + 1,
+            "element": element_plan.index,
+            "rect": [round(float(value), 3) for value in render_rect],
+            "scale": round(textbox_scale, 4),
+            "source_fontsize": round(fontsize, 3),
+            "rendered_fontsize": round(textbox_fontsize, 3),
+            "table_cell": element_plan.table_cell,
+            "redraw_unchanged_source": element_plan.index in plan.redraw_source_indices,
+            "reason": textbox_msg,
+            "text": _plain_text(element_plan.text)[:160],
+        }
+    )
 
 
 def _assemble_page(context: PDFAssemblyContext, page_num: int) -> None:
