@@ -9,7 +9,6 @@ import math
 import os
 import re
 import shutil
-import subprocess
 from collections import deque
 import fitz
 from phoena_translator.math_text import (
@@ -18,7 +17,6 @@ from phoena_translator.math_text import (
 )
 from phoena_translator.pdf.types import (
     PDFStructureValidationError,
-    PDF_VECTOR_OCR_DPI,
 )
 from phoena_translator.pdf.math_detection import (
     _looks_like_pdf_identifier_line,
@@ -32,7 +30,11 @@ from phoena_translator.pdf.math_detection import (
     _plain_text,
     _collapsed_plain_text,
 )
-from phoena_translator.pdf.extraction import _pdf_vector_ocr_normalized_match_text
+from phoena_translator.pdf.extraction import (
+    _pdf_vector_ocr_normalized_match_text,
+    _render_pdf_page_png_for_ocr,
+    _run_pdf_tesseract,
+)
 from phoena_translator.pdf.targets import _pdf_element_requires_translation
 from phoena_translator.pdf.cache import (
     _save_pdf_audit,
@@ -201,24 +203,8 @@ def _collect_pdf_vector_ocr_expectations(page_extractions: dict) -> list[dict]:
 def _pdf_vector_ocr_page_text(page) -> str:
     if not shutil.which("tesseract"):
         raise RuntimeError("tesseract is unavailable for vector OCR output audit")
-    scale = PDF_VECTOR_OCR_DPI / 72.0
-    pixmap = page.get_pixmap(
-        matrix=fitz.Matrix(scale, scale),
-        colorspace=fitz.csRGB,
-        alpha=False,
-    )
-    completed = subprocess.run(
-        [
-            "tesseract", "stdin", "stdout", "--dpi", str(PDF_VECTOR_OCR_DPI),
-            "-l", "eng", "--psm", "11", "txt",
-        ],
-        input=pixmap.tobytes("png"),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=True,
-        timeout=60,
-    )
-    return completed.stdout.decode("utf-8", errors="replace")
+    png_bytes, _scale = _render_pdf_page_png_for_ocr(page)
+    return _run_pdf_tesseract(png_bytes, "txt")
 
 
 def _pdf_text_element_formula_audit_symbol_count(elem: dict) -> int:

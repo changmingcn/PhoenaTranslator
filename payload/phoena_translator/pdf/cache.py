@@ -69,6 +69,14 @@ def _cache_progress_dir() -> str:
         return str(_progress_dir_provider())
     return str(get_app_config().progress_dir)
 
+def _write_json_atomically(path: str, payload, **dump_options) -> None:
+    """Write UTF-8 JSON beside ``path`` and rename it into place."""
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, **dump_options)
+    os.replace(tmp_path, path)
+
+
 def _pdf_source_sha256(path: str) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -403,10 +411,7 @@ def _save_pdf_page_translation_cache(
         "translations": normalized_translations,
         "element_identities": element_identities,
     }
-    tmp_path = path + ".tmp"
-    with open(tmp_path, "w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
-    os.replace(tmp_path, path)
+    _write_json_atomically(path, payload, separators=(",", ":"))
     return path
 
 
@@ -446,10 +451,7 @@ def _pdf_audit_path(task_id: str) -> str:
 
 def _save_pdf_audit(task_id: str, audit: dict) -> str:
     path = _pdf_audit_path(task_id)
-    tmp_path = path + ".tmp"
-    with open(tmp_path, "w", encoding="utf-8") as handle:
-        json.dump(audit, handle, ensure_ascii=False, separators=(",", ":"))
-    os.replace(tmp_path, path)
+    _write_json_atomically(path, audit, separators=(",", ":"))
     return path
 
 
@@ -469,10 +471,7 @@ def _save_pdf_layout_cache(task_id: str, page_extractions: dict, page_rects: dic
         "page_rects": _json_safe_pdf_layout(page_rects),
     }
     path = _pdf_layout_cache_path(task_id)
-    tmp_path = path + ".tmp"
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False)
-    os.replace(tmp_path, path)
+    _write_json_atomically(path, payload)
     return path
 
 

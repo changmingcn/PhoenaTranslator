@@ -1020,6 +1020,33 @@ def _make_pdf_vector_ocr_element(
     }
 
 
+def _render_pdf_page_png_for_ocr(page) -> tuple[bytes, float]:
+    """Rasterise a page at the OCR resolution; returns PNG bytes and px/pt."""
+    scale = PDF_VECTOR_OCR_DPI / 72.0
+    pixmap = page.get_pixmap(
+        matrix=fitz.Matrix(scale, scale),
+        colorspace=fitz.csRGB,
+        alpha=False,
+    )
+    return pixmap.tobytes("png"), scale
+
+
+def _run_pdf_tesseract(png_bytes: bytes, output_format: str) -> str:
+    """Run English sparse-text tesseract on one PNG (``tsv`` or ``txt``)."""
+    completed = subprocess.run(
+        [
+            "tesseract", "stdin", "stdout", "--dpi", str(PDF_VECTOR_OCR_DPI),
+            "-l", "eng", "--psm", "11", output_format,
+        ],
+        input=png_bytes,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+        timeout=60,
+    )
+    return completed.stdout.decode("utf-8", errors="replace")
+
+
 def _extract_pdf_vector_ocr_elements(
     page,
     elements: list[dict],
@@ -1042,32 +1069,14 @@ def _extract_pdf_vector_ocr_elements(
             f"Page {page.number + 1}: suspicious vector-text page requires OpenCV OCR support"
         ) from exc
 
-    scale = PDF_VECTOR_OCR_DPI / 72.0
-    pixmap = page.get_pixmap(
-        matrix=fitz.Matrix(scale, scale),
-        colorspace=fitz.csRGB,
-        alpha=False,
-    )
-    png_bytes = pixmap.tobytes("png")
+    png_bytes, scale = _render_pdf_page_png_for_ocr(page)
     try:
-        completed = subprocess.run(
-            [
-                "tesseract", "stdin", "stdout", "--dpi", str(PDF_VECTOR_OCR_DPI),
-                "-l", "eng", "--psm", "11", "tsv",
-            ],
-            input=png_bytes,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=True,
-            timeout=60,
-        )
+        tsv = _run_pdf_tesseract(png_bytes, "tsv")
     except (OSError, subprocess.SubprocessError) as exc:
         raise RuntimeError(
             f"Page {page.number + 1}: vector-text OCR failed ({type(exc).__name__})"
         ) from exc
-    lines = _pdf_vector_ocr_parse_tsv(
-        completed.stdout.decode("utf-8", errors="replace"), scale
-    )
+    lines = _pdf_vector_ocr_parse_tsv(tsv, scale)
     ocr_alpha_words = sum(
         len(re.findall(r"[A-Za-z]{2,}", line.get("text", "")))
         for line in lines
