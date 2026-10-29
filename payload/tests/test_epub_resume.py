@@ -1,7 +1,5 @@
-import threading
-
 from phoena_translator.config import AppConfig
-from phoena_translator.task_store import TaskStore
+from phoena_translator.task_store import TaskRepository, TaskStore
 from phoena_translator.web import WebDependencies, create_app
 
 
@@ -16,13 +14,9 @@ def test_failed_epub_resume_preserves_task_and_enqueues_original_source(tmp_path
     store = TaskStore(progress, uploads, outputs)
     tasks = {'book': {'type': 'epub', 'status': 'failed', 'filename': 'book.epub', 'error': 'validation'}}
     queued = []
-    lock = threading.Lock()
     dependencies = WebDependencies(
-        tasks=lambda: tasks, tasks_lock=lambda: lock, ensure_runtime=lambda: None,
-        save_progress=lambda task_id, data: tasks.__setitem__(task_id, dict(data)),
-        load_progress=lambda task_id: tasks.get(task_id),
-        normalize_task=lambda task_id, data: data,
-        enqueue_task=lambda *args: queued.append(args) or True, task_store=lambda: store,
+        tasks=TaskRepository(store, tasks), ensure_runtime=lambda: None,
+        enqueue_task=lambda *args: queued.append(args) or True,
     )
     client = create_app(config, dependencies).test_client()
     response = client.post('/api/task/book/resume', json={})
@@ -43,13 +37,9 @@ def _client(tmp_path, record):
     store = TaskStore(progress, uploads, outputs)
     tasks = {'book': record}
     queued = []
-    lock = threading.Lock()
     dependencies = WebDependencies(
-        tasks=lambda: tasks, tasks_lock=lambda: lock, ensure_runtime=lambda: None,
-        save_progress=lambda task_id, data: tasks.__setitem__(task_id, dict(data)),
-        load_progress=lambda task_id: tasks.get(task_id),
-        normalize_task=lambda task_id, data: data,
-        enqueue_task=lambda *args: queued.append(args) or True, task_store=lambda: store,
+        tasks=TaskRepository(store, tasks), ensure_runtime=lambda: None,
+        enqueue_task=lambda *args: queued.append(args) or True,
     )
     return create_app(config, dependencies).test_client(), tasks, queued
 

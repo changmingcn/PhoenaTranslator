@@ -36,6 +36,7 @@ from phoena_translator.llm import (
     LLMSettings,
     build_claude_request,
 )
+from phoena_translator.runtime import build_llm_gateway
 
 log = logging.getLogger("test")
 
@@ -100,15 +101,21 @@ def test_claude_price_env_overrides():
     assert config.claude_price_output_usd_per_m == 10.0
 
 
-def test_application_wiring_defaults_to_deepseek():
-    from phoena_translator import application
+def test_runtime_gateway_defaults_to_deepseek(tmp_path):
+    config = AppConfig.from_env({}, home=tmp_path)
+    gateway = build_llm_gateway(config, log)
+    assert isinstance(gateway.adapter, DeepSeekTranslationAdapter)
+    assert gateway.model == config.deepseek_model
+    assert gateway.prices.cache_write_usd_per_million is None
+    assert gateway.usage_log == config.progress_dir / "deepseek_usage.jsonl"
 
-    if application.LLM_PROVIDER != "deepseek":
-        pytest.skip("test process configured with a non-default provider")
-    assert isinstance(application._llm_adapter, DeepSeekTranslationAdapter)
-    assert application.ACTIVE_LLM_MODEL == application.DEEPSEEK_MODEL
-    prices = application._current_api_prices()
-    assert prices.cache_write_usd_per_million is None
+
+def test_runtime_gateway_selects_claude_with_cache_write_prices(tmp_path):
+    config = AppConfig.from_env({"TRANSLATOR_LLM_PROVIDER": "claude"}, home=tmp_path)
+    gateway = build_llm_gateway(config, log)
+    assert isinstance(gateway.adapter, ClaudeTranslationAdapter)
+    assert gateway.model == config.claude_model
+    assert gateway.prices.cache_write_usd_per_million == config.claude_price_cache_write_usd_per_m
 
 
 # ---------------------------------------------------------------------------

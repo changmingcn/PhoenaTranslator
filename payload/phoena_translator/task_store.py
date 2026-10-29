@@ -1,4 +1,4 @@
-"""Root-contained, backward-compatible JSON task persistence."""
+"""Root-contained, backward-compatible JSON task persistence and its in-memory index."""
 
 from __future__ import annotations
 
@@ -55,7 +55,8 @@ class TaskStore:
         self._locks: dict[str, threading.RLock] = {}
         self._locks_guard = threading.Lock()
 
-    def _lock_for(self, task_id: str) -> threading.RLock:
+    def task_lock(self, task_id: str) -> threading.RLock:
+        """The re-entrant lock that serialises every read and write of one task."""
         task_id = _validate_task_id(task_id)
         with self._locks_guard:
             return self._locks.setdefault(task_id, threading.RLock())
@@ -115,7 +116,7 @@ class TaskStore:
 
     def load(self, task_id: str) -> dict | None:
         path = self.progress_path(task_id)
-        with self._lock_for(task_id):
+        with self.task_lock(task_id):
             try:
                 content = path.read_text(encoding="utf-8")
                 payload = json.loads(content) if content.strip() else None
@@ -131,7 +132,7 @@ class TaskStore:
         existing: Mapping[str, Any] | None = None,
     ) -> dict:
         path = self.progress_path(task_id)
-        with self._lock_for(task_id):
+        with self.task_lock(task_id):
             prior = dict(existing or self.load(task_id) or {})
             merged = dict(data)
             for key in _PRESERVED_FIELDS:
@@ -211,3 +212,52 @@ class TaskStore:
                 paths.append(checkpoint)
                 paths.append(Path(f"{checkpoint}.tmp"))
         return paths
+
+
+class TaskRepository:
+    """The in-memory task index, kept in step with the records in its TaskStore.
+
+    A save holds the task's store lock across the disk write and the index
+    update, so concurrent saves of one task cannot leave the index older than
+    the file.  Reads return copies; the repository is the index's only writer.
+    """
+
+    def __init__(self, store: TaskStore, records: dict[str, dict] | None = None) -> None:
+        self.store = store
+        self._records = {} if records is None else records
+        self._lock = threading.Lock()
+
+    def get(self, task_id: str) -> dict | None:
+        """Return the indexed record, falling back to the persisted one."""
+        with self._lock:
+            record = self._records.get(task_id)
+        return dict(record) if record else self.store.load(task_id)
+
+    def load(self, task_id: str) -> dict | None:
+        """Return the persisted record, bypassing the index."""
+        return self.store.load(task_id)
+
+    def save(self, task_id: str, data: Mapping[str, Any]) -> dict:
+        with self.store.task_lock(task_id):
+            with self._lock:
+                existing = self._records.get(task_id)
+            merged = self.store.save(task_id, data, existing=existing)
+            with self._lock:
+                self._records[task_id] = merged
+        return dict(merged)
+
+    def remove(self, task_id: str) -> None:
+        """Drop the task from the index and delete its persisted record."""
+        with self.store.task_lock(task_id):
+            self.store.progress_path(task_id).unlink(missing_ok=True)
+            with self._lock:
+                self._records.pop(task_id, None)
+
+    def load_all(self) -> None:
+        records = self.store.load_all()
+        with self._lock:
+            self._records.update(records)
+
+    def snapshot(self) -> dict[str, dict]:
+        with self._lock:
+            return {task_id: dict(record) for task_id, record in self._records.items()}

@@ -14,6 +14,8 @@ from phoena_translator.config import AppConfig, get_app_config
 from phoena_translator.glossary import build_glossary_text
 from phoena_translator.llm import DeepSeekTranslationAdapter, LLMSettings
 from phoena_translator.logging_setup import configure_logging
+from phoena_translator.runtime import Runtime
+from phoena_translator.task_store import TaskRepository, TaskStore
 from phoena_translator.workers import TaskJob, TaskWorkerPool
 
 log = logging.getLogger("test")
@@ -103,6 +105,54 @@ def test_crashed_job_marks_task_failed():
     assert recorded.wait(timeout=5)
     assert failures[0][0] == "tid1"
     assert "boom" in failures[0][1]
+
+
+def test_task_repository_save_keeps_index_and_file_in_step(tmp_path):
+    """A second save must not interleave between the first's file write and
+    its index update; before TaskRepository the index could end older than
+    the file."""
+    first_written = threading.Event()
+    second_done = threading.Event()
+
+    class SlowStore(TaskStore):
+        def save(self, task_id, data, *, existing=None):
+            merged = super().save(task_id, data, existing=existing)
+            if data["writer"] == "first":
+                first_written.set()
+                second_done.wait(timeout=0.2)
+            return merged
+
+    store = SlowStore(tmp_path / "progress", tmp_path / "uploads", tmp_path / "outputs")
+    repository = TaskRepository(store)
+
+    def second():
+        first_written.wait(timeout=5)
+        repository.save("t", {"writer": "second"})
+        second_done.set()
+
+    thread = threading.Thread(target=second)
+    thread.start()
+    repository.save("t", {"writer": "first"})
+    thread.join(timeout=5)
+    assert store.load("t")["writer"] == "second"
+    assert repository.get("t") == store.load("t")
+
+
+def test_task_repository_remove_drops_index_and_record(tmp_path):
+    store = TaskStore(tmp_path / "progress", tmp_path / "uploads", tmp_path / "outputs")
+    repository = TaskRepository(store)
+    repository.save("t", {"status": "queued", "type": "pdf"})
+    assert repository.snapshot()["t"]["status"] == "queued"
+    repository.remove("t")
+    assert repository.get("t") is None and repository.snapshot() == {}
+
+
+def test_runtime_construction_performs_no_io(tmp_path):
+    runtime = Runtime(AppConfig.from_env({}, home=tmp_path))
+    assert list(tmp_path.iterdir()) == []
+    assert not runtime.worker_pool.started
+    assert runtime.pdf.save_progress == runtime.tasks.save
+    assert runtime.epub.load_task == runtime.tasks.load
 
 
 # ---------------------------------------------------------------------------

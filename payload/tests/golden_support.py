@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import re
+from dataclasses import replace
 from pathlib import Path
 
 import fitz
@@ -457,17 +458,18 @@ def run_pipeline(name: str, workdir: Path, font_path: Path) -> dict:
     from phoena_translator import application
 
     application.initialize_runtime()
+    runtime = application.runtime
     requests: list[str] = []
 
     def translate(text, system_prompt=None, retries=4):
         requests.append(text)
         return fake_translate_text(text, system_prompt, retries)
 
-    application.translate_text = translate
+    runtime.pdf = replace(runtime.pdf, translate_text=translate)
     source = workdir / "uploads" / f"{TASK_ID}.pdf"
     CORPUS[name](source)
     output = workdir / "outputs" / f"{TASK_ID}.pdf"
-    application.save_progress(
+    runtime.tasks.save(
         TASK_ID,
         {
             "status": "queued",
@@ -480,7 +482,7 @@ def run_pipeline(name: str, workdir: Path, font_path: Path) -> dict:
             "type": "pdf",
         },
     )
-    application.translate_pdf(TASK_ID, str(source), str(output))
+    runtime.translate_pdf(TASK_ID, str(source), str(output))
 
     progress_dir = workdir / "progress"
 

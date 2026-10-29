@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import io
-import threading
 import zipfile
 
 import pytest
 
 from phoena_translator.config import AppConfig
-from phoena_translator.task_store import TaskStore
+from phoena_translator.task_store import TaskRepository, TaskStore
 from phoena_translator.web import WebDependencies, create_app
 
 
@@ -29,17 +28,11 @@ class Harness:
             max_request_size=max_file_size * 2,
         )
         self.store = TaskStore(self.progress, self.uploads, self.outputs)
+        # The repository's backing index, inspected directly by the tests.
         self.tasks: dict[str, dict] = {}
-        self.saved: list[tuple[str, dict]] = []
         self.queued: list[tuple] = []
         self.runtime_calls = 0
         self.accept = accept
-        lock = threading.Lock()
-
-        def save(task_id, data):
-            self.saved.append((task_id, dict(data)))
-            self.store.save(task_id, data)
-            self.tasks[task_id] = dict(data)
 
         def enqueue(*args):
             self.queued.append(args)
@@ -51,14 +44,9 @@ class Harness:
         self.client = create_app(
             self.config,
             WebDependencies(
-                tasks=lambda: self.tasks,
-                tasks_lock=lambda: lock,
+                tasks=TaskRepository(self.store, self.tasks),
                 ensure_runtime=ensure_runtime,
-                save_progress=save,
-                load_progress=lambda task_id: self.store.load(task_id),
-                normalize_task=lambda task_id, data: self.store.normalize(task_id, data),
                 enqueue_task=enqueue,
-                task_store=lambda: self.store,
             ),
         ).test_client()
 

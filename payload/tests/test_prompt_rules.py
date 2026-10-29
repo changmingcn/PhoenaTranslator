@@ -6,19 +6,19 @@ Run from the ``payload`` directory:  python -m pytest tests -q
 from __future__ import annotations
 
 import hashlib
-import inspect
 import logging
 import threading
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
 
-from phoena_translator import application
 from phoena_translator.api_runtime import (
     APIRetryPolicy,
     CompletionDependencies,
     create_chat_completion,
 )
+from phoena_translator.config import AppConfig
 from phoena_translator.llm import DeepSeekTranslationAdapter, LLMSettings
 from phoena_translator.pdf.context import PDFPageTranslationContext
 from phoena_translator.pdf.translate.page import (
@@ -35,7 +35,9 @@ from phoena_translator.prompts import (
     PROMPT_RULE_BLOCKS,
     SWAP_GLOSSARY,
     SYSTEM_PROMPT_TEXT,
+    with_glossary,
 )
+from phoena_translator.runtime import Runtime
 
 log = logging.getLogger("test")
 
@@ -138,20 +140,22 @@ def test_pdf_translate_text_default_and_retry_attempts_carry_rules():
     assert "上一次输出未充分翻译" in systems[1]
 
 
-def test_application_facade_and_wiring_use_rule_prompts(monkeypatch):
+def test_runtime_wiring_uses_rule_prompts(tmp_path):
     systems: list[str] = []
-    monkeypatch.setattr(
-        application, "_create_chat_completion", _fake_completion([CHINESE_REPLY], systems)
+    runtime = Runtime(AppConfig.from_env({}, home=tmp_path))
+    runtime.text_translation = replace(
+        runtime.text_translation,
+        create_chat_completion=_fake_completion([CHINESE_REPLY], systems),
     )
-    application.translate_text(SWAP_TEXT)
+    runtime.translate_text(SWAP_TEXT)
     assert len(systems) == 1 and _has_rules(systems[0])
-    assert application.SYSTEM_PROMPT_TEXT is SYSTEM_PROMPT_TEXT
-    glossary_prompt = application._make_prompt_with_glossary(
+    assert runtime.text_translation.system_prompt_text is SYSTEM_PROMPT_TEXT
+    assert runtime.pdf.system_prompt_text is SYSTEM_PROMPT_TEXT
+    glossary_prompt = runtime.pdf.make_prompt_with_glossary(
         SYSTEM_PROMPT_TEXT, "SOFR → SOFR"
     )
     assert glossary_prompt.startswith(SYSTEM_PROMPT_TEXT)
-    source = inspect.getsource(application)
-    assert source.count("system_prompt_text=SYSTEM_PROMPT_TEXT") >= 2
+    assert runtime.epub.make_prompt is runtime.pdf.make_prompt_with_glossary
 
 
 def _page_context(systems: list[str], reply: str) -> PDFPageTranslationContext:
@@ -161,7 +165,7 @@ def _page_context(systems: list[str], reply: str) -> PDFPageTranslationContext:
 
     return PDFPageTranslationContext(
         task_id="t",
-        prompt=application._make_prompt_with_glossary(SYSTEM_PROMPT_TEXT, "SOFR → SOFR"),
+        prompt=with_glossary(SYSTEM_PROMPT_TEXT, "SOFR → SOFR"),
         logger=log,
         translate_text=translate,
     )

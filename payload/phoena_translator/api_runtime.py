@@ -10,6 +10,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable
 
@@ -22,6 +23,16 @@ class APIRetryPolicy:
     rate_limit_base_delay: float
     rate_limit_max_delay: float
     transient_error_max_delay: float
+
+
+DEFAULT_RETRY_POLICY = APIRetryPolicy(
+    attempts=6,
+    monitor_window_seconds=60,
+    rate_limit_burst_threshold=5,
+    rate_limit_base_delay=12,
+    rate_limit_max_delay=90,
+    transient_error_max_delay=30,
+)
 
 
 @dataclass(frozen=True)
@@ -467,3 +478,64 @@ def create_chat_completion(
     raise RuntimeError(
         f"LLM API request failed after {policy.attempts} attempts: {last_error}"
     )
+
+
+class LLMGateway:
+    """One provider adapter with its process-local pacing, retry and usage ledger."""
+
+    def __init__(
+        self,
+        adapter: Any,
+        *,
+        model: str,
+        prices: APIUsagePrices,
+        usage_log: Path,
+        max_concurrency: int,
+        logger: logging.Logger,
+        policy: APIRetryPolicy = DEFAULT_RETRY_POLICY,
+    ) -> None:
+        self.adapter = adapter
+        self.model = model
+        self.prices = prices
+        self.usage_log = Path(usage_log)
+        self.policy = policy
+        self.state = APIRuntimeState.create(max_concurrency)
+        self.logger = logger
+        self._dependencies = CompletionDependencies(
+            adapter=adapter,
+            concurrency_semaphore=self.state.concurrency_semaphore,
+            policy=policy,
+            logger=logger,
+            wait_for_slot=partial(wait_for_api_slot, self.state, logger),
+            record_usage=self.record_usage,
+            record_event=partial(
+                record_api_event,
+                self.state,
+                window_seconds=policy.monitor_window_seconds,
+            ),
+            record_rate_limit=partial(record_rate_limit, self.state, logger=logger),
+            is_rate_limit_error=is_rate_limit_error,
+            is_retryable_error=is_retryable_api_error,
+            retry_delay=partial(extract_retry_delay, policy=policy),
+        )
+
+    def record_usage(self, response: Any, model: str) -> dict | None:
+        return record_completion_usage(
+            response, model, self.prices, self.usage_log, self.state, self.logger
+        )
+
+    def complete(
+        self,
+        *,
+        messages: list[dict],
+        max_tokens: int,
+        temperature: float,
+        model: str | None = None,
+    ):
+        return create_chat_completion(
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            model=self.model if model is None else model,
+            dependencies=self._dependencies,
+        )

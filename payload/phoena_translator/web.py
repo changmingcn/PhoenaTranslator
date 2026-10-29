@@ -3,29 +3,23 @@
 from __future__ import annotations
 
 import shutil
-import threading
 import time
 import uuid
 import zipfile
 from dataclasses import dataclass
-from typing import Callable, MutableMapping
+from typing import Callable
 
 from flask import Flask, jsonify, request, send_file
 
 from .config import AppConfig
-from .task_store import InvalidTaskId, TaskStore
+from .task_store import InvalidTaskId, TaskRepository
 
 
 @dataclass(frozen=True)
 class WebDependencies:
-    tasks: Callable[[], MutableMapping[str, dict]]
-    tasks_lock: Callable[[], threading.Lock]
+    tasks: TaskRepository
     ensure_runtime: Callable[[], None]
-    save_progress: Callable[[str, dict], None]
-    load_progress: Callable[[str], dict | None]
-    normalize_task: Callable[[str, dict | None], dict | None]
     enqueue_task: Callable[[str, str, str, str, str, int], bool]
-    task_store: Callable[[], TaskStore]
 
 
 QUEUE_FULL = ({"error": "Translation queue is at capacity"}, 503)
@@ -58,21 +52,15 @@ class _TaskRoutes:
     def __init__(self, config: AppConfig, dependencies: WebDependencies) -> None:
         self.config = config
         self.deps = dependencies
+        self.tasks = dependencies.tasks
 
     # -- shared task-registry helpers ------------------------------------
 
     def record(self, task_id: str) -> dict | None:
         try:
-            with self.deps.tasks_lock():
-                data = self.deps.tasks().get(task_id)
-            return data or self.deps.load_progress(task_id)
+            return self.tasks.get(task_id)
         except InvalidTaskId:
             return None
-
-    def publish(self, task_id: str, record: dict) -> None:
-        self.deps.save_progress(task_id, record)
-        with self.deps.tasks_lock():
-            self.deps.tasks()[task_id] = record
 
     def queue_or_restore(
         self, task_id: str, queued: dict, restore: dict, ext: str, password: str
@@ -80,13 +68,13 @@ class _TaskRoutes:
         """Publish ``queued`` and enqueue the stored source; on refusal publish ``restore``."""
         source_path = self.config.upload_dir / f"{task_id}.{ext}"
         output_path = self.config.output_dir / f"{task_id}.{ext}"
-        self.publish(task_id, queued)
+        self.tasks.save(task_id, queued)
         accepted = self.deps.enqueue_task(
             task_id, ext, str(source_path), str(output_path), password,
             source_path.stat().st_size,
         )
         if not accepted:
-            self.publish(task_id, restore)
+            self.tasks.save(task_id, restore)
         return accepted
 
     # -- routes ------------------------------------------------------------
@@ -130,9 +118,7 @@ class _TaskRoutes:
             "updated_at": created_at,
             "requires_password": bool(pdf_password),
         }
-        with self.deps.tasks_lock():
-            self.deps.tasks()[task_id] = record
-        self.deps.save_progress(task_id, record)
+        self.tasks.save(task_id, record)
         accepted = self.deps.enqueue_task(
             task_id,
             ext,
@@ -143,9 +129,7 @@ class _TaskRoutes:
         )
         if not accepted:
             source_path.unlink(missing_ok=True)
-            self.deps.task_store().progress_path(task_id).unlink(missing_ok=True)
-            with self.deps.tasks_lock():
-                self.deps.tasks().pop(task_id, None)
+            self.tasks.remove(task_id)
             return QUEUE_FULL
         return {"task_id": task_id, "filename": filename}, 200
 
@@ -161,7 +145,7 @@ class _TaskRoutes:
             return NOT_FOUND
         if data.get("status") != "completed":
             return {"error": "Translation not yet completed"}, 400
-        output_path = self.deps.task_store().resolve_output_path(task_id, data)
+        output_path = self.tasks.store.resolve_output_path(task_id, data)
         if output_path is None:
             return UNSAFE_OUTPUT
         if not output_path.is_file():
@@ -178,7 +162,7 @@ class _TaskRoutes:
             return NOT_FOUND
         if data.get("status") in {"queued", "translating"}:
             return {"error": "Cannot delete an active task"}, 400
-        store = self.deps.task_store()
+        store = self.tasks.store
         if data.get("output") and store.resolve_output_path(task_id, data) is None:
             return UNSAFE_OUTPUT
         try:
@@ -193,8 +177,7 @@ class _TaskRoutes:
                     path.unlink(missing_ok=True)
             except OSError:
                 continue
-        with self.deps.tasks_lock():
-            self.deps.tasks().pop(task_id, None)
+        self.tasks.remove(task_id)
         return {"ok": True}, 200
 
     def resume(self, task_id: str):
@@ -237,13 +220,12 @@ class _TaskRoutes:
         return {"ok": True}, 200
 
     def list_all(self):
-        with self.deps.tasks_lock():
-            entries = [
-                (task_id, self.deps.normalize_task(task_id, data) or {})
-                for task_id, data in self.deps.tasks().items()
-            ]
+        normalize = self.tasks.store.normalize
         # Flask serialises objects with sorted keys; the UI orders by created_at.
-        return {task_id: _public_view(data) for task_id, data in entries}, 200
+        return {
+            task_id: _public_view(normalize(task_id, data) or {})
+            for task_id, data in self.tasks.snapshot().items()
+        }, 200
 
 
 def _json_route(handler):

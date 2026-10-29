@@ -1,31 +1,22 @@
-"""Task persistence, restart recovery, and queue orchestration."""
+"""Restart recovery and translation-queue orchestration."""
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, MutableMapping
+from typing import Any, Callable
 
-from phoena_translator.task_store import TaskStore
+from phoena_translator.task_store import TaskRepository
 from phoena_translator.workers import TaskJob, TaskWorkerPool
 
 
 @dataclass(frozen=True)
-class TaskPersistenceDependencies:
-    tasks: MutableMapping[str, dict]
-    tasks_lock: Any
-    task_store: Callable[[], TaskStore]
-
-
-@dataclass(frozen=True)
 class TaskRecoveryDependencies:
-    tasks: MutableMapping[str, dict]
-    tasks_lock: Any
+    tasks: TaskRepository
     upload_dir: Path
     output_dir: Path
     logger: logging.Logger
-    save_progress: Callable[[str, dict], None]
     enqueue_task: Callable[[str, str, str, str], bool]
     source_sha256: Callable[[str], str]
     load_cached_page_indices: Callable[[str, str], set[int]]
@@ -39,52 +30,14 @@ class TranslationJobDependencies:
     translate_pdf: Callable[..., Any]
 
 
-def normalize_task_record(
-    task_id: str,
-    data: dict | None,
-    dependencies: TaskPersistenceDependencies,
-) -> dict | None:
-    return dependencies.task_store().normalize(task_id, data)
-
-
-def save_progress(
-    task_id: str,
-    data: dict,
-    dependencies: TaskPersistenceDependencies,
-) -> None:
-    with dependencies.tasks_lock:
-        existing = dict(dependencies.tasks.get(task_id) or {})
-    merged = dependencies.task_store().save(
-        task_id,
-        data,
-        existing=existing or None,
-    )
-    with dependencies.tasks_lock:
-        dependencies.tasks[task_id] = merged
-
-
-def load_progress(
-    task_id: str,
-    dependencies: TaskPersistenceDependencies,
-) -> dict | None:
-    return dependencies.task_store().load(task_id)
-
-
-def load_all_tasks(dependencies: TaskPersistenceDependencies) -> None:
-    records = dependencies.task_store().load_all()
-    with dependencies.tasks_lock:
-        dependencies.tasks.update(records)
-
-
 def resume_interrupted_tasks(dependencies: TaskRecoveryDependencies) -> None:
     """Requeue interrupted work without retaining PDF passwords in state."""
 
-    with dependencies.tasks_lock:
-        to_resume = [
-            (task_id, dict(data))
-            for task_id, data in dependencies.tasks.items()
-            if data.get("status") in ("translating", "queued")
-        ]
+    to_resume = [
+        (task_id, data)
+        for task_id, data in dependencies.tasks.snapshot().items()
+        if data.get("status") in ("translating", "queued")
+    ]
 
     for task_id, data in to_resume:
         extension = data.get("type", "epub")
@@ -94,7 +47,7 @@ def resume_interrupted_tasks(dependencies: TaskRecoveryDependencies) -> None:
             dependencies.logger.warning(
                 "[%s] Cannot resume: upload file missing", task_id
             )
-            dependencies.save_progress(
+            dependencies.tasks.save(
                 task_id,
                 {
                     **data,
@@ -111,7 +64,7 @@ def resume_interrupted_tasks(dependencies: TaskRecoveryDependencies) -> None:
                     current_file="",
                     error="PDF password must be re-entered after restart",
                 )
-                dependencies.save_progress(task_id, data)
+                dependencies.tasks.save(task_id, data)
                 dependencies.logger.info(
                     "[%s] Encrypted PDF awaits password re-entry after restart",
                     task_id,
@@ -156,7 +109,7 @@ def resume_interrupted_tasks(dependencies: TaskRecoveryDependencies) -> None:
 
         data["status"] = "queued"
         data["current_file"] = "等待任务队列执行..."
-        dependencies.save_progress(task_id, data)
+        dependencies.tasks.save(task_id, data)
         accepted = dependencies.enqueue_task(
             task_id,
             extension,
@@ -164,7 +117,7 @@ def resume_interrupted_tasks(dependencies: TaskRecoveryDependencies) -> None:
             str(output_path),
         )
         if not accepted:
-            dependencies.save_progress(
+            dependencies.tasks.save(
                 task_id,
                 {
                     **data,
