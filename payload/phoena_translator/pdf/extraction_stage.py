@@ -39,11 +39,11 @@ from phoena_translator.pdf.text_shape import _collapsed_plain_text
 from phoena_translator.pdf.semantic_cross_page import (
     _cross_page_dominant_fontsize,
 )
-from phoena_translator.pdf.semantics import (
+from phoena_translator.pdf.semantic_text import (
     _derive_pdf_page_layout_styles,
     _mark_watermark_elements,
-    _merge_cross_page_sentences,
 )
+from phoena_translator.pdf.semantic_cross_page import _merge_cross_page_sentences
 from phoena_translator.pdf.targets import (
     _classify_pdf_page_text_elements,
     _pdf_element_requires_translation,

@@ -39,41 +39,51 @@ from phoena_translator.pdf.extraction import (
     _mark_pdf_embedded_thumbnail_text_elements,
     _sanitize_pdf_hidden_text_artifact_spans,
 )
-from phoena_translator.pdf.semantics import (
+from phoena_translator.pdf.semantic_text import (
     _bucket_pdf_fontsize,
-    _complete_pdf_citation_separator_inline_math_fragments,
     _detect_pdf_drop_cap_span,
     _ends_with_sentence_boundary,
     _is_disclaimer_block,
     _looks_like_heading_text,
     _looks_like_split_layout_line,
     _make_pdf_text_element_from_lines,
-    _mark_pdf_reference_entry_elements,
     _merge_adjacent_heading_elements,
-    _merge_pdf_detached_list_marker_elements,
     _merge_pdf_list_marker_clusters,
-    _merge_pdf_reference_entry_elements,
-    _merge_pdf_semantic_continuation_elements,
-    _merge_pdf_semantic_table_cells,
-    _merge_pdf_strong_continuation_elements,
-    _merge_pdf_wrapped_inline_math_continuation_fragments,
-    _merge_pdf_wrapped_line_elements,
     _normalize_pdf_drop_cap_lines,
-    _normalize_pdf_same_baseline_prose_fragments,
     _normalize_pdf_footnote_alignment,
-    _normalize_pdf_glossary_cells,
     _pdf_element_prefers_single_line_heading,
-    _pdf_internal_paragraph_lead_residuals,
+    _pick_pdf_dominant_value,
+    _split_pdf_disjoint_line_segments,
+    _split_pdf_text_elements_into_semantic_fragments,
+)
+from phoena_translator.pdf.semantic_references import (
+    _complete_pdf_citation_separator_inline_math_fragments,
+    _mark_pdf_reference_entry_elements,
+    _merge_pdf_reference_entry_elements,
     _pdf_reference_continuation_residual_pairs,
     _pdf_reference_entry_structure_residuals,
-    _pdf_strong_continuation_residual_pairs,
-    _pick_pdf_dominant_value,
-    _promote_pdf_formula_overlaps,
-    _split_pdf_disjoint_line_segments,
-    _split_pdf_formula_adjacent_paragraph_elements,
     _split_pdf_reference_entry_elements,
-    _split_pdf_text_elements_into_semantic_fragments,
     _translate_pdf_citation_labels,
+)
+from phoena_translator.pdf.semantic_continuations import (
+    _merge_pdf_detached_list_marker_elements,
+    _merge_pdf_semantic_continuation_elements,
+    _merge_pdf_strong_continuation_elements,
+    _merge_pdf_wrapped_line_elements,
+    _pdf_internal_paragraph_lead_residuals,
+    _pdf_strong_continuation_residual_pairs,
+)
+from phoena_translator.pdf.semantic_tables import (
+    _merge_pdf_semantic_table_cells,
+    _normalize_pdf_glossary_cells,
+)
+from phoena_translator.pdf.semantic_formulae import (
+    _merge_pdf_wrapped_inline_math_continuation_fragments,
+    _promote_pdf_formula_overlaps,
+    _split_pdf_formula_adjacent_paragraph_elements,
+)
+from phoena_translator.pdf.semantic_baselines import (
+    _normalize_pdf_same_baseline_prose_fragments,
 )
 from phoena_translator.pdf.model import (
     ElementType,

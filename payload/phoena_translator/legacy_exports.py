@@ -186,18 +186,13 @@ from phoena_translator.pdf.extraction import (
     _pdf_vector_ocr_semantic_paragraphs,  # noqa: F401 - legacy facade
     _sanitize_pdf_hidden_text_artifact_spans,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantics import (
+from phoena_translator.pdf.semantic_text import (
     _bucket_pdf_fontsize,  # noqa: F401 - legacy facade
     _build_pdf_paragraphs,  # noqa: F401 - legacy facade
-    _carry_fragment_is_prose,  # noqa: F401 - legacy facade
     _color_int_to_rgb,  # noqa: F401 - legacy facade
-    _complete_pdf_citation_separator_inline_math_fragments,  # noqa: F401 - legacy facade
-    _cross_page_dominant_fontsize,  # noqa: F401 - legacy facade
     _derive_pdf_page_layout_styles,  # noqa: F401 - legacy facade
     _detect_pdf_drop_cap_span,  # noqa: F401 - legacy facade
     _ends_with_sentence_boundary,  # noqa: F401 - legacy facade
-    _first_cross_page_lexical_char,  # noqa: F401 - legacy facade
-    _is_cross_page_body_elem,  # noqa: F401 - legacy facade
     _is_disclaimer_block,  # noqa: F401 - legacy facade
     _is_heading_like_elem,  # noqa: F401 - legacy facade
     _is_new_pdf_paragraph,  # noqa: F401 - legacy facade
@@ -208,69 +203,84 @@ from phoena_translator.pdf.semantics import (
     _join_pdf_line_fragments,  # noqa: F401 - legacy facade
     _looks_light_gray,  # noqa: F401 - legacy facade
     _looks_like_heading_text,  # noqa: F401 - legacy facade
-    _looks_like_pdf_citation_publisher,  # noqa: F401 - legacy facade
     _looks_like_pdf_drop_cap_token,  # noqa: F401 - legacy facade
     _looks_like_pdf_paragraph_lead,  # noqa: F401 - legacy facade
-    _looks_like_pdf_reference_entry_lead,  # noqa: F401 - legacy facade
-    _looks_like_right_aligned_signoff,  # noqa: F401 - legacy facade
     _looks_like_split_layout_line,  # noqa: F401 - legacy facade
-    _make_pdf_glossary_column_fragment,  # noqa: F401 - legacy facade
-    _make_pdf_reference_fragment_from_source_lines,  # noqa: F401 - legacy facade
     _make_pdf_space_span,  # noqa: F401 - legacy facade
     _make_pdf_text_element_from_lines,  # noqa: F401 - legacy facade
-    _mark_pdf_reference_entry_elements,  # noqa: F401 - legacy facade
     _mark_watermark_elements,  # noqa: F401 - legacy facade
     _merge_adjacent_heading_elements,  # noqa: F401 - legacy facade
-    _merge_cross_page_sentences,  # noqa: F401 - legacy facade
-    _merge_pdf_detached_list_marker_elements,  # noqa: F401 - legacy facade
-    _merge_pdf_glossary_cell_group,  # noqa: F401 - legacy facade
     _merge_pdf_list_marker_clusters,  # noqa: F401 - legacy facade
-    _merge_pdf_reference_entry_elements,  # noqa: F401 - legacy facade
-    _merge_pdf_semantic_continuation_elements,  # noqa: F401 - legacy facade
-    _merge_pdf_semantic_table_cells,  # noqa: F401 - legacy facade
-    _merge_pdf_strong_continuation_elements,  # noqa: F401 - legacy facade
-    _merge_pdf_table_cell_group,  # noqa: F401 - legacy facade
-    _merge_pdf_wrapped_inline_math_continuation_fragments,  # noqa: F401 - legacy facade
-    _merge_pdf_wrapped_line_elements,  # noqa: F401 - legacy facade
-    _merge_pdf_wrapped_math_continuation_pair,  # noqa: F401 - legacy facade
     _normalize_pdf_drop_cap_lines,  # noqa: F401 - legacy facade
     _normalize_pdf_footnote_alignment,  # noqa: F401 - legacy facade
-    _normalize_pdf_glossary_cells,  # noqa: F401 - legacy facade
     _normalize_watermark_text,  # noqa: F401 - legacy facade
     _parse_pdf_toc_leader,  # noqa: F401 - legacy facade
-    _pdf_citation_separator_pipe_count,  # noqa: F401 - legacy facade
-    _pdf_compact_open_table_cell_groups,  # noqa: F401 - legacy facade
-    _pdf_detached_list_marker_target_score,  # noqa: F401 - legacy facade
     _pdf_element_footnote_definition_marker,  # noqa: F401 - legacy facade
     _pdf_element_prefers_single_line_heading,  # noqa: F401 - legacy facade
-    _pdf_internal_paragraph_lead_residuals,  # noqa: F401 - legacy facade
+    _pdf_source_line_footnote_definition_marker,  # noqa: F401 - legacy facade
+    _pdf_text_colors_semantically_compatible,  # noqa: F401 - legacy facade
+    _pdf_visual_line_info_from_element,  # noqa: F401 - legacy facade
+    _pick_pdf_dominant_value,  # noqa: F401 - legacy facade
+    _rebase_pdf_split_paragraph_layout,  # noqa: F401 - legacy facade
+    _should_keep_pdf_lines_separate,  # noqa: F401 - legacy facade
+    _split_pdf_disjoint_line_segments,  # noqa: F401 - legacy facade
+    _split_pdf_text_elements_into_semantic_fragments,  # noqa: F401 - legacy facade
+    _strip_pdf_toc_label,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.semantic_cross_page import (
+    _carry_fragment_is_prose,  # noqa: F401 - legacy facade
+    _cross_page_dominant_fontsize,  # noqa: F401 - legacy facade
+    _first_cross_page_lexical_char,  # noqa: F401 - legacy facade
+    _is_cross_page_body_elem,  # noqa: F401 - legacy facade
+    _looks_like_right_aligned_signoff,  # noqa: F401 - legacy facade
+    _merge_cross_page_sentences,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.semantic_references import (
+    _complete_pdf_citation_separator_inline_math_fragments,  # noqa: F401 - legacy facade
+    _looks_like_pdf_citation_publisher,  # noqa: F401 - legacy facade
+    _looks_like_pdf_reference_entry_lead,  # noqa: F401 - legacy facade
+    _make_pdf_reference_fragment_from_source_lines,  # noqa: F401 - legacy facade
+    _mark_pdf_reference_entry_elements,  # noqa: F401 - legacy facade
+    _merge_pdf_reference_entry_elements,  # noqa: F401 - legacy facade
+    _pdf_citation_separator_pipe_count,  # noqa: F401 - legacy facade
     _pdf_reference_continuation_residual_pairs,  # noqa: F401 - legacy facade
     _pdf_reference_entry_elements_can_merge,  # noqa: F401 - legacy facade
     _pdf_reference_entry_lead_counts,  # noqa: F401 - legacy facade
     _pdf_reference_entry_structure_residuals,  # noqa: F401 - legacy facade
+    _split_pdf_reference_entry_elements,  # noqa: F401 - legacy facade
+    _translate_pdf_citation_labels,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.semantic_tables import (
+    _make_pdf_glossary_column_fragment,  # noqa: F401 - legacy facade
+    _merge_pdf_glossary_cell_group,  # noqa: F401 - legacy facade
+    _merge_pdf_semantic_table_cells,  # noqa: F401 - legacy facade
+    _merge_pdf_table_cell_group,  # noqa: F401 - legacy facade
+    _normalize_pdf_glossary_cells,  # noqa: F401 - legacy facade
+    _pdf_compact_open_table_cell_groups,  # noqa: F401 - legacy facade
+    _pdf_table_visual_line_bands,  # noqa: F401 - legacy facade
+    _prepare_pdf_glossary_column_geometry,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.semantic_continuations import (
+    _merge_pdf_detached_list_marker_elements,  # noqa: F401 - legacy facade
+    _merge_pdf_semantic_continuation_elements,  # noqa: F401 - legacy facade
+    _merge_pdf_strong_continuation_elements,  # noqa: F401 - legacy facade
+    _merge_pdf_wrapped_line_elements,  # noqa: F401 - legacy facade
+    _pdf_detached_list_marker_target_score,  # noqa: F401 - legacy facade
+    _pdf_internal_paragraph_lead_residuals,  # noqa: F401 - legacy facade
     _pdf_semantic_continuation_elements_can_merge,  # noqa: F401 - legacy facade
-    _pdf_source_line_footnote_definition_marker,  # noqa: F401 - legacy facade
     _pdf_strong_continuation_element_is_eligible,  # noqa: F401 - legacy facade
     _pdf_strong_continuation_elements_can_merge,  # noqa: F401 - legacy facade
     _pdf_strong_continuation_residual_pairs,  # noqa: F401 - legacy facade
-    _pdf_table_visual_line_bands,  # noqa: F401 - legacy facade
-    _pdf_text_colors_semantically_compatible,  # noqa: F401 - legacy facade
-    _pdf_visual_line_info_from_element,  # noqa: F401 - legacy facade
     _pdf_wrapped_line_elements_can_merge,  # noqa: F401 - legacy facade
     _pdf_wrapped_line_group_can_start,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.semantic_formulae import (
+    _merge_pdf_wrapped_inline_math_continuation_fragments,  # noqa: F401 - legacy facade
+    _merge_pdf_wrapped_math_continuation_pair,  # noqa: F401 - legacy facade
     _pdf_wrapped_math_continuation_pair_can_merge,  # noqa: F401 - legacy facade
     _pdf_wrapped_math_fragment_prose_words,  # noqa: F401 - legacy facade
-    _pick_pdf_dominant_value,  # noqa: F401 - legacy facade
-    _prepare_pdf_glossary_column_geometry,  # noqa: F401 - legacy facade
     _promote_pdf_formula_overlaps,  # noqa: F401 - legacy facade
-    _rebase_pdf_split_paragraph_layout,  # noqa: F401 - legacy facade
-    _should_keep_pdf_lines_separate,  # noqa: F401 - legacy facade
-    _split_pdf_disjoint_line_segments,  # noqa: F401 - legacy facade
     _split_pdf_formula_adjacent_paragraph_elements,  # noqa: F401 - legacy facade
-    _split_pdf_reference_entry_elements,  # noqa: F401 - legacy facade
-    _split_pdf_text_elements_into_semantic_fragments,  # noqa: F401 - legacy facade
-    _strip_pdf_toc_label,  # noqa: F401 - legacy facade
-    _translate_pdf_citation_labels,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.targets import (
     _classify_pdf_page_text_elements,  # noqa: F401 - legacy facade
