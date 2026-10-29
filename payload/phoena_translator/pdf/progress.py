@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phoena_translator.pdf.output_audit import PDFAuditDependencies
+from phoena_translator.pdf.verify.output import PDFAuditDependencies
 
 
 def _save_pdf_translation_progress(

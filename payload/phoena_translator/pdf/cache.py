@@ -1,34 +1,20 @@
-"""Cache for deterministic PDF processing."""
+"""Per-task PDF caches: page translations (bound to element identities),
+the saved layout, and the audit file."""
 
 from __future__ import annotations
 
-import logging
-from dataclasses import dataclass
-from typing import Callable
-from phoena_translator.config import get_app_config
-from phoena_translator.storage_layout import (
-    pdf_audit_path,
-    pdf_layout_cache_path,
-    pdf_page_cache_dir,
-    pdf_page_cache_path,
-)
 import hashlib
 import json
+import logging
 import os
 import re
+from dataclasses import dataclass
+from typing import Callable
+
 import fitz
-from phoena_translator.pdf.signatures import _pdf_signature_number
-from phoena_translator.pdf.inline_markup import (
-    _pdf_inline_markup_preserved,
-    _pdf_inline_math_fragments_preserved,
-)
-from phoena_translator.pdf.deterministic_labels import (
-    _translate_pdf_deterministic_labels,
-)
-from phoena_translator.pdf.translation_targets import _pdf_element_requires_translation
-from phoena_translator.pdf.translation_validation import (
-    _pdf_element_translation_needs_retry,
-)
+
+from phoena_translator.config import get_app_config
+from phoena_translator.pdf.extract.signatures import _pdf_signature_number
 from phoena_translator.pdf.geometry import _get_pdf_elem_rect
 from phoena_translator.pdf.model import (
     ElementType,
@@ -36,7 +22,23 @@ from phoena_translator.pdf.model import (
     PdfAudit,
     SkipReason,
 )
-
+from phoena_translator.pdf.translate.deterministic_labels import (
+    _translate_pdf_deterministic_labels,
+)
+from phoena_translator.pdf.translate.inline_markup import (
+    _pdf_inline_markup_preserved,
+    _pdf_inline_math_fragments_preserved,
+)
+from phoena_translator.pdf.translate.targets import _pdf_element_requires_translation
+from phoena_translator.pdf.translate.validation import (
+    _pdf_element_translation_needs_retry,
+)
+from phoena_translator.storage_layout import (
+    pdf_audit_path,
+    pdf_layout_cache_path,
+    pdf_page_cache_dir,
+    pdf_page_cache_path,
+)
 
 PDF_PAGE_CACHE_SCHEMA_VERSION = 3
 PDF_LAYOUT_SEMANTICS_VERSION = "2026-08-semantic-paragraphs-v39"

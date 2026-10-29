@@ -38,7 +38,7 @@ class _BrokenPage:
 
 
 def test_pdf_text_extraction_failure_propagates():
-    from phoena_translator.pdf.page_extraction import _extract_pdf_text_elements
+    from phoena_translator.pdf.extract.page import _extract_pdf_text_elements
 
     with pytest.raises(RuntimeError, match="mupdf page decode failed"):
         _extract_pdf_text_elements(_BrokenPage(), [])
@@ -170,7 +170,7 @@ def test_font_override_parsed_from_env(tmp_path):
 
 
 def test_font_override_resolution(tmp_path):
-    from phoena_translator.pdf.fonts import _get_chinese_font_path
+    from phoena_translator.pdf.render.fonts import _get_chinese_font_path
 
     font_file = tmp_path / "font.otf"
     font_file.write_bytes(b"stub")
@@ -237,7 +237,7 @@ def test_log_file_handler_rotates(tmp_path):
 
 
 def test_long_candidate_not_truncated():
-    from phoena_translator.pdf.page_translation import _clean_translated_text
+    from phoena_translator.pdf.translate.page import _clean_translated_text
 
     source = "short source"
     candidate = "很长的候选译文段落" * 120
@@ -290,7 +290,7 @@ def test_glossary_whole_word_only():
 
 
 def test_cff_font_subsetting_is_skipped(tmp_path):
-    from phoena_translator.pdf.fonts import _pdf_font_is_cff, _subset_pdf_font
+    from phoena_translator.pdf.render.fonts import _pdf_font_is_cff, _subset_pdf_font
 
     stub = tmp_path / "font.otf"
     stub.write_bytes(b"OTTO" + b"\x00" * 12)
@@ -308,7 +308,7 @@ def test_cff_font_subsetting_is_skipped(tmp_path):
 
 
 def test_font_embeddability_policy(tmp_path):
-    from phoena_translator.pdf.fonts import pdf_font_is_safely_embeddable
+    from phoena_translator.pdf.render.fonts import pdf_font_is_safely_embeddable
 
     big_cff = tmp_path / "big.otf"
     big_cff.write_bytes(b"OTTO" + b"\x00" * (5 * 1024 * 1024))
@@ -324,7 +324,7 @@ def test_font_embeddability_policy(tmp_path):
 
 
 def test_resolve_output_fonts_rejects_unsubsettable_large_font(tmp_path):
-    from phoena_translator.pdf.fonts import resolve_output_fonts
+    from phoena_translator.pdf.render.fonts import resolve_output_fonts
 
     big_cff = tmp_path / "big.otf"
     big_cff.write_bytes(b"OTTO" + b"\x00" * (5 * 1024 * 1024))
@@ -339,8 +339,7 @@ def test_prepare_fonts_subsets_distinct_regular_and_bold(
     import shutil
     from types import SimpleNamespace
 
-    from phoena_translator.pdf import output_stage
-
+    from phoena_translator.pdf.render import stage as output_stage
     regular = tmp_path / "regular.ttf"
     bold = tmp_path / "bold.ttf"
     regular.write_bytes(b"regular")
@@ -484,7 +483,7 @@ def _orphan_tail_fixture():
 
 class TestCrossPageOrphanTail:
     def test_fragment_detection(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _cross_page_whole_fragment_tail,
         )
 
@@ -501,7 +500,7 @@ class TestCrossPageOrphanTail:
         assert _cross_page_orphan_tail_fragment(table_cell) is None
 
     def test_absorption_moves_tail_and_merges_orphan_away(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -521,7 +520,7 @@ class TestCrossPageOrphanTail:
         assert audit_log[0]["carried_tail"] == "traders."
 
     def test_absorption_skips_when_source_sentence_complete(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -533,8 +532,8 @@ class TestCrossPageOrphanTail:
         assert orphan["type"] == "text"
 
     def test_audit_validator_accepts_and_rejects(self):
-        from phoena_translator.pdf.merge_audit import _validate_pdf_merge_audit
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.verify.merges import _validate_pdf_merge_audit
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -574,7 +573,7 @@ def _mid_sentence_fixture_text(content, y0, y1):
 
 class TestFormulaMidSentencePreservation:
     def test_mid_sentence_stub_above_formula_is_preserved(self):
-        from phoena_translator.pdf.formula_policy import (
+        from phoena_translator.pdf.semantics.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -595,7 +594,7 @@ class TestFormulaMidSentencePreservation:
         assert stub["skip_translate_reason"] == "formula_risk_preserved"
 
     def test_terminated_intro_above_formula_still_translates(self):
-        from phoena_translator.pdf.formula_policy import (
+        from phoena_translator.pdf.semantics.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -614,7 +613,7 @@ class TestFormulaMidSentencePreservation:
         assert "skip_translate_reason" not in intro
 
     def test_distant_formula_does_not_trigger(self):
-        from phoena_translator.pdf.formula_policy import (
+        from phoena_translator.pdf.semantics.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -632,7 +631,7 @@ class TestFormulaMidSentencePreservation:
         assert "skip_translate_reason" not in stub
 
     def test_headers_tables_and_rotated_labels_are_not_preserved(self):
-        from phoena_translator.pdf.formula_policy import (
+        from phoena_translator.pdf.semantics.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -679,7 +678,7 @@ class TestFormulaMidSentencePreservation:
     # and the third paragraph was a finished sentence whose footnote marker
     # hid the full stop.
     def test_mixed_math_line_does_not_freeze_the_paragraph_above(self):
-        from phoena_translator.pdf.formula_policy import (
+        from phoena_translator.pdf.semantics.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -699,7 +698,7 @@ class TestFormulaMidSentencePreservation:
         assert "skip_translate_reason" not in paragraph
 
     def test_footnote_marker_does_not_disguise_a_finished_sentence(self):
-        from phoena_translator.pdf.formula_policy import (
+        from phoena_translator.pdf.semantics.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -718,7 +717,7 @@ class TestFormulaMidSentencePreservation:
         assert "skip_translate_reason" not in finished
 
     def test_whole_paragraph_is_too_long_to_be_a_stub(self):
-        from phoena_translator.pdf.formula_policy import (
+        from phoena_translator.pdf.semantics.formula_policy import (
             _preserve_pdf_formula_mid_sentence_neighbors,
         )
 
@@ -739,8 +738,8 @@ class TestFormulaMidSentencePreservation:
         assert "skip_translate_reason" not in paragraph
 
     def test_leading_tail_split_from_first_paragraph(self):
-        from phoena_translator.pdf.merge_audit import _validate_pdf_merge_audit
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.verify.merges import _validate_pdf_merge_audit
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -766,7 +765,7 @@ class TestFormulaMidSentencePreservation:
         assert _validate_pdf_merge_audit(audit_log, pages) == []
 
     def test_footnote_marker_fragment_absorbed_with_markup(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -897,7 +896,7 @@ class TestCrossPageScatteredDestination:
     )
 
     def test_split_merge_accepts_scattered_destination(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -918,7 +917,7 @@ class TestCrossPageScatteredDestination:
         assert audit_log[0]["destination_layout"] == "scattered"
 
     def test_inline_math_records_block_the_merge(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -934,7 +933,7 @@ class TestCrossPageScatteredDestination:
         assert not last_elem["content"].endswith("lifted offers.")
 
     def test_non_prose_residual_blocks_the_merge(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -975,7 +974,7 @@ class TestWatermarkKeywordCorroboration:
         return page_extractions, page_rects
 
     def test_black_footer_keyword_line_is_not_erased(self):
-        from phoena_translator.pdf.watermarks import _mark_watermark_elements
+        from phoena_translator.pdf.semantics.watermarks import _mark_watermark_elements
 
         page_extractions, page_rects = self._pages(3)
         _mark_watermark_elements(page_extractions, page_rects, 3)
@@ -983,7 +982,7 @@ class TestWatermarkKeywordCorroboration:
             assert "skip_translate_reason" not in info["elements"][0]
 
     def test_rotated_stamp_is_still_a_watermark(self):
-        from phoena_translator.pdf.watermarks import _mark_watermark_elements
+        from phoena_translator.pdf.semantics.watermarks import _mark_watermark_elements
 
         page_extractions, page_rects = self._pages(
             3,
@@ -997,7 +996,7 @@ class TestWatermarkKeywordCorroboration:
             )
 
     def test_large_keyword_stamp_is_still_a_watermark(self):
-        from phoena_translator.pdf.watermarks import _mark_watermark_elements
+        from phoena_translator.pdf.semantics.watermarks import _mark_watermark_elements
 
         page_extractions, page_rects = self._pages(
             3,
@@ -1015,7 +1014,7 @@ class TestRefusalMetaGate:
     SOURCE = "Discussion of policy implications"
 
     def test_chinese_refusal_needs_retry(self):
-        from phoena_translator.pdf.translation_validation import (
+        from phoena_translator.pdf.translate.validation import (
             _short_translation_needs_retry,
         )
 
@@ -1027,7 +1026,7 @@ class TestRefusalMetaGate:
         )
 
     def test_meta_preamble_needs_retry(self):
-        from phoena_translator.pdf.translation_validation import (
+        from phoena_translator.pdf.translate.validation import (
             _short_translation_needs_retry,
         )
 
@@ -1039,7 +1038,7 @@ class TestRefusalMetaGate:
         )
 
     def test_ordinary_translation_passes(self):
-        from phoena_translator.pdf.translation_validation import (
+        from phoena_translator.pdf.translate.validation import (
             _short_translation_needs_retry,
         )
 
@@ -1056,7 +1055,7 @@ class TestRefusalMetaGate:
 class TestZeroProgressCircuitBreaker:
     @staticmethod
     def _context(pdf_audit, page_extractions):
-        from phoena_translator.pdf.translation_stage import (
+        from phoena_translator.pdf.translate.stage import (
             PDFTranslationStageContext,
         )
 
@@ -1074,7 +1073,7 @@ class TestZeroProgressCircuitBreaker:
         )
 
     def test_all_translation_fallbacks_fail_the_task(self):
-        from phoena_translator.pdf.translation_stage import (
+        from phoena_translator.pdf.translate.stage import (
             _require_translated_page_progress,
         )
         from phoena_translator.pdf.errors import PDFPageTranslationError
@@ -1092,7 +1091,7 @@ class TestZeroProgressCircuitBreaker:
             _require_translated_page_progress(context)
 
     def test_any_cached_page_keeps_fail_open(self):
-        from phoena_translator.pdf.translation_stage import (
+        from phoena_translator.pdf.translate.stage import (
             _require_translated_page_progress,
         )
 
@@ -1110,7 +1109,7 @@ class TestZeroProgressCircuitBreaker:
         _require_translated_page_progress(context)
 
     def test_structure_fallbacks_do_not_trip_the_breaker(self):
-        from phoena_translator.pdf.translation_stage import (
+        from phoena_translator.pdf.translate.stage import (
             _require_translated_page_progress,
         )
 
@@ -1125,7 +1124,7 @@ class TestBuildParagraphsEmptyInput:
     def test_returns_declared_tuple_shape(self):
         import fitz
 
-        from phoena_translator.pdf.paragraphs import _build_pdf_paragraphs
+        from phoena_translator.pdf.extract.paragraphs import _build_pdf_paragraphs
 
         assert _build_pdf_paragraphs([], fitz.Rect(0, 0, 10, 10), 10.0) == ([], 0.0)
 
@@ -1174,7 +1173,7 @@ def _two_page_fixture(
 
 class TestTailStartPolicy:
     def test_shapes(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _cross_page_tail_start_acceptable,
         )
 
@@ -1225,7 +1224,7 @@ class TestCrossPageDigitTail:
     )
 
     def test_digit_tail_with_dangling_source_merges(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -1249,7 +1248,7 @@ class TestCrossPageDigitTail:
         assert audit_log[0]["source_continuation_reason"] == "dangling"
 
     def test_duplicate_digit_tail_is_not_absorbed_twice(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -1287,12 +1286,12 @@ class TestCrossPageRichDestination:
     )
 
     def test_leading_sentence_with_superscript_splits_losslessly(self):
-        from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
-        from phoena_translator.pdf.audit_expectations import (
+        from phoena_translator.pdf.verify.merges import _validate_pdf_orphan_tail_decision
+        from phoena_translator.pdf.verify.expectations import (
             _collect_pdf_superscript_expectations,
         )
-        from phoena_translator.pdf.inline_markup import _pdf_superscript_signature
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.translate.inline_markup import _pdf_superscript_signature
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -1334,7 +1333,7 @@ class TestCrossPageRichDestination:
         ] == [(1, ["11"]), (2, ["12"])]
 
     def test_markup_spanning_sentence_boundary_remains_rejected(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -1354,7 +1353,7 @@ class TestCrossPageRichDestination:
 
 class TestCrossPageUppercaseTail:
     def test_proper_noun_continuation_merges(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -1373,7 +1372,7 @@ class TestCrossPageUppercaseTail:
         assert first_elem["content"].startswith("Panel B of the table")
 
     def test_caption_lead_is_rejected(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -1389,7 +1388,7 @@ class TestCrossPageUppercaseTail:
 
 class TestCrossPageLowercaseWithApparentBoundary:
     def test_lowercase_start_overrides_source_boundary(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -1426,7 +1425,7 @@ class TestCrossPageCapitalizedNameBreak:
     )
 
     def test_single_capitalized_word_tail_merges(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -1447,7 +1446,7 @@ class TestCrossPageCapitalizedNameBreak:
         assert audit_log[0]["carried_tail"] == "Traders."
 
     def test_source_signal_allows_capitalized_tail(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _cross_page_tail_start_acceptable,
         )
 
@@ -1514,7 +1513,7 @@ class TestCrossPageUnterminatedFragment:
         return page_extractions, page_rects, last_elem, first_elem
 
     def test_unterminated_fragment_is_absorbed(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -1538,7 +1537,7 @@ class TestCrossPageUnterminatedFragment:
         assert audit_log[0]["tail_unterminated"] is True
 
     def test_lowercase_follower_blocks_absorption(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -1552,7 +1551,7 @@ class TestCrossPageUnterminatedFragment:
         assert first_elem["type"] == "text"
 
     def test_lowercase_destination_signal_overrides_terminated_source(self):
-        from phoena_translator.pdf.semantic_cross_page import (
+        from phoena_translator.pdf.semantics.cross_page import (
             _merge_cross_page_sentences,
         )
 
@@ -1580,7 +1579,7 @@ class TestTablePreservation:
     """2026-07-24 policy: tables keep their original English ink verbatim."""
 
     def test_table_dominated_page_is_preserved(self):
-        from phoena_translator.pdf.table_preservation import (
+        from phoena_translator.pdf.semantics.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1600,7 +1599,7 @@ class TestTablePreservation:
         assert {entry["trigger"] for entry in preserved} == {"page-density"}
 
     def test_prose_page_stray_table_elements_keep_translating(self):
-        from phoena_translator.pdf.table_preservation import (
+        from phoena_translator.pdf.semantics.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1613,7 +1612,7 @@ class TestTablePreservation:
         assert all("skip_translate_reason" not in e for e in elements)
 
     def test_region_detected_cells_always_preserved(self):
-        from phoena_translator.pdf.table_preservation import (
+        from phoena_translator.pdf.semantics.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1627,7 +1626,7 @@ class TestTablePreservation:
         assert elements[6]["skip_translate_reason"] == "table_preserved"
 
     def test_grid_union_sweeps_misclassified_cells(self):
-        from phoena_translator.pdf.table_preservation import (
+        from phoena_translator.pdf.semantics.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1674,7 +1673,7 @@ class TestTablePreservation:
         assert "skip_translate_reason" not in notes
 
     def test_title_page_author_block_keeps_translating(self):
-        from phoena_translator.pdf.table_preservation import (
+        from phoena_translator.pdf.semantics.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1712,7 +1711,7 @@ class TestTablePreservation:
         assert all("skip_translate_reason" not in e for e in elements)
 
     def test_existing_skip_reason_is_not_overridden(self):
-        from phoena_translator.pdf.table_preservation import (
+        from phoena_translator.pdf.semantics.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1727,7 +1726,7 @@ class TestTablePreservation:
         )
 
     def test_preserved_elements_leave_translation_set(self):
-        from phoena_translator.pdf.translation_targets import (
+        from phoena_translator.pdf.translate.targets import (
             _pdf_element_requires_translation,
         )
 
@@ -1743,7 +1742,7 @@ class TestTablePreservation:
     # paragraphs; one of those seeded the sweep, and the sweep — one box grown
     # from cells in BOTH text columns — then walked up the page.
     def test_body_paragraph_stamped_table_keeps_translating(self):
-        from phoena_translator.pdf.table_preservation import (
+        from phoena_translator.pdf.semantics.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1782,7 +1781,7 @@ class TestTablePreservation:
         assert "skip_translate_reason" not in body
 
     def test_grid_sweep_does_not_cross_text_columns(self):
-        from phoena_translator.pdf.table_preservation import (
+        from phoena_translator.pdf.semantics.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1824,7 +1823,7 @@ class TestTablePreservation:
         assert "skip_translate_reason" not in neighbour
 
     def test_grid_sweep_leaves_stacked_reference_entries_alone(self):
-        from phoena_translator.pdf.table_preservation import (
+        from phoena_translator.pdf.semantics.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1858,7 +1857,7 @@ class TestTablePreservation:
     def test_grid_sweep_stops_at_the_running_footer(self):
         import fitz
 
-        from phoena_translator.pdf.table_preservation import (
+        from phoena_translator.pdf.semantics.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1886,7 +1885,7 @@ class TestTablePreservation:
         assert "skip_translate_reason" not in footer
 
     def test_page_prose_freeze_rolls_the_whole_page_back(self):
-        from phoena_translator.pdf.table_preservation import (
+        from phoena_translator.pdf.semantics.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1917,7 +1916,7 @@ class TestTablePreservation:
         assert rollbacks[0]["released_elements"] == 5
 
     def test_untranslated_delivered_page_is_reported(self):
-        from phoena_translator.pdf.leak_audit import (
+        from phoena_translator.pdf.verify.leaks import (
             collect_untranslated_delivered_pages,
         )
 
@@ -1942,7 +1941,7 @@ class TestTablePreservation:
         assert findings[0]["reasons"] == ["table_preserved"]
 
     def test_all_table_page_is_not_reported_as_untranslated(self):
-        from phoena_translator.pdf.leak_audit import (
+        from phoena_translator.pdf.verify.leaks import (
             collect_untranslated_delivered_pages,
         )
 
@@ -1972,10 +1971,10 @@ class TestTablePreservation:
     def test_native_table_cells_prevent_section_header_overmerge(self):
         import fitz
 
-        from phoena_translator.pdf.semantic_continuations import (
+        from phoena_translator.pdf.semantics.continuations import (
             _pdf_internal_paragraph_lead_residuals,
         )
-        from phoena_translator.pdf.semantic_tables import (
+        from phoena_translator.pdf.semantics.tables import (
             _merge_pdf_semantic_table_cells,
         )
 
@@ -2031,10 +2030,10 @@ class TestTablePreservation:
     def test_native_table_cell_allows_multiple_bullets(self):
         import fitz
 
-        from phoena_translator.pdf.semantic_continuations import (
+        from phoena_translator.pdf.semantics.continuations import (
             _pdf_internal_paragraph_lead_residuals,
         )
-        from phoena_translator.pdf.semantic_tables import (
+        from phoena_translator.pdf.semantics.tables import (
             _merge_pdf_semantic_table_cells,
         )
 
@@ -2078,10 +2077,10 @@ class TestTablePreservation:
         assert _pdf_internal_paragraph_lead_residuals(merged) == []
 
     def test_two_column_study_group_directory_preserves_names(self):
-        from phoena_translator.pdf.semantic_entities import (
+        from phoena_translator.pdf.semantics.entities import (
             _mark_pdf_entity_directory_elements,
         )
-        from phoena_translator.pdf.translation_targets import (
+        from phoena_translator.pdf.translate.targets import (
             _pdf_element_requires_translation,
         )
 
@@ -2136,7 +2135,7 @@ class TestTablePreservation:
 
 class TestOrphanTailAuditPolicy:
     def test_shape_check_accepts_digit_tail_without_evidence(self):
-        from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
+        from phoena_translator.pdf.verify.merges import _validate_pdf_orphan_tail_decision
 
         decision = {
             "kind": "cross-page-orphan-tail",
@@ -2151,7 +2150,7 @@ class TestOrphanTailAuditPolicy:
         assert _validate_pdf_orphan_tail_decision(decision, None) is None
 
     def test_shape_check_without_layout_evidence_allows_signal_one(self):
-        from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
+        from phoena_translator.pdf.verify.merges import _validate_pdf_orphan_tail_decision
 
         decision = {
             "kind": "cross-page-orphan-tail",
@@ -2166,7 +2165,7 @@ class TestOrphanTailAuditPolicy:
         assert _validate_pdf_orphan_tail_decision(decision, None) is None
 
     def test_audit_rejects_non_body_destination_with_layout_evidence(self):
-        from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
+        from phoena_translator.pdf.verify.merges import _validate_pdf_orphan_tail_decision
 
         source_text = "The explanation continues across"
         tail = "Results."
@@ -2202,7 +2201,7 @@ class TestOrphanTailAuditPolicy:
 
 
 def test_complete_source_lowercase_destination_is_absorbed_by_or_policy():
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -2230,7 +2229,7 @@ def test_complete_source_lowercase_destination_is_absorbed_by_or_policy():
 
 
 def test_orphan_audit_accepts_complete_source_lowercase_decision():
-    from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
+    from phoena_translator.pdf.verify.merges import _validate_pdf_orphan_tail_decision
 
     source_text = "Demand remained stable."
     tail = "the next section discusses a separate result."
@@ -2264,7 +2263,7 @@ def test_orphan_audit_accepts_complete_source_lowercase_decision():
 
 
 def test_cross_page_first_sentence_boundary_keeps_abbreviation_and_marker():
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _find_leading_sentence_tail,
     )
 
@@ -2295,7 +2294,7 @@ def test_cross_page_first_sentence_boundary_keeps_abbreviation_and_marker():
 
 
 def test_cross_page_both_or_signals_absent_keeps_pages_independent():
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -2324,7 +2323,7 @@ def test_table_overlap_does_not_capture_first_body_line_below_chart():
 def test_cross_page_merge_keeps_midpage_fragment_with_local_predecessor():
     import fitz
 
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -2407,7 +2406,7 @@ def test_cross_page_merge_keeps_midpage_fragment_with_local_predecessor():
 def test_cross_page_merge_keeps_regular_wrap_after_bold_page_top_line():
     import fitz
 
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -2483,7 +2482,7 @@ def test_cross_page_merge_keeps_regular_wrap_after_bold_page_top_line():
 
 
 def test_pdf_bold_run_in_sentence_wrapping_into_mixed_line_stays_one_segment():
-    from phoena_translator.pdf.page_extraction import _split_pdf_heading_segments
+    from phoena_translator.pdf.extract.page import _split_pdf_heading_segments
 
     lines = [
         {
@@ -2524,7 +2523,7 @@ def test_pdf_bold_run_in_sentence_wrapping_into_mixed_line_stays_one_segment():
 
 
 def test_pdf_standalone_bold_heading_still_splits_from_regular_body():
-    from phoena_translator.pdf.page_extraction import _split_pdf_heading_segments
+    from phoena_translator.pdf.extract.page import _split_pdf_heading_segments
 
     heading = {
         "plain": "Economic Outlook",
@@ -2553,7 +2552,7 @@ def test_pdf_standalone_bold_heading_still_splits_from_regular_body():
 def test_pdf_mixed_visual_line_keeps_inline_bold_markup():
     import fitz
 
-    from phoena_translator.pdf.paragraphs import _make_pdf_text_element_from_lines
+    from phoena_translator.pdf.extract.paragraphs import _make_pdf_text_element_from_lines
 
     line = {
         "plain": "Bold opening sentence. Regular body follows.",
@@ -2582,7 +2581,7 @@ def test_pdf_mixed_visual_line_keeps_inline_bold_markup():
 
 
 def test_cross_page_merge_rejects_complete_source_midpage_lowercase_opener():
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -2602,7 +2601,7 @@ def test_cross_page_merge_rejects_complete_source_midpage_lowercase_opener():
 
 
 def test_orphan_audit_rejects_destination_owned_by_local_predecessor():
-    from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
+    from phoena_translator.pdf.verify.merges import _validate_pdf_orphan_tail_decision
 
     tail = "continue to hold and the models have become extremely capable."
     source = {
@@ -2693,7 +2692,7 @@ def _policy_test_elements():
 
 def _policy_context(tmp_path, preserve_tables):
     from phoena_translator.pdf.context import ImmutableElementPolicy
-    from phoena_translator.pdf.extraction_stage import PDFExtractionStageContext
+    from phoena_translator.pdf.extract.stage import PDFExtractionStageContext
 
     kwargs = {
         "task_id": "policy-test",
@@ -2724,7 +2723,7 @@ def _policy_context(tmp_path, preserve_tables):
 def _policy_result(elements, source_sha256="a" * 64, *, cached=False):
     import fitz
 
-    from phoena_translator.pdf.extraction_stage import PDFExtractionResult
+    from phoena_translator.pdf.extract.stage import PDFExtractionResult
 
     completed = {0} if cached else set()
     return PDFExtractionResult(
@@ -2760,8 +2759,7 @@ def _restore_stage_functions(stage, originals):
 
 def test_warm_cache_policy_transition_reconciles_before_completion(tmp_path):
     from phoena_translator.pdf import cache
-    from phoena_translator.pdf import extraction_stage as stage
-
+    from phoena_translator.pdf.extract import stage
     cache.configure_pdf_cache_progress_dir(lambda: str(tmp_path))
     source_sha256 = "a" * 64
     off_elements = _policy_test_elements()
@@ -2809,7 +2807,7 @@ def test_warm_cache_policy_transition_reconciles_before_completion(tmp_path):
 
 def test_table_cache_policy_transition_matrix(tmp_path):
     from phoena_translator.pdf import cache
-    from phoena_translator.pdf.table_preservation import (
+    from phoena_translator.pdf.semantics.table_preservation import (
         _mark_pdf_table_preserved_elements,
     )
 
@@ -2886,7 +2884,7 @@ def test_table_cache_policy_transition_matrix(tmp_path):
 
 
 def test_two_contexts_hold_independent_table_policies(tmp_path):
-    from phoena_translator.pdf.extraction_stage import (
+    from phoena_translator.pdf.extract.stage import (
         enforce_table_preservation,
     )
 
@@ -2912,8 +2910,7 @@ def test_two_contexts_hold_independent_table_policies(tmp_path):
 
 def test_table_formula_overlap_preserves_existing_precedence(tmp_path):
     from phoena_translator.pdf import cache
-    from phoena_translator.pdf import extraction_stage as stage
-
+    from phoena_translator.pdf.extract import stage
     cache.configure_pdf_cache_progress_dir(lambda: str(tmp_path))
     elements = _policy_test_elements()
     elements[0]["content"] = (
@@ -3010,7 +3007,7 @@ def test_cache_identity_typed_core_preserves_legacy_digest():
 
 
 def test_native_superscript_flag_does_not_turn_same_baseline_prose_into_markup():
-    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.extract.superscripts import _mark_pdf_superscript_spans
 
     # This mirrors the corrupt MuPDF span flags observed after a split T_3 1/2
     # expression: the following ordinary 11.96pt prose is flagged as native
@@ -3065,7 +3062,7 @@ def test_native_superscript_flag_does_not_turn_same_baseline_prose_into_markup()
 
 
 def test_native_superscript_flag_keeps_a_smaller_raised_marker():
-    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.extract.superscripts import _mark_pdf_superscript_spans
 
     spans = [
         {
@@ -3098,7 +3095,7 @@ def test_native_superscript_flag_keeps_a_smaller_raised_marker():
 
 
 def test_native_superscript_flag_keeps_a_same_size_raised_marker():
-    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.extract.superscripts import _mark_pdf_superscript_spans
 
     spans = [
         {
@@ -3130,7 +3127,7 @@ def test_native_superscript_flag_keeps_a_same_size_raised_marker():
 
 
 def test_native_superscript_flag_keeps_a_marker_only_line():
-    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.extract.superscripts import _mark_pdf_superscript_spans
 
     spans = [{
         "text": "\u2020",
@@ -3150,7 +3147,7 @@ def test_native_superscript_flag_keeps_a_marker_only_line():
 
 
 def test_native_superscript_flag_rejects_a_remote_unrelated_reference():
-    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.extract.superscripts import _mark_pdf_superscript_spans
 
     spans = [
         {
@@ -3181,7 +3178,7 @@ def test_native_superscript_flag_rejects_a_remote_unrelated_reference():
 
 
 def test_native_superscript_geometry_accepts_the_inclusive_raise_boundary():
-    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.extract.superscripts import _mark_pdf_superscript_spans
 
     spans = [
         {
@@ -3295,8 +3292,7 @@ def test_clean_page_retries_use_the_configured_worker_pool(monkeypatch):
     import time
     from types import SimpleNamespace
 
-    from phoena_translator.pdf import translation_stage as stage
-
+    from phoena_translator.pdf.translate import stage
     lock = threading.Lock()
     active = 0
     max_active = 0
@@ -3342,8 +3338,7 @@ def test_clean_page_retries_use_the_configured_worker_pool(monkeypatch):
 def test_clean_page_retries_keep_worker_errors_bound_to_scheduled_pages(monkeypatch):
     from types import SimpleNamespace
 
-    from phoena_translator.pdf import translation_stage as stage
-
+    from phoena_translator.pdf.translate import stage
     captured_errors = {}
     committed = []
 
@@ -3394,7 +3389,7 @@ def test_render_failure_restores_source_pages_without_restarting_pipeline(
 
     import fitz
 
-    from phoena_translator.pdf import assembly
+    from phoena_translator.pdf.render import assembly
     from phoena_translator.pdf.errors import PDFPageRenderError
 
     source_path = tmp_path / "source.pdf"
@@ -3461,7 +3456,7 @@ def test_render_failure_restores_source_pages_without_restarting_pipeline(
 def test_assembly_continues_after_an_inline_render_source_fallback(monkeypatch):
     from types import SimpleNamespace
 
-    from phoena_translator.pdf import assembly
+    from phoena_translator.pdf.render import assembly
     from phoena_translator.pdf.errors import PDFPageRenderError
 
     attempted = []
@@ -3486,7 +3481,7 @@ def test_assembly_continues_after_an_inline_render_source_fallback(monkeypatch):
 def test_continuation_decision_is_frozen_and_string_compatible():
     from dataclasses import FrozenInstanceError
 
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         ContinuationDecision,
         SourceContinuationEvidence,
         _cross_page_continuation_decision,
@@ -3523,8 +3518,8 @@ def test_continuation_decision_is_frozen_and_string_compatible():
 
 
 def test_producer_records_pass_evidence_backed_audit_validation():
-    from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.verify.merges import _validate_pdf_orphan_tail_decision
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -3687,7 +3682,7 @@ def test_advanced_internal_types_do_not_expand_legacy_exports():
 
 
 def test_cross_page_merge_allows_page_turn_to_first_destination_column():
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -3719,7 +3714,7 @@ def test_cross_page_merge_allows_page_turn_to_first_destination_column():
 def test_cross_page_merge_skips_page_top_heading_and_uses_first_body():
     import fitz
 
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -3769,7 +3764,7 @@ def test_cross_page_merge_skips_page_top_heading_and_uses_first_body():
 
 
 def test_cross_page_merge_skips_graph_title_and_table_labels():
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -3859,7 +3854,7 @@ def test_cross_page_merge_skips_graph_title_and_table_labels():
 def test_cross_page_merge_does_not_absorb_glossary_entries():
     import fitz
 
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -3908,7 +3903,7 @@ def test_cross_page_merge_does_not_absorb_glossary_entries():
 
 
 def test_cross_page_body_sentences_may_start_with_label_words():
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -3931,7 +3926,7 @@ def test_cross_page_body_sentences_may_start_with_label_words():
 def test_three_page_merges_keep_two_independent_source_owners():
     import fitz
 
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -4019,12 +4014,12 @@ def test_three_page_merges_keep_two_independent_source_owners():
 
 def test_pdf_lexical_angle_phrase_survives_translation_protection_and_rendering():
     """BOJ p4: ``<JPY short position>`` is prose, not an HTML tag."""
-    from phoena_translator.pdf.placeholders import (
+    from phoena_translator.pdf.translate.placeholders import (
         _protect_pdf_inline_math_fragments,
         _restore_pdf_inline_math_fragments,
     )
-    from phoena_translator.pdf.inline_markup import _normalize_pdf_translation
-    from phoena_translator.pdf.paragraph_html import _pdf_text_to_html
+    from phoena_translator.pdf.translate.inline_markup import _normalize_pdf_translation
+    from phoena_translator.pdf.render.paragraph_html import _pdf_text_to_html
 
     source = "valuation losses of inventories <JPY short position> caused by appreciation"
     normalized = _normalize_pdf_translation(source)
@@ -4054,7 +4049,7 @@ def test_pdf_lexical_angle_phrase_survives_translation_protection_and_rendering(
 
 
 def test_pdf_normalizer_still_removes_known_html_wrappers():
-    from phoena_translator.pdf.inline_markup import _normalize_pdf_translation
+    from phoena_translator.pdf.translate.inline_markup import _normalize_pdf_translation
 
     assert _normalize_pdf_translation("<p>Hello</p>") == "Hello"
 
@@ -4072,7 +4067,7 @@ class _FakePDFTable:
 
 def test_pdf_sparse_two_column_wrapper_yields_to_nested_real_table():
     """BOJ p1: body prose beside Chart 1 is not one giant 1x2 table."""
-    from phoena_translator.pdf.table_detection import _prune_sparse_pdf_table_wrappers
+    from phoena_translator.pdf.extract.tables import _prune_sparse_pdf_table_wrappers
 
     prose = (
         "decision to execution are conducted automatically based on "
@@ -4104,7 +4099,7 @@ def test_pdf_five_justified_fragments_recombine_on_one_baseline():
     """BOJ p2: ``traditional market making function (liquidity`` is prose."""
     import fitz
 
-    from phoena_translator.pdf.semantic_baselines import (
+    from phoena_translator.pdf.extract.baselines import (
         _normalize_pdf_same_baseline_prose_fragments,
     )
 
@@ -4149,7 +4144,7 @@ def test_pdf_justified_discourse_connector_stays_in_its_paragraph():
     """BOJ p1: a justified ``functioning. Thus,`` row is not a new block."""
     import fitz
 
-    from phoena_translator.pdf.semantic_baselines import (
+    from phoena_translator.pdf.extract.baselines import (
         _normalize_pdf_same_baseline_prose_fragments,
     )
 
@@ -4229,7 +4224,7 @@ def _accepted_orphan_tail_fixture():
 
 
 def test_a_preserved_element_is_refused_as_a_cross_page_merge_endpoint():
-    from phoena_translator.pdf.semantic_cross_page import (
+    from phoena_translator.pdf.semantics.cross_page import (
         _merge_cross_page_sentences,
     )
 
@@ -4256,8 +4251,7 @@ def test_a_preserved_element_is_refused_as_a_cross_page_merge_endpoint():
 def test_preservation_is_decided_before_cross_page_merging():
     import inspect
 
-    from phoena_translator.pdf import extraction_stage
-
+    from phoena_translator.pdf.extract import stage as extraction_stage
     body = inspect.getsource(extraction_stage.reconcile_extraction)
     merge_at = body.index("_merge_cross_page_sentences")
     for stamper in (
@@ -4271,7 +4265,7 @@ def test_preservation_is_decided_before_cross_page_merging():
 
 
 def test_orphan_audit_still_rejects_a_preserved_endpoint():
-    from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
+    from phoena_translator.pdf.verify.merges import _validate_pdf_orphan_tail_decision
 
     pages, _source, destination, decision, _remainder = (
         _accepted_orphan_tail_fixture()
@@ -4288,7 +4282,7 @@ def test_orphan_audit_still_rejects_a_preserved_endpoint():
 
 
 def test_orphan_audit_accepts_a_destination_that_later_absorbed_its_own_tail():
-    from phoena_translator.pdf.merge_audit import _validate_pdf_orphan_tail_decision
+    from phoena_translator.pdf.verify.merges import _validate_pdf_orphan_tail_decision
 
     pages, _source, destination, decision, remainder = (
         _accepted_orphan_tail_fixture()
@@ -4332,7 +4326,7 @@ def _single_formula_page(rotation: int):
 
 
 def test_formula_signature_survives_a_rotated_page():
-    from phoena_translator.pdf.signatures import _pdf_formula_region_signature
+    from phoena_translator.pdf.extract.signatures import _pdf_formula_region_signature
 
     bbox = [295.0, 686.0, 390.0, 706.0]
     upright_doc, upright_page = _single_formula_page(0)
@@ -4354,8 +4348,7 @@ def test_formula_signature_survives_a_rotated_page():
 
 
 def test_one_unsignable_formula_does_not_strip_its_page_siblings(monkeypatch):
-    from phoena_translator.pdf import page_extraction
-
+    from phoena_translator.pdf.extract import page as page_extraction
     attempted = []
 
     def flaky_signature(page, bbox, page_dict=None):
@@ -4396,7 +4389,7 @@ def _glyph_span(text: str, x0: float, x1: float, y0: float = 86.83, color: int =
 
 
 def test_ink_stroked_twice_in_place_is_collapsed_to_one_span():
-    from phoena_translator.pdf.page_extraction import _drop_pdf_duplicate_glyph_spans
+    from phoena_translator.pdf.extract.page import _drop_pdf_duplicate_glyph_spans
 
     line = "that this is equivalent to maximizing the expected value "
     page_dict = {
@@ -4419,7 +4412,7 @@ def test_ink_stroked_twice_in_place_is_collapsed_to_one_span():
 
 
 def test_repeated_text_at_a_different_position_is_kept():
-    from phoena_translator.pdf.page_extraction import _drop_pdf_duplicate_glyph_spans
+    from phoena_translator.pdf.extract.page import _drop_pdf_duplicate_glyph_spans
 
     page_dict = {
         "blocks": [
@@ -4446,7 +4439,7 @@ def test_repeated_text_at_a_different_position_is_kept():
 
 
 def test_duplicate_detection_leaves_image_blocks_and_whitespace_alone():
-    from phoena_translator.pdf.page_extraction import _drop_pdf_duplicate_glyph_spans
+    from phoena_translator.pdf.extract.page import _drop_pdf_duplicate_glyph_spans
 
     page_dict = {
         "blocks": [
@@ -4473,7 +4466,7 @@ def test_duplicate_detection_leaves_image_blocks_and_whitespace_alone():
 
 
 def test_a_bare_doi_line_is_not_protected_as_formula_geometry():
-    from phoena_translator.pdf.math_detection import (
+    from phoena_translator.pdf.extract.math_detection import (
         _looks_like_pdf_identifier_line,
     )
 
@@ -4488,7 +4481,7 @@ def test_a_bare_doi_line_is_not_protected_as_formula_geometry():
 
 
 def test_duplicate_collapse_keeps_the_last_drawn_copy_not_the_white_knockout():
-    from phoena_translator.pdf.page_extraction import _drop_pdf_duplicate_glyph_spans
+    from phoena_translator.pdf.extract.page import _drop_pdf_duplicate_glyph_spans
 
     line = "differs from the semiconductor industry in at least "
     # Apache FOP emits a white knockout copy FIRST and the readable copy
@@ -4561,7 +4554,7 @@ def _mid_sentence_page(with_intervening_prose: bool):
 
 
 def test_mid_sentence_stub_running_straight_into_a_formula_is_preserved():
-    from phoena_translator.pdf.formula_policy import (
+    from phoena_translator.pdf.semantics.formula_policy import (
         _preserve_pdf_formula_mid_sentence_neighbors,
     )
 
@@ -4576,7 +4569,7 @@ def test_mid_sentence_stub_running_straight_into_a_formula_is_preserved():
 
 
 def test_prose_between_the_stub_and_the_formula_blocks_preservation():
-    from phoena_translator.pdf.formula_policy import (
+    from phoena_translator.pdf.semantics.formula_policy import (
         _preserve_pdf_formula_mid_sentence_neighbors,
     )
 
@@ -4611,7 +4604,7 @@ class TestCitationApparatusRetryExemption:
     ]
 
     def test_authors_and_year_returned_unchanged_is_accepted(self):
-        from phoena_translator.pdf.translation_validation import (
+        from phoena_translator.pdf.translate.validation import (
             _short_translation_needs_retry,
         )
 
@@ -4619,7 +4612,7 @@ class TestCitationApparatusRetryExemption:
             assert not _short_translation_needs_retry(source, source), source
 
     def test_translatable_content_still_drives_the_retry_ladder(self):
-        from phoena_translator.pdf.translation_validation import (
+        from phoena_translator.pdf.translate.validation import (
             _short_translation_needs_retry,
         )
 
@@ -4627,7 +4620,7 @@ class TestCitationApparatusRetryExemption:
             assert _short_translation_needs_retry(source, source), source
 
     def test_quoted_title_word_count_gates_the_exemption(self):
-        from phoena_translator.pdf.translation_validation import (
+        from phoena_translator.pdf.translate.validation import (
             _pdf_citation_apparatus_only,
             _pdf_quoted_title_word_count,
         )
@@ -4682,7 +4675,7 @@ class TestRotatedPageCoordinateSpace:
         import fitz
 
         from phoena_translator.pdf.geometry import _pdf_page_extraction_rect
-        from phoena_translator.pdf.rendering import _sanitize_pdf_text_rect
+        from phoena_translator.pdf.render.primitives import _sanitize_pdf_text_rect
 
         doc, page = self._rotated_page(90)
         elem = fitz.Rect(100.0, 700.0, 300.0, 714.0)
@@ -4700,8 +4693,8 @@ class TestRotatedPageCoordinateSpace:
         import fitz
 
         from phoena_translator.pdf.geometry import _pdf_page_extraction_rect
-        from phoena_translator.pdf.page_extraction import _extract_page_elements
-        from phoena_translator.pdf.layout_classifier import (
+        from phoena_translator.pdf.extract.page import _extract_page_elements
+        from phoena_translator.pdf.semantics.layout_classifier import (
             _classify_pdf_page_text_elements,
         )
 
@@ -4763,7 +4756,7 @@ class TestStructuredIdentifierRowExemption:
     ]
 
     def test_identifier_rows_are_recognized(self):
-        from phoena_translator.pdf.translation_targets import (
+        from phoena_translator.pdf.translate.targets import (
             _looks_like_pdf_structured_identifier_row,
         )
 
@@ -4771,7 +4764,7 @@ class TestStructuredIdentifierRowExemption:
             assert _looks_like_pdf_structured_identifier_row(row), row
 
     def test_prose_and_caption_labels_are_not(self):
-        from phoena_translator.pdf.translation_targets import (
+        from phoena_translator.pdf.translate.targets import (
             _looks_like_pdf_structured_identifier_row,
         )
 
@@ -4779,7 +4772,7 @@ class TestStructuredIdentifierRowExemption:
             assert not _looks_like_pdf_structured_identifier_row(text), text
 
     def test_echo_of_identifier_row_is_accepted(self):
-        from phoena_translator.pdf.translation_validation import (
+        from phoena_translator.pdf.translate.validation import (
             _short_translation_needs_retry,
             _translation_part_needs_retry,
         )
@@ -4789,7 +4782,7 @@ class TestStructuredIdentifierRowExemption:
             assert not _translation_part_needs_retry(row, row), row
 
     def test_prose_echo_still_drives_the_retry_ladder(self):
-        from phoena_translator.pdf.translation_validation import (
+        from phoena_translator.pdf.translate.validation import (
             _short_translation_needs_retry,
         )
 
@@ -4799,7 +4792,7 @@ class TestStructuredIdentifierRowExemption:
         )
 
     def test_admission_gate_skips_identifier_rows(self):
-        from phoena_translator.pdf.translation_targets import (
+        from phoena_translator.pdf.translate.targets import (
             _pdf_element_requires_translation,
         )
 
@@ -4821,7 +4814,7 @@ class TestStructuredIdentifierRowExemption:
         assert not _pdf_element_requires_translation(table)
 
     def test_bold_or_body_rows_keep_translating(self):
-        from phoena_translator.pdf.translation_targets import (
+        from phoena_translator.pdf.translate.targets import (
             _pdf_element_requires_translation,
         )
 
@@ -4838,7 +4831,7 @@ class TestStructuredIdentifierRowExemption:
         assert _pdf_element_requires_translation(body_row)
 
     def test_header_cells_keep_translating(self):
-        from phoena_translator.pdf.translation_targets import (
+        from phoena_translator.pdf.translate.targets import (
             _pdf_element_requires_translation,
         )
 
@@ -4856,7 +4849,7 @@ class TestSemanticRetrySleeps:
 
     @staticmethod
     def _dependencies(create_chat_completion):
-        from phoena_translator.pdf.translation import (
+        from phoena_translator.pdf.translate.translator import (
             PDFTranslationDependencies,
         )
 
@@ -4889,7 +4882,7 @@ class TestSemanticRetrySleeps:
     def test_verification_failure_never_sleeps(self, monkeypatch):
         import time as time_module
 
-        from phoena_translator.pdf.translation import translate_text
+        from phoena_translator.pdf.translate.translator import translate_text
 
         sleeps = []
         monkeypatch.setattr(
@@ -4915,7 +4908,7 @@ class TestSemanticRetrySleeps:
 
         import pytest as pytest_module
 
-        from phoena_translator.pdf.translation import translate_text
+        from phoena_translator.pdf.translate.translator import translate_text
 
         sleeps = []
         monkeypatch.setattr(
@@ -4960,7 +4953,7 @@ class TestContactLineAndDateLabelExemption:
     ]
 
     def test_contact_lines_are_recognized(self):
-        from phoena_translator.pdf.translation_targets import (
+        from phoena_translator.pdf.translate.targets import (
             _looks_like_pdf_contact_line,
         )
 
@@ -4968,7 +4961,7 @@ class TestContactLineAndDateLabelExemption:
             assert _looks_like_pdf_contact_line(line), line
 
     def test_prose_with_numbers_is_not(self):
-        from phoena_translator.pdf.translation_targets import (
+        from phoena_translator.pdf.translate.targets import (
             _looks_like_pdf_contact_line,
         )
 
@@ -4976,7 +4969,7 @@ class TestContactLineAndDateLabelExemption:
             assert not _looks_like_pdf_contact_line(text), text
 
     def test_contact_echo_is_accepted_by_the_verdict(self):
-        from phoena_translator.pdf.translation_validation import (
+        from phoena_translator.pdf.translate.validation import (
             _short_translation_needs_retry,
         )
 
@@ -4984,7 +4977,7 @@ class TestContactLineAndDateLabelExemption:
             assert not _short_translation_needs_retry(line, line), line
 
     def test_full_date_labels_translate_deterministically(self):
-        from phoena_translator.pdf.deterministic_labels import (
+        from phoena_translator.pdf.translate.deterministic_labels import (
             _pdf_full_date_label_translation,
             _translate_pdf_deterministic_labels,
         )
@@ -4996,7 +4989,7 @@ class TestContactLineAndDateLabelExemption:
         assert _translate_pdf_deterministic_labels("05 August 2026") == "2026年8月5日"
 
     def test_partial_or_prose_dates_stay_with_the_model(self):
-        from phoena_translator.pdf.deterministic_labels import (
+        from phoena_translator.pdf.translate.deterministic_labels import (
             _pdf_full_date_label_translation,
         )
 
@@ -5006,7 +4999,7 @@ class TestContactLineAndDateLabelExemption:
         assert _pdf_full_date_label_translation("32 March 2026") is None
 
     def test_admission_gate_skips_bylines_and_dates(self):
-        from phoena_translator.pdf.translation_targets import (
+        from phoena_translator.pdf.translate.targets import (
             _pdf_element_requires_translation,
         )
 

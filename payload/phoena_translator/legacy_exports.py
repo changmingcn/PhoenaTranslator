@@ -32,25 +32,25 @@ from phoena_translator.pdf.patterns import (
     _PRESERVED_URI_BODY,  # noqa: F401 - legacy facade
     _PRESERVED_URI_LAYOUT_WRAPS,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.placeholders import (
+from phoena_translator.pdf.translate.placeholders import (
     PDF_BATCH_SEGMENT_RE,  # noqa: F401 - legacy facade
     PDF_IDENTIFIER_PLACEHOLDER_RE,  # noqa: F401 - legacy facade
     PDF_INLINE_MATH_PLACEHOLDER_RE,  # noqa: F401 - legacy facade
     PDF_SUPERSCRIPT_PLACEHOLDER_RE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_continuations import (
+from phoena_translator.pdf.semantics.continuations import (
     _PDF_SEMANTIC_TERMINAL_RE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_references import (
+from phoena_translator.pdf.semantics.references import (
     _PDF_CITATION_PUBLISHER_CONNECTORS,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.superscripts import (
+from phoena_translator.pdf.extract.superscripts import (
     _PDF_LEADING_SUPERSCRIPT_FOOTNOTE_MARKER_RE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.paragraphs import (
+from phoena_translator.pdf.extract.paragraphs import (
     _PDF_FOOTNOTE_MARKER_RE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.watermarks import (
+from phoena_translator.pdf.semantics.watermarks import (
     DISCLAIMER_PATTERNS,  # noqa: F401 - legacy facade
     WATERMARK_PATTERNS,  # noqa: F401 - legacy facade
     _PDF_TRANSLATABLE_DISCLAIMER_LABELS,  # noqa: F401 - legacy facade
@@ -60,16 +60,16 @@ from phoena_translator.pdf.text_shape import (
     _PDF_BULLETED_PARAGRAPH_LEAD_RE,  # noqa: F401 - legacy facade
     _PDF_NUMBERED_PARAGRAPH_LEAD_RE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_formulae import (
+from phoena_translator.pdf.semantics.formulae import (
     _PDF_WRAPPED_MATH_DANGLING_TAIL_RE,  # noqa: F401 - legacy facade
     _PDF_WRAPPED_MATH_HYPHEN_TAIL_RE,  # noqa: F401 - legacy facade
     _PDF_WRAPPED_MATH_PROSE_WORD_RE,  # noqa: F401 - legacy facade
     _PDF_WRAPPED_MATH_SCRIPT_LEAD_RE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.deterministic_labels import (
+from phoena_translator.pdf.translate.deterministic_labels import (
     PDF_FIXED_SHORT_LABEL_TRANSLATIONS,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.translation_targets import (
+from phoena_translator.pdf.translate.targets import (
     _PDF_DISPLAY_IDENTITY_END_WORDS,  # noqa: F401 - legacy facade
     _PDF_PERSON_HONORIFICS,  # noqa: F401 - legacy facade
     _PDF_PROPER_NAME_SUFFIXES,  # noqa: F401 - legacy facade
@@ -80,14 +80,14 @@ from phoena_translator.pdf.translation_targets import (
     _SHORT_CITATION_WORD_RE,  # noqa: F401 - legacy facade
     _SHORT_CITATION_YEAR_RE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.signatures import (
+from phoena_translator.pdf.extract.signatures import (
     PDF_SIGNATURE_GEOMETRY_QUANTUM,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.math_detection import (
+from phoena_translator.pdf.extract.math_detection import (
     PDF_MATH_ITALIC_FONT_TOKENS,  # noqa: F401 - legacy facade
     PDF_STRONG_MATH_FONT_TOKENS,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.page_filters import (
+from phoena_translator.pdf.extract.filters import (
     SKIP_SECTION_HEADING_RE,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.errors import (
@@ -115,7 +115,7 @@ from phoena_translator.pdf.geometry import (
     _split_pdf_line_layout_cells,  # noqa: F401 - legacy facade
     _subtract_pdf_protected_rects,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.math_detection import (
+from phoena_translator.pdf.extract.math_detection import (
     _demote_pdf_wrapped_identifier_math_lines,  # noqa: F401 - legacy facade
     _looks_like_compact_pdf_identifier,  # noqa: F401 - legacy facade
     _looks_like_pdf_identifier_line,  # noqa: F401 - legacy facade
@@ -128,11 +128,11 @@ from phoena_translator.pdf.math_detection import (
     _pdf_math_font_kind,  # noqa: F401 - legacy facade
     _propagate_pdf_math_line_context,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.signatures import (
+from phoena_translator.pdf.extract.signatures import (
     _pdf_formula_region_signature,  # noqa: F401 - legacy facade
     _pdf_signature_number,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.superscripts import (
+from phoena_translator.pdf.extract.superscripts import (
     _mark_pdf_superscript_spans,  # noqa: F401 - legacy facade
     _pdf_exact_source_native_superscript_matches,  # noqa: F401 - legacy facade
     _pdf_is_semantic_superscript_marker,  # noqa: F401 - legacy facade
@@ -142,7 +142,7 @@ from phoena_translator.pdf.superscripts import (
     _pdf_span_has_lexical_text,  # noqa: F401 - legacy facade
     _pdf_span_origin_y,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.placeholders import (
+from phoena_translator.pdf.translate.placeholders import (
     _find_pdf_fragment_outside_control_tokens,  # noqa: F401 - legacy facade
     _protect_pdf_identifier_fragments,  # noqa: F401 - legacy facade
     _protect_pdf_inline_math_fragments,  # noqa: F401 - legacy facade
@@ -152,7 +152,7 @@ from phoena_translator.pdf.placeholders import (
     _restore_pdf_superscript_fragments,  # noqa: F401 - legacy facade
     _select_pdf_inline_math_fragments_for_text,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.inline_markup import (
+from phoena_translator.pdf.translate.inline_markup import (
     _normalize_pdf_translation,  # noqa: F401 - legacy facade
     _pdf_inline_markup_preserved,  # noqa: F401 - legacy facade
     _pdf_inline_math_fragments_preserved,  # noqa: F401 - legacy facade
@@ -167,13 +167,13 @@ from phoena_translator.pdf.text_shape import (
     _looks_like_pdf_list_marker,  # noqa: F401 - legacy facade
     _plain_text,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.page_filters import (
+from phoena_translator.pdf.extract.filters import (
     _is_skip_page,  # noqa: F401 - legacy facade
     _looks_like_pdf_hidden_text_artifact_span,  # noqa: F401 - legacy facade
     _mark_pdf_embedded_thumbnail_text_elements,  # noqa: F401 - legacy facade
     _sanitize_pdf_hidden_text_artifact_spans,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.vector_ocr import (
+from phoena_translator.pdf.extract.vector_ocr import (
     _extract_pdf_vector_ocr_elements,  # noqa: F401 - legacy facade
     _join_pdf_vector_ocr_lines,  # noqa: F401 - legacy facade
     _make_pdf_vector_ocr_element,  # noqa: F401 - legacy facade
@@ -188,7 +188,7 @@ from phoena_translator.pdf.vector_ocr import (
     _pdf_vector_ocr_parse_tsv,  # noqa: F401 - legacy facade
     _pdf_vector_ocr_semantic_paragraphs,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.table_detection import (
+from phoena_translator.pdf.extract.tables import (
     _find_pdf_table_regions,  # noqa: F401 - legacy facade
     _has_compact_open_pdf_table_rules,  # noqa: F401 - legacy facade
     _is_compact_open_pdf_table,  # noqa: F401 - legacy facade
@@ -196,7 +196,7 @@ from phoena_translator.pdf.table_detection import (
     _pdf_table_cell_rects,  # noqa: F401 - legacy facade
     _pdf_table_list,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.paragraphs import (
+from phoena_translator.pdf.extract.paragraphs import (
     _build_pdf_paragraphs,  # noqa: F401 - legacy facade
     _detect_pdf_drop_cap_span,  # noqa: F401 - legacy facade
     _is_new_pdf_paragraph,  # noqa: F401 - legacy facade
@@ -218,10 +218,10 @@ from phoena_translator.pdf.paragraphs import (
     _split_pdf_disjoint_line_segments,  # noqa: F401 - legacy facade
     _split_pdf_text_elements_into_semantic_fragments,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.page_styles import (
+from phoena_translator.pdf.render.page_styles import (
     _derive_pdf_page_layout_styles,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.watermarks import (
+from phoena_translator.pdf.semantics.watermarks import (
     _color_int_to_rgb,  # noqa: F401 - legacy facade
     _is_disclaimer_block,  # noqa: F401 - legacy facade
     _is_pdf_translatable_disclaimer_label,  # noqa: F401 - legacy facade
@@ -239,15 +239,15 @@ from phoena_translator.pdf.text_shape import (
     _pdf_text_colors_semantically_compatible,  # noqa: F401 - legacy facade
     _pick_pdf_dominant_value,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.superscripts import (
+from phoena_translator.pdf.extract.superscripts import (
     _pdf_element_footnote_definition_marker,  # noqa: F401 - legacy facade
     _pdf_source_line_footnote_definition_marker,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.toc import (
+from phoena_translator.pdf.semantics.toc import (
     _parse_pdf_toc_leader,  # noqa: F401 - legacy facade
     _strip_pdf_toc_label,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_cross_page import (
+from phoena_translator.pdf.semantics.cross_page import (
     _carry_fragment_is_prose,  # noqa: F401 - legacy facade
     _cross_page_dominant_fontsize,  # noqa: F401 - legacy facade
     _first_cross_page_lexical_char,  # noqa: F401 - legacy facade
@@ -255,7 +255,7 @@ from phoena_translator.pdf.semantic_cross_page import (
     _looks_like_right_aligned_signoff,  # noqa: F401 - legacy facade
     _merge_cross_page_sentences,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_references import (
+from phoena_translator.pdf.semantics.references import (
     _complete_pdf_citation_separator_inline_math_fragments,  # noqa: F401 - legacy facade
     _looks_like_pdf_citation_publisher,  # noqa: F401 - legacy facade
     _looks_like_pdf_reference_entry_lead,  # noqa: F401 - legacy facade
@@ -270,19 +270,19 @@ from phoena_translator.pdf.semantic_references import (
     _split_pdf_reference_entry_elements,  # noqa: F401 - legacy facade
     _translate_pdf_citation_labels,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_tables import (
+from phoena_translator.pdf.semantics.tables import (
     _merge_pdf_semantic_table_cells,  # noqa: F401 - legacy facade
     _merge_pdf_table_cell_group,  # noqa: F401 - legacy facade
     _pdf_compact_open_table_cell_groups,  # noqa: F401 - legacy facade
     _pdf_table_visual_line_bands,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_glossary import (
+from phoena_translator.pdf.semantics.glossary import (
     _make_pdf_glossary_column_fragment,  # noqa: F401 - legacy facade
     _merge_pdf_glossary_cell_group,  # noqa: F401 - legacy facade
     _normalize_pdf_glossary_cells,  # noqa: F401 - legacy facade
     _prepare_pdf_glossary_column_geometry,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_continuations import (
+from phoena_translator.pdf.semantics.continuations import (
     _merge_pdf_detached_list_marker_elements,  # noqa: F401 - legacy facade
     _merge_pdf_semantic_continuation_elements,  # noqa: F401 - legacy facade
     _merge_pdf_strong_continuation_elements,  # noqa: F401 - legacy facade
@@ -296,7 +296,7 @@ from phoena_translator.pdf.semantic_continuations import (
     _pdf_wrapped_line_elements_can_merge,  # noqa: F401 - legacy facade
     _pdf_wrapped_line_group_can_start,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_formulae import (
+from phoena_translator.pdf.semantics.formulae import (
     _merge_pdf_wrapped_inline_math_continuation_fragments,  # noqa: F401 - legacy facade
     _merge_pdf_wrapped_math_continuation_pair,  # noqa: F401 - legacy facade
     _pdf_wrapped_math_continuation_pair_can_merge,  # noqa: F401 - legacy facade
@@ -304,24 +304,24 @@ from phoena_translator.pdf.semantic_formulae import (
     _promote_pdf_formula_overlaps,  # noqa: F401 - legacy facade
     _split_pdf_formula_adjacent_paragraph_elements,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.page_extraction import (
+from phoena_translator.pdf.extract.page import (
     _extract_page_elements,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.layout_classifier import (
+from phoena_translator.pdf.semantics.layout_classifier import (
     _classify_pdf_page_text_elements,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_entities import (
+from phoena_translator.pdf.semantics.entities import (
     _looks_like_pdf_entity_directory_row,  # noqa: F401 - legacy facade
     _mark_pdf_entity_directory_elements,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_glossary import (
+from phoena_translator.pdf.semantics.glossary import (
     _mark_pdf_glossary_term_elements,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.deterministic_labels import (
+from phoena_translator.pdf.translate.deterministic_labels import (
     _translate_pdf_deterministic_labels,  # noqa: F401 - legacy facade
     _translate_pdf_fixed_short_label,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.translation_targets import (
+from phoena_translator.pdf.translate.targets import (
     _dedupe_pdf_translation_targets,  # noqa: F401 - legacy facade
     _is_preserved_nonlinguistic_text,  # noqa: F401 - legacy facade
     _is_preserved_short_citation,  # noqa: F401 - legacy facade
@@ -333,10 +333,10 @@ from phoena_translator.pdf.translation_targets import (
     _pdf_element_requires_translation,  # noqa: F401 - legacy facade
     _pdf_translation_language_views,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.paragraph_html import (
+from phoena_translator.pdf.render.paragraph_html import (
     PDF_HTMLBOX_SUPERSCRIPT_CSS,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.rendering import (
+from phoena_translator.pdf.render.primitives import (
     PDF_TEXT_NEIGHBOR_GUARD_PADDING,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.cache import (
@@ -344,7 +344,7 @@ from phoena_translator.pdf.cache import (
     PDF_LAYOUT_SEMANTICS_VERSION,  # noqa: F401 - legacy facade
     PDF_PAGE_CACHE_SCHEMA_VERSION,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.leak_audit import (
+from phoena_translator.pdf.verify.leaks import (
     _PDF_UNTRANSLATED_LEAK_CJK_RE,  # noqa: F401 - legacy facade
     _PDF_UNTRANSLATED_LEAK_LONE_WORD_RE,  # noqa: F401 - legacy facade
     _PDF_UNTRANSLATED_LEAK_NEIGHBOR_AFTER_RE,  # noqa: F401 - legacy facade
@@ -354,37 +354,37 @@ from phoena_translator.pdf.leak_audit import (
     _PDF_UNTRANSLATED_LEAK_UNIT_WORDS,  # noqa: F401 - legacy facade
     _PDF_UNTRANSLATED_LEAK_WORD_RE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.translation_validation import (
+from phoena_translator.pdf.translate.validation import (
     PDF_MAX_TRANSLATION_EXPANSION_RATIO,  # noqa: F401 - legacy facade
     PDF_MAX_TRANSLATION_EXPANSION_SLACK,  # noqa: F401 - legacy facade
     _PDF_MIXED_TRANSLATION_ENGLISH_RUN_RE,  # noqa: F401 - legacy facade
     _PDF_REFERENCE_TRANSLATION_YEAR_RE,  # noqa: F401 - legacy facade
     _PDF_WORK_TITLE_QUOTE_CHARS,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.toc import (
+from phoena_translator.pdf.semantics.toc import (
     _PDF_TOC_ENTRY_RE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.batch_codec import (
+from phoena_translator.pdf.translate.batch_codec import (
     PDF_BATCH_SEPARATOR,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.settings import (
     PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.translation import (
+from phoena_translator.pdf.translate.translator import (
     translate_text as _translate_text_impl,  # noqa: F401 - legacy facade
     PDFTranslationDependencies,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.page_translation import (
+from phoena_translator.pdf.translate.page import (
     _pdf_vector_ocr_translation_hint,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.paragraph_html import (
+from phoena_translator.pdf.render.paragraph_html import (
     _split_pdf_translated_paragraphs,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.leak_audit import (
+from phoena_translator.pdf.verify.leaks import (
     _pdf_collect_untranslated_english_leaks,  # noqa: F401 - legacy facade
     _pdf_untranslated_english_leak_runs,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.translation_validation import (
+from phoena_translator.pdf.translate.validation import (
     _has_chinese,  # noqa: F401 - legacy facade
     _pdf_batch_translation_candidate_is_valid,  # noqa: F401 - legacy facade
     _pdf_element_translation_needs_retry,  # noqa: F401 - legacy facade
@@ -400,14 +400,14 @@ from phoena_translator.pdf.translation_validation import (
     _translation_part_needs_retry,  # noqa: F401 - legacy facade
     _validate_pdf_page_translations,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.toc import (
+from phoena_translator.pdf.semantics.toc import (
     _pdf_toc_entries,  # noqa: F401 - legacy facade
     _pdf_toc_trailing_text,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.translation_validation import (
+from phoena_translator.pdf.translate.validation import (
     _looks_like_pdf_toc_leader_block,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.batch_codec import (
+from phoena_translator.pdf.translate.batch_codec import (
     _build_pdf_batch_segment_envelope,  # noqa: F401 - legacy facade
     _parse_pdf_batch_segment_envelope,  # noqa: F401 - legacy facade
     _pdf_batch_segment_records_from_source,  # noqa: F401 - legacy facade
@@ -428,7 +428,7 @@ from phoena_translator.pdf.cache import (
     _save_pdf_page_translation_cache,  # noqa: F401 - legacy facade
     configure_pdf_cache_progress_dir,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.source_fallbacks import (
+from phoena_translator.pdf.render.source_fallbacks import (
     _append_pdf_source_page_fallback,  # noqa: F401 - legacy facade
     _exclude_pdf_audit_expectations_for_element,  # noqa: F401 - legacy facade
     _exclude_pdf_audit_expectations_for_source_pages,  # noqa: F401 - legacy facade
@@ -436,13 +436,13 @@ from phoena_translator.pdf.source_fallbacks import (
     _record_pdf_element_source_fallback,  # noqa: F401 - legacy facade
     _replace_pdf_pages_with_source,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.fonts import (
+from phoena_translator.pdf.render.fonts import (
     _collect_pdf_font_chars,  # noqa: F401 - legacy facade
     _get_chinese_font_path,  # noqa: F401 - legacy facade
     _subset_pdf_font,  # noqa: F401 - legacy facade
     pdf_font_subsetting_available,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.rendering import (
+from phoena_translator.pdf.render.primitives import (
     _build_htmlbox_rect_ladder,  # noqa: F401 - legacy facade
     _build_pdf_rotated_text_rects,  # noqa: F401 - legacy facade
     _collect_pdf_overlap_redraw_indices,  # noqa: F401 - legacy facade
@@ -458,15 +458,15 @@ from phoena_translator.pdf.rendering import (
     _restore_pdf_source_text_element,  # noqa: F401 - legacy facade
     _sanitize_pdf_text_rect,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.paragraph_html import (
+from phoena_translator.pdf.render.paragraph_html import (
     _PDFInlineHTMLParser,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.paragraph_html import (
+from phoena_translator.pdf.render.paragraph_html import (
     _pdf_plain_text_to_html,  # noqa: F401 - legacy facade
     _pdf_text_to_html,  # noqa: F401 - legacy facade
     _wrap_pdf_latin_runs,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.output_audit import (
+from phoena_translator.pdf.verify.output import (
     _check_pdf_output_structure,  # noqa: F401 - legacy facade
     _check_pdf_output_structure_serialized as _check_pdf_output_structure_serialized_impl,  # noqa: F401 - legacy facade
     _pdf_formula_raster_difference_summary,  # noqa: F401 - legacy facade
@@ -479,11 +479,11 @@ from phoena_translator.pdf.output_audit import (
 from phoena_translator.pdf.progress import (
     _save_pdf_translation_progress as _save_pdf_translation_progress_impl,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.merge_audit import (
+from phoena_translator.pdf.verify.merges import (
     _expand_pdf_fallback_pages_for_accepted_merges,  # noqa: F401 - legacy facade
     _validate_pdf_merge_audit,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.formula_policy import (
+from phoena_translator.pdf.semantics.formula_policy import (
     _pdf_formula_protection_fallback_pages,  # noqa: F401 - legacy facade
     _pdf_prose_inline_math_symbol_tolerance,  # noqa: F401 - legacy facade
     _pdf_text_element_formula_audit_symbol_count,  # noqa: F401 - legacy facade
@@ -491,7 +491,7 @@ from phoena_translator.pdf.formula_policy import (
     _preserve_pdf_formula_risk_text_elements,  # noqa: F401 - legacy facade
     _summarize_pdf_formula_protection,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.audit_expectations import (
+from phoena_translator.pdf.verify.expectations import (
     _collect_pdf_formula_expectations,  # noqa: F401 - legacy facade
     _collect_pdf_superscript_expectations,  # noqa: F401 - legacy facade
     _collect_pdf_vector_ocr_expectations,  # noqa: F401 - legacy facade

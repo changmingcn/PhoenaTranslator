@@ -21,12 +21,12 @@ from phoena_translator.api_runtime import (
 )
 from phoena_translator.llm import DeepSeekTranslationAdapter, LLMSettings
 from phoena_translator.pdf.context import PDFPageTranslationContext
-from phoena_translator.pdf.page_translation import (
+from phoena_translator.pdf.translate.page import (
     _translate_batch,
     _translate_element,
     _translate_one,
 )
-from phoena_translator.pdf.translation import (
+from phoena_translator.pdf.translate.translator import (
     PDFTranslationDependencies,
     translate_text as pdf_translate_text,
 )

@@ -9,17 +9,10 @@ import traceback
 from dataclasses import dataclass
 from typing import Callable
 
-from phoena_translator.pdf.merge_audit import (
-    _expand_pdf_fallback_pages_for_accepted_merges,
-)
 from phoena_translator.pdf.cache import (
-    _save_pdf_audit,
-    _discard_pdf_page_translation_cache,
     _discard_pdf_layout_cache,
-)
-from phoena_translator.pdf.source_fallbacks import (
-    _append_pdf_source_page_fallback,
-    _pdf_source_page_fallback_entry,
+    _discard_pdf_page_translation_cache,
+    _save_pdf_audit,
 )
 from phoena_translator.pdf.errors import (
     PDFPageExtractionError,
@@ -27,6 +20,13 @@ from phoena_translator.pdf.errors import (
     PDFStructureValidationError,
 )
 from phoena_translator.pdf.model import PdfAudit
+from phoena_translator.pdf.render.source_fallbacks import (
+    _append_pdf_source_page_fallback,
+    _pdf_source_page_fallback_entry,
+)
+from phoena_translator.pdf.verify.merges import (
+    _expand_pdf_fallback_pages_for_accepted_merges,
+)
 
 
 @dataclass(frozen=True)

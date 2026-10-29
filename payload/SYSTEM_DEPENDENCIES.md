@@ -2,7 +2,7 @@
 
 PDF vector-text recovery and final OCR auditing use the local `tesseract`
 binary with English language data. Font discovery expects at least one of the
-Chinese fonts listed in `phoena_translator/pdf/fonts.py`.
+Chinese fonts listed in `phoena_translator/pdf/render/fonts.py`.
 
 Install Python packages reproducibly with:
 

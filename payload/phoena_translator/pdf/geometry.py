@@ -1,9 +1,11 @@
-"""Geometry for deterministic PDF processing."""
+"""Rectangle and coordinate helpers shared by every PDF pass."""
 
 from __future__ import annotations
 
 import re
+
 import fitz
+
 from phoena_translator.pdf.patterns import PDF_FORMULA_GUARD_PADDING
 
 

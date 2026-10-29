@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 
-
 PDF_FORMULA_GUARD_PADDING = 0.5
 _PDF_PARAGRAPH_MARKER_ATOM = (
     r"(?:\d+(?:\.\d+)*|[A-Za-z]|[ivxlcdmIVXLCDM]{1,8})"

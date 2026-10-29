@@ -38,7 +38,7 @@ from phoena_translator.llm import (
     LLMSettings,
 )
 from phoena_translator.logging_setup import configure_logging
-from phoena_translator.pdf.output_audit import (
+from phoena_translator.pdf.verify.output import (
     PDFAuditDependencies,
     _check_pdf_output_structure,
     _check_pdf_output_structure_serialized as _check_pdf_output_structure_serialized_impl,
@@ -46,20 +46,20 @@ from phoena_translator.pdf.output_audit import (
 from phoena_translator.pdf.progress import (
     _save_pdf_translation_progress as _save_pdf_translation_progress_impl,
 )
-from phoena_translator.pdf.formula_policy import _summarize_pdf_formula_protection
+from phoena_translator.pdf.semantics.formula_policy import _summarize_pdf_formula_protection
 from phoena_translator.pdf.cache import (
     _load_pdf_cached_page_indices,
     _pdf_source_sha256,
     configure_pdf_cache_progress_dir,
 )
-from phoena_translator.pdf.fonts import pdf_font_subsetting_available
+from phoena_translator.pdf.render.fonts import pdf_font_subsetting_available
 from phoena_translator.pdf.geometry import _filter_pdf_formula_safe_rects
 from phoena_translator.pdf.pipeline import (
     PDFPipelineDependencies,
     translate_pdf as _translate_pdf_impl,
 )
-from phoena_translator.pdf.page_extraction import _extract_page_elements
-from phoena_translator.pdf.translation import (
+from phoena_translator.pdf.extract.page import _extract_page_elements
+from phoena_translator.pdf.translate.translator import (
     PDFTranslationDependencies,
     translate_text as _translate_text_impl,
 )

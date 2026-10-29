@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import re
-from phoena_translator.pdf.patterns import _PDF_PARAGRAPH_MARKER_ATOM
 
+from phoena_translator.pdf.patterns import _PDF_PARAGRAPH_MARKER_ATOM
 
 _PDF_NUMBERED_PARAGRAPH_LEAD_RE = re.compile(
     rf"^\s*(?P<marker>(?:{_PDF_PARAGRAPH_MARKER_ATOM}[.)]|"
@@ -13,7 +13,6 @@ _PDF_NUMBERED_PARAGRAPH_LEAD_RE = re.compile(
 _PDF_BULLETED_PARAGRAPH_LEAD_RE = re.compile(
     r"^\s*[\u2022\u25aa\u25cf\u25e6\u2043\u2219\uf0b7\-*\u00b7]+\s+(?=\S)"
 )
-
 
 
 def _plain_text(text: str) -> str:

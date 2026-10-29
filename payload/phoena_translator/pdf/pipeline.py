@@ -1,4 +1,5 @@
-"""Pipeline for deterministic PDF processing."""
+"""Top-level PDF pipeline: run extraction, translation and output, and
+loop through bounded recovery rounds."""
 
 from __future__ import annotations
 
@@ -8,30 +9,29 @@ from phoena_translator.pdf.context import (
     PDFPageTranslationContext,
     PDFPipelineDependencies,
 )
-from phoena_translator.pdf.extraction_stage import (
+from phoena_translator.pdf.extract.stage import (
     PDFExtractionStageContext,
     build_translation_plan,
     enforce_formula_protection,
     extract_document,
     reconcile_extraction,
 )
-from phoena_translator.pdf.output_stage import (
-    PDFOutputStageContext,
-    assemble_output,
-    finalize_output,
-)
-from phoena_translator.pdf.fonts import resolve_output_fonts
+from phoena_translator.pdf.model import PdfAudit
 from phoena_translator.pdf.recovery import (
     PDFRecoveryContext,
     PDFRecoveryDecision,
     recover_pdf_failure,
 )
-from phoena_translator.pdf.translation_stage import (
+from phoena_translator.pdf.render.fonts import resolve_output_fonts
+from phoena_translator.pdf.render.stage import (
+    PDFOutputStageContext,
+    assemble_output,
+    finalize_output,
+)
+from phoena_translator.pdf.translate.stage import (
     PDFTranslationStageContext,
     translate_pages,
 )
-from phoena_translator.pdf.model import PdfAudit
-
 
 # A source page can advance recovery only once, and structural repair advances
 # once. The actual bound tightens to the reported source-page count; 512 is a
