@@ -5,34 +5,32 @@ from __future__ import annotations
 import html
 import logging
 import re
-
 import fitz
 from phoena_translator.math_text import (
     is_unicode_math_symbol as _is_unicode_math_symbol,
 )
-
-from phoena_translator.pdf.types import (
-    PDF_TRANSLATABLE_CITATION_LABELS,
-    _PDF_CITATION_PUBLISHER_CONNECTORS,
-)
+from phoena_translator.pdf.patterns import PDF_TRANSLATABLE_CITATION_LABELS
 from phoena_translator.pdf.geometry import (
     _get_pdf_primary_paragraph_rect,
     _get_pdf_render_bbox,
 )
-from phoena_translator.pdf.math_detection import (
-    _plain_text,
-    _collapsed_plain_text,
+from phoena_translator.pdf.placeholders import (
     _select_pdf_inline_math_fragments_for_text,
 )
-
+from phoena_translator.pdf.text_shape import _plain_text, _collapsed_plain_text
 log = logging.getLogger("translator")
-
 from phoena_translator.pdf.semantic_text import (
     _is_heading_like_elem,
     _join_pdf_line_fragments,
 )
 from phoena_translator.pdf.model import ElementType, LayoutClass
 from phoena_translator.pdf.semantic_grouping import ParagraphIndent, build_merged_text_element, dominant_group_style, first_and_body_x0, group_adjacent, group_plain_and_rich, group_rect, group_source_lines, merge_groups
+
+
+_PDF_CITATION_PUBLISHER_CONNECTORS = frozenset({
+    "and", "at", "by", "for", "in", "of", "on", "the", "to",
+})
+
 
 
 def _looks_like_pdf_reference_entry_lead(text: str) -> bool:

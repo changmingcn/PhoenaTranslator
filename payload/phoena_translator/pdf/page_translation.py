@@ -10,19 +10,21 @@ from __future__ import annotations
 import re
 
 from phoena_translator.pdf.context import PDFPageTranslationContext
-from phoena_translator.pdf.math_detection import (
-    _normalize_pdf_translation,
-    _pdf_inline_markup_preserved,
-    _pdf_inline_math_fragments_preserved,
-    _plain_text,
+from phoena_translator.pdf.placeholders import (
     _protect_pdf_identifier_fragments,
     _protect_pdf_inline_math_fragments,
     _protect_pdf_superscript_fragments,
     _restore_pdf_identifier_fragments,
     _restore_pdf_inline_math_fragments,
     _restore_pdf_superscript_fragments,
+)
+from phoena_translator.pdf.inline_markup import (
+    _normalize_pdf_translation,
+    _pdf_inline_markup_preserved,
+    _pdf_inline_math_fragments_preserved,
     _restore_pdf_superscript_markup,
 )
+from phoena_translator.pdf.text_shape import _plain_text
 from phoena_translator.pdf.semantics import _is_disclaimer_block
 from phoena_translator.pdf.targets import (
     _dedupe_pdf_translation_targets,

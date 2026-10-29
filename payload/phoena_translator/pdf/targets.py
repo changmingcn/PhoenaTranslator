@@ -5,26 +5,13 @@ from __future__ import annotations
 import logging
 import re
 from collections import Counter
-
 import fitz
 from phoena_translator.math_text import (
     is_math_block as _is_math_block,
 )
-
-from phoena_translator.pdf.types import (
-    PDF_DUPLICATE_GLYPH_POSITION_TOLERANCE,
-    PDF_FIXED_SHORT_LABEL_TRANSLATIONS,
-    _PDF_DISPLAY_IDENTITY_END_WORDS,
-    _PDF_PERSON_HONORIFICS,
+from phoena_translator.pdf.patterns import (
     _PDF_PROPER_NAME_CONNECTORS,
-    _PDF_PROPER_NAME_SUFFIXES,
-    _PDF_SHORT_LABEL_CONNECTORS,
-    _PDF_TRANSLATABLE_SHORT_LABELS,
     _PRESERVED_IDENTIFIER_RE,
-    _PRESERVED_STRUCTURED_CODE_RE,
-    _SHORT_CITATION_CONNECTORS,
-    _SHORT_CITATION_WORD_RE,
-    _SHORT_CITATION_YEAR_RE,
 )
 from phoena_translator.pdf.geometry import (
     _cluster_pdf_line_spans,
@@ -39,14 +26,13 @@ from phoena_translator.pdf.math_detection import (
     _demote_pdf_wrapped_identifier_math_lines,
     _looks_like_compact_pdf_identifier,
     _make_pdf_formula_element_from_lines,
-    _mark_pdf_superscript_spans,
-    _pdf_formula_region_signature,
     _pdf_line_math_evidence,
-    _plain_text,
-    _collapsed_plain_text,
     _propagate_pdf_math_line_context,
-    _restore_pdf_superscript_markup,
 )
+from phoena_translator.pdf.signatures import _pdf_formula_region_signature
+from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
+from phoena_translator.pdf.inline_markup import _restore_pdf_superscript_markup
+from phoena_translator.pdf.text_shape import _plain_text, _collapsed_plain_text
 from phoena_translator.pdf.extraction import (
     _extract_pdf_vector_ocr_elements,
     _find_pdf_table_regions,
@@ -96,6 +82,125 @@ from phoena_translator.pdf.model import (
     SkipReason,
 )
 from phoena_translator.pdf.semantic_tables import _is_pdf_glossary_meaning_header, _is_pdf_glossary_term_header
+
+
+# Some generators (observed: Apache FOP 2.7) stroke every line of body text
+# twice at the same coordinates.  The two copies are never bit-identical --
+# measured drift is under a twentieth of a point -- so duplicate detection
+# needs a tolerance rather than an equality test on the bbox.
+PDF_DUPLICATE_GLYPH_POSITION_TOLERANCE = 0.25
+_PRESERVED_STRUCTURED_CODE_RE = re.compile(
+    r"(?i)(?=[A-Z0-9/_\-]*\d)(?=(?:.*[/_\-]){2,})"
+    r"[A-Z0-9]+(?:[/_\-][A-Z0-9]+){2,}[/_\-]?"
+)
+_SHORT_CITATION_YEAR_RE = re.compile(r"\((?:18|19|20)\d{2}[a-z]?\)", re.IGNORECASE)
+_SHORT_CITATION_WORD_RE = re.compile(
+    r"[^\W\d_]+(?:['’\-][^\W\d_]+)*\.?",
+    re.UNICODE,
+)
+_SHORT_CITATION_CONNECTORS = {
+    "al", "and", "da", "de", "del", "der", "di", "dos", "du", "et",
+    "jr", "la", "le", "st", "van", "von",
+}
+_PDF_TRANSLATABLE_SHORT_LABELS = {
+    "abstract",
+    "acknowledgement",
+    "acknowledgements",
+    "annex",
+    "annexure",
+    "appendix",
+    "background",
+    "bibliography",
+    "chapter",
+    "chart",
+    "conclusion",
+    "conclusions",
+    "contents",
+    "definition",
+    "definitions",
+    "discussion",
+    "graphical analysis",
+    "executive summary",
+    "figure",
+    "findings",
+    "foreword",
+    "glossary",
+    "implication",
+    "implications",
+    "index",
+    "intern",
+    "introduction",
+    "interim order",
+    "methodology",
+    "model",
+    "models",
+    "note",
+    "overview",
+    "part",
+    "preface",
+    "pfutp regulations",
+    "project co-ordinator",
+    "project coordinator",
+    "project leader",
+    "project manager",
+    "project researcher",
+    "recommendation",
+    "recommendations",
+    "reference",
+    "references",
+    "ratio",
+    "result",
+    "results",
+    "section",
+    "sebi act",
+    "source",
+    "table",
+    "test",
+    "tests",
+    "terms",
+    "acronyms",
+    "chapter title",
+    "workshop reports",
+    "year",
+    "urgency",
+    "volatility",
+}
+_PDF_SHORT_LABEL_CONNECTORS = {
+    "and", "at", "by", "da", "de", "der", "di", "for", "from", "in", "of",
+    "on", "the", "to", "van", "von", "with",
+}
+_PDF_PROPER_NAME_SUFFIXES = {
+    "advisors", "asset", "bank", "capital", "company", "consulting", "corp",
+    "corporation", "exchange", "fund", "group", "holdings", "inc", "investments",
+    "limited", "llc", "lp", "ltd", "management", "markets", "partners", "plc",
+    "securities", "trust", "university", "institute", "college", "school",
+}
+_PDF_PERSON_HONORIFICS = {
+    "dame", "dr", "mr", "mrs", "ms", "prof", "professor", "sir",
+}
+_PDF_DISPLAY_IDENTITY_END_WORDS = {
+    "advisors", "association", "authority", "bank", "commission", "commissions",
+    "committee", "company",
+    "consulting", "corporation", "council", "department", "exchange", "fund",
+    "government", "group", "holdings", "institute", "management", "ministry",
+    "office", "organization", "organisation", "partners", "school", "trust",
+    "university",
+}
+PDF_FIXED_SHORT_LABEL_TRANSLATIONS = {
+    "all†": "全部†",
+    "day": "日盘",
+    "half": "一半",
+    "internal": "内部",
+    "max": "最大值",
+    "min": "最小值",
+    "external": "外部",
+    "other": "其他",
+    "others": "其他",
+    "night": "夜间",
+    "received by": "接收方",
+    "enter*": "输入*",
+}
+
 
 log = logging.getLogger("translator")
 

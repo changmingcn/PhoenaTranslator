@@ -18,7 +18,7 @@ from phoena_translator.pdf.cache import (
     _pdf_source_page_fallback_entry,
     _save_pdf_audit,
 )
-from phoena_translator.pdf.types import (
+from phoena_translator.pdf.errors import (
     PDFPageExtractionError,
     PDFPageRenderError,
     PDFStructureValidationError,

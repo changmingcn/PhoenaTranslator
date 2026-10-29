@@ -51,7 +51,7 @@ from phoena_translator.pdf.cache import (
     configure_pdf_cache_progress_dir,
 )
 from phoena_translator.pdf.fonts import pdf_font_subsetting_available
-from phoena_translator.pdf.math_detection import _filter_pdf_formula_safe_rects
+from phoena_translator.pdf.geometry import _filter_pdf_formula_safe_rects
 from phoena_translator.pdf.pipeline import (
     PDFPipelineDependencies,
     translate_pdf as _translate_pdf_impl,

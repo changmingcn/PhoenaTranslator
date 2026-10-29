@@ -9,21 +9,24 @@ import math
 import re
 import shutil
 import subprocess
-
 import fitz
-
-from phoena_translator.pdf.types import (
+from phoena_translator.pdf.settings import (
     PDF_VECTOR_OCR_DPI,
     PDF_VECTOR_OCR_MIN_ALPHA_WORDS,
-    SKIP_SECTION_HEADING_RE,
 )
 from phoena_translator.pdf.geometry import (
     _get_pdf_source_ink_rect,
 )
-from phoena_translator.pdf.math_detection import (
-    _plain_text,
-)
+from phoena_translator.pdf.text_shape import _plain_text
 from phoena_translator.pdf.model import ElementType, SkipReason
+
+
+SKIP_SECTION_HEADING_RE = re.compile(
+    r"(?i)^(?:section\s+)?(?:\d+(?:\.\d+)*[.):]?\s*)?"
+    r"(?:bibliography|references|index|endnotes?|glossary|acronyms|abbreviations)"
+    r"(?:\s*(?:&|and)\s*(?:further\s+reading|notes|references))?$"
+)
+
 
 log = logging.getLogger("translator")
 

@@ -6,9 +6,7 @@ import html
 import logging
 from dataclasses import dataclass
 from typing import Any, Callable
-
 import fitz
-
 from phoena_translator.pdf.audit import (
     _expand_pdf_fallback_pages_for_accepted_merges,
 )
@@ -26,12 +24,11 @@ from phoena_translator.pdf.geometry import (
     _pdf_page_extraction_rect,
     _subtract_pdf_protected_rects,
 )
-from phoena_translator.pdf.math_detection import (
+from phoena_translator.pdf.inline_markup import (
     _normalize_pdf_translation,
     _pdf_superscript_signature,
-    _plain_text,
-    _collapsed_plain_text,
 )
+from phoena_translator.pdf.text_shape import _plain_text, _collapsed_plain_text
 from phoena_translator.pdf.rendering import (
     _build_htmlbox_rect_ladder,
     _build_pdf_rotated_text_rects,
@@ -57,10 +54,7 @@ from phoena_translator.pdf.translation import (
     _pdf_toc_entries,
     _split_pdf_translated_paragraphs,
 )
-from phoena_translator.pdf.types import (
-    PDF_HTMLBOX_SUPERSCRIPT_CSS,
-    PDFPageRenderError,
-)
+from phoena_translator.pdf.errors import PDFPageRenderError
 from phoena_translator.pdf.model import (
     ElementType,
     LayoutClass,
@@ -68,6 +62,12 @@ from phoena_translator.pdf.model import (
     PdfAudit,
     SkipReason,
 )
+
+
+PDF_HTMLBOX_SUPERSCRIPT_CSS = (
+    'sup{line-height:0;vertical-align:super;white-space:nowrap;}'
+)
+
 
 
 @dataclass

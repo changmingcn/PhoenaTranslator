@@ -10,21 +10,19 @@ import math
 import re
 import time
 from phoena_translator.math_text import MATH_FUNCTION_WORDS
-from phoena_translator.pdf.types import (
-    PDFTranslationIntegrityError,
-    PDF_BATCH_SEGMENT_RE,
+from phoena_translator.pdf.patterns import (
     PDF_TRANSLATABLE_CITATION_LABELS,
     _PDF_PROPER_NAME_CONNECTORS,
-    _PDF_QUOTED_TITLE_RE,
     _PRESERVED_IDENTIFIER_RE,
 )
-from phoena_translator.pdf.math_detection import (
+from phoena_translator.pdf.placeholders import PDF_BATCH_SEGMENT_RE
+from phoena_translator.pdf.errors import PDFTranslationIntegrityError
+from phoena_translator.pdf.inline_markup import (
     _normalize_pdf_translation,
     _pdf_inline_markup_preserved,
     _pdf_inline_math_fragments_preserved,
-    _plain_text,
-    _collapsed_plain_text,
 )
+from phoena_translator.pdf.text_shape import _plain_text, _collapsed_plain_text
 from phoena_translator.pdf.semantics import _looks_like_pdf_reference_entry_lead
 from phoena_translator.pdf.targets import (
     _looks_like_pdf_contact_line,
@@ -34,24 +32,58 @@ from phoena_translator.pdf.targets import (
     _pdf_element_requires_translation,
     _pdf_translation_language_views,
 )
-from phoena_translator.pdf.types import (
-    PDF_BATCH_SEPARATOR,
-    PDF_MAX_TRANSLATION_EXPANSION_RATIO,
-    PDF_MAX_TRANSLATION_EXPANSION_SLACK,
-    _PDF_MIXED_TRANSLATION_ENGLISH_RUN_RE,
-    _PDF_REFERENCE_TRANSLATION_YEAR_RE,
-    _PDF_TOC_ENTRY_RE,
-    _PDF_UNTRANSLATED_LEAK_CJK_RE,
-    _PDF_UNTRANSLATED_LEAK_LONE_WORD_RE,
-    _PDF_UNTRANSLATED_LEAK_NEIGHBOR_AFTER_RE,
-    _PDF_UNTRANSLATED_LEAK_NEIGHBOR_BEFORE_RE,
-    _PDF_UNTRANSLATED_LEAK_RUN_RE,
-    _PDF_UNTRANSLATED_LEAK_SYMBOL_WORDS,
-    _PDF_UNTRANSLATED_LEAK_UNIT_WORDS,
-    _PDF_UNTRANSLATED_LEAK_WORD_RE,
-    _PDF_WORK_TITLE_QUOTE_CHARS,
-)
 from phoena_translator.pdf.model import ElementType
+
+
+# A citation's work title is the quoted run inside a bibliography entry.  Its
+# presence separates "this entry has something to translate" from "this entry
+# is only authors, initials and a year", where returning the source unchanged
+# is the correct translation rather than a failure.
+_PDF_QUOTED_TITLE_RE = re.compile(r"[“\"]([^”\"]{2,})[”\"]?")
+PDF_BATCH_SEPARATOR = "≡≡≡SPLIT≡≡≡"
+PDF_MAX_TRANSLATION_EXPANSION_RATIO = 1.40
+PDF_MAX_TRANSLATION_EXPANSION_SLACK = 64
+_PDF_MIXED_TRANSLATION_ENGLISH_RUN_RE = re.compile(
+    r"(?:\b[A-Za-z][A-Za-z'’\-]*\b(?:\s+|[,;:()–—-]+)){4,}"
+    r"\b[A-Za-z][A-Za-z'’\-]*\b"
+)
+_PDF_WORK_TITLE_QUOTE_CHARS = "'\"‘’“”"
+_PDF_UNTRANSLATED_LEAK_WORD_RE = re.compile(
+    r"[A-Za-z][a-z]{2,}(?:['\u2019][a-z]+)*"
+)
+_PDF_UNTRANSLATED_LEAK_RUN_RE = re.compile(
+    r"[A-Za-z][a-z]{2,}(?:['\u2019][a-z]+)*"
+    r"(?:[\s,;:()\"'\u201c\u201d\u2018\u2019\-\u2013\u2014]+"
+    r"[A-Za-z][a-z]{2,}(?:['\u2019][a-z]+)*)+"
+)
+_PDF_UNTRANSLATED_LEAK_LONE_WORD_RE = re.compile(
+    r"[a-z]{3,}(?:['\u2019][a-z]+)*"
+)
+_PDF_UNTRANSLATED_LEAK_CJK_RE = re.compile(
+    r"[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]"
+)
+_PDF_UNTRANSLATED_LEAK_UNIT_WORDS = {
+    "bps", "ppm", "pts", "bbl", "mmbtu", "kwh", "mwh", "gwh", "twh",
+}
+_PDF_UNTRANSLATED_LEAK_SYMBOL_WORDS = {
+    "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta",
+    "iota", "kappa", "lambda", "sigma", "tau", "upsilon", "phi", "chi",
+    "psi", "omega", "rho", "vega",
+}
+_PDF_UNTRANSLATED_LEAK_NEIGHBOR_BEFORE_RE = re.compile(
+    r"[A-Za-z]{3,}[\s,;:()\"'\u201c\u201d\u2018\u2019\-\u2013\u2014]*$"
+)
+_PDF_UNTRANSLATED_LEAK_NEIGHBOR_AFTER_RE = re.compile(
+    r"^[\s,;:()\"'\u201c\u201d\u2018\u2019\-\u2013\u2014]*[A-Za-z]{3,}"
+)
+_PDF_REFERENCE_TRANSLATION_YEAR_RE = re.compile(
+    r"(?<!\d)(?:18\d{2}|19\d{2}|20[0-2]\d)[a-z]?(?!\d)",
+    re.IGNORECASE,
+)
+_PDF_TOC_ENTRY_RE = re.compile(
+    r"(?P<leader>(?:[.…·]\s*){4,})\s*(?P<page>\d+)\b"
+)
+
 
 @dataclass(frozen=True)
 class PDFTranslationDependencies:

@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import re
 from collections import deque
-
 import fitz
 from phoena_translator.math_text import (
     MATH_FUNCTION_WORDS,
@@ -13,14 +12,9 @@ from phoena_translator.math_text import (
     is_unicode_math_symbol as _is_unicode_math_symbol,
     unicode_math_symbol_count as _unicode_math_symbol_count,
 )
-
-from phoena_translator.pdf.types import (
+from phoena_translator.pdf.patterns import (
     PDF_FORMULA_GUARD_PADDING,
     _PDF_BARE_FOOTNOTE_LEAD_RE,
-    _PDF_WRAPPED_MATH_DANGLING_TAIL_RE,
-    _PDF_WRAPPED_MATH_HYPHEN_TAIL_RE,
-    _PDF_WRAPPED_MATH_PROSE_WORD_RE,
-    _PDF_WRAPPED_MATH_SCRIPT_LEAD_RE,
 )
 from phoena_translator.pdf.geometry import (
     _get_pdf_elem_rect,
@@ -30,15 +24,13 @@ from phoena_translator.pdf.geometry import (
     _pdf_elem_last_source_line_rect,
     _pdf_rect_intersects_protected,
 )
-from phoena_translator.pdf.math_detection import (
+from phoena_translator.pdf.inline_markup import _pdf_superscript_signature
+from phoena_translator.pdf.text_shape import (
     _looks_like_pdf_list_marker,
-    _pdf_superscript_signature,
     _plain_text,
     _collapsed_plain_text,
 )
-
 log = logging.getLogger("translator")
-
 from phoena_translator.pdf.semantic_references import _translate_pdf_citation_labels
 from phoena_translator.pdf.semantic_text import (
     _join_pdf_line_fragments,
@@ -47,6 +39,13 @@ from phoena_translator.pdf.semantic_text import (
     _pick_pdf_dominant_value,
 )
 from phoena_translator.pdf.model import ElementType, SkipReason
+
+
+_PDF_WRAPPED_MATH_DANGLING_TAIL_RE = re.compile(r"[(\[][A-Za-z]{0,3}$")
+_PDF_WRAPPED_MATH_HYPHEN_TAIL_RE = re.compile(r"[A-Za-z]-$")
+_PDF_WRAPPED_MATH_SCRIPT_LEAD_RE = re.compile(r"^[a-z]{1,3}[)\],]")
+_PDF_WRAPPED_MATH_PROSE_WORD_RE = re.compile(r"[A-Za-z][a-z]{2,}")
+
 
 
 def _split_pdf_formula_adjacent_paragraph_elements(

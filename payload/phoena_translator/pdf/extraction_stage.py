@@ -35,7 +35,7 @@ from phoena_translator.pdf.cache import (
 from phoena_translator.pdf.context import ImmutableElementPolicy
 from phoena_translator.pdf.extraction import _is_skip_page
 from phoena_translator.pdf.geometry import _get_pdf_elem_rect, _pdf_page_extraction_rect
-from phoena_translator.pdf.math_detection import _collapsed_plain_text
+from phoena_translator.pdf.text_shape import _collapsed_plain_text
 from phoena_translator.pdf.semantic_cross_page import (
     _cross_page_dominant_fontsize,
 )
@@ -50,7 +50,7 @@ from phoena_translator.pdf.targets import (
 )
 from phoena_translator.pdf.translation import _validate_pdf_page_translations
 from phoena_translator.storage_layout import pdf_page_cache_dir
-from phoena_translator.pdf.types import (
+from phoena_translator.pdf.errors import (
     PDFPageExtractionError,
     PDFTranslationIntegrityError,
 )

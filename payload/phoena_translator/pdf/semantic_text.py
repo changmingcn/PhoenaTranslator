@@ -5,32 +5,57 @@ from __future__ import annotations
 import html
 import logging
 import re
-
 import fitz
-
-from phoena_translator.pdf.types import (
-    DISCLAIMER_PATTERNS,
-    WATERMARK_PATTERNS,
-    _PDF_BULLETED_PARAGRAPH_LEAD_RE,
-    _PDF_FOOTNOTE_MARKER_RE,
-    _PDF_NUMBERED_PARAGRAPH_LEAD_RE,
-    _PDF_TRANSLATABLE_DISCLAIMER_LABELS,
-    _PDF_TRANSLATABLE_REPORT_STRUCTURE_RE,
-)
+from phoena_translator.pdf.patterns import _PDF_PARAGRAPH_MARKER_ATOM
 from phoena_translator.pdf.geometry import (
     _detect_pdf_text_align,
     _get_pdf_elem_rect,
     _get_pdf_render_bbox,
 )
-from phoena_translator.pdf.math_detection import (
-    _looks_like_pdf_list_marker,
-    _normalize_pdf_translation,
+from phoena_translator.pdf.superscripts import (
     _pdf_source_line_leading_superscript_footnote_marker,
-    _plain_text,
-    _collapsed_plain_text,
+)
+from phoena_translator.pdf.placeholders import (
     _select_pdf_inline_math_fragments_for_text,
 )
+from phoena_translator.pdf.inline_markup import _normalize_pdf_translation
+from phoena_translator.pdf.text_shape import (
+    _looks_like_pdf_list_marker,
+    _plain_text,
+    _collapsed_plain_text,
+)
 from phoena_translator.pdf.model import ElementType, SkipReason
+
+
+DISCLAIMER_PATTERNS = re.compile(
+    r'(?i)^(\s*\*?\s*(disclaimer|copyright|all rights reserved|legal notice|terms of use|'
+    r'this (document|report|paper|publication) (is|was|has been)|'
+    r'the views expressed|the opinions expressed|'
+    r'for informational purposes only|not intended as|'
+    r'source:|sources?:|\[\d+\]|footnote|endnote))',
+    re.MULTILINE
+)
+_PDF_TRANSLATABLE_DISCLAIMER_LABELS = {
+    "this report is intended for",
+}
+_PDF_TRANSLATABLE_REPORT_STRUCTURE_RE = re.compile(
+    r"(?is)^\s*this\s+report\s+is\s+"
+    r"(?:comprised|composed|organised|organized|structured|divided|arranged|made\s+up)\s+"
+    r"(?:of|into)\b"
+)
+WATERMARK_PATTERNS = re.compile(
+    r'(?i)\b(draft|confidential|sample|watermark|do not distribute|internal use|'
+    r'for review only|preliminary|intended for|copy)\b'
+)
+_PDF_NUMBERED_PARAGRAPH_LEAD_RE = re.compile(
+    rf"^\s*(?P<marker>(?:{_PDF_PARAGRAPH_MARKER_ATOM}[.)]|"
+    rf"\({_PDF_PARAGRAPH_MARKER_ATOM}\)))\s+(?=\S)"
+)
+_PDF_BULLETED_PARAGRAPH_LEAD_RE = re.compile(
+    r"^\s*[\u2022\u25aa\u25cf\u25e6\u2043\u2219\uf0b7\-*\u00b7]+\s+(?=\S)"
+)
+_PDF_FOOTNOTE_MARKER_RE = re.compile(r"^(?:\d{1,3}|[*\u2020\u2021\u00a7\u00b6]{1,3})$")
+
 
 log = logging.getLogger("translator")
 

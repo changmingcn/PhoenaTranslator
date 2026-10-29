@@ -13,11 +13,8 @@ import fitz
 from phoena_translator.pdf.geometry import (
     _get_pdf_elem_rect,
 )
-from phoena_translator.pdf.math_detection import (
-    _pdf_superscript_signature,
-    _plain_text,
-    _collapsed_plain_text,
-)
+from phoena_translator.pdf.inline_markup import _pdf_superscript_signature
+from phoena_translator.pdf.text_shape import _plain_text, _collapsed_plain_text
 
 log = logging.getLogger("translator")
 

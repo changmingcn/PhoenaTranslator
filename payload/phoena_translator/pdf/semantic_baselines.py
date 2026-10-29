@@ -6,7 +6,7 @@ import re
 
 import fitz
 
-from phoena_translator.pdf.math_detection import _looks_like_pdf_list_marker
+from phoena_translator.pdf.text_shape import _looks_like_pdf_list_marker
 from phoena_translator.pdf.semantic_text import (
     _join_pdf_line_fragments,
     _looks_like_pdf_paragraph_lead,

@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import re
-
 import fitz
+from phoena_translator.pdf.patterns import PDF_FORMULA_GUARD_PADDING
 
-from phoena_translator.pdf.types import (
-    PDF_FORMULA_GUARD_PADDING,
-)
 
 def _pdf_page_rotation(page) -> int:
     """Return the page's own ``/Rotate`` value, normalized to [0, 360)."""
@@ -395,3 +392,61 @@ def _get_pdf_primary_paragraph_rect(elem: dict) -> fitz.Rect:
     if len(paragraphs) == 1 and paragraphs[0].get("source_bbox"):
         return fitz.Rect(paragraphs[0]["source_bbox"])
     return _get_pdf_elem_rect(elem)
+
+
+def _filter_pdf_formula_safe_rects(
+    candidates: list[tuple[str, fitz.Rect]],
+    protected_rects: list,
+    padding: float = PDF_FORMULA_GUARD_PADDING,
+    anchor_rect: fitz.Rect | None = None,
+) -> list[tuple[str, fitz.Rect]]:
+    safe = []
+    clipped = []
+    seen_clipped = set()
+
+    for name, rect in candidates or []:
+        candidate = fitz.Rect(rect)
+        if not _pdf_rect_intersects_protected(candidate, protected_rects, padding):
+            safe.append((name, candidate))
+            continue
+
+        # Adjacent PDF lines commonly have sub-point gaps. The formula guard can
+        # therefore touch only a thin edge of an otherwise valid text box. Keep
+        # the guard intact and trim the box to its largest usable safe piece
+        # instead of treating one local collision as a document-wide failure.
+        pieces = _subtract_pdf_protected_rects(candidate, protected_rects, padding)
+        min_width = max(2.0, min(candidate.width * 0.35, 24.0))
+        viable = [
+            piece for piece in pieces
+            if piece.width >= min_width and piece.height >= 2.0
+        ]
+        if not viable:
+            continue
+
+        # A ladder candidate can extend well beyond the source text to make
+        # room for a longer translation.  If a formula cuts that extension in
+        # two, choosing the globally largest remainder can move the paragraph
+        # to the other side of the formula.  ASIC 452 p. 65 exposed the
+        # failure: a one-line footnote continuation jumped below the equation
+        # and overprinted the following citation.  Prefer the safe piece that
+        # still overlaps the source anchor; use area only as a later tie-break.
+        anchor = fitz.Rect(anchor_rect) if anchor_rect is not None else candidate
+        best = max(
+            viable,
+            key=lambda piece: (
+                (piece & anchor).get_area(),
+                -abs(piece.y0 - anchor.y0),
+                -abs(piece.x0 - anchor.x0),
+                piece.get_area(),
+                piece.width,
+            ),
+        )
+        key = tuple(round(value, 3) for value in (best.x0, best.y0, best.x1, best.y1))
+        if key in seen_clipped:
+            continue
+        seen_clipped.add(key)
+        clipped.append((f"{name}+formula-trim", best))
+
+    # Preserve the old preference for untouched rectangles. Formula-trimmed
+    # candidates are a fail-safe only when every original candidate collides.
+    return safe or clipped

@@ -4,25 +4,18 @@ from __future__ import annotations
 
 import logging
 import re
-
 import fitz
-
-from phoena_translator.pdf.types import (
-    _PDF_BARE_FOOTNOTE_LEAD_RE,
-    _PDF_SEMANTIC_TERMINAL_RE,
-)
+from phoena_translator.pdf.patterns import _PDF_BARE_FOOTNOTE_LEAD_RE
 from phoena_translator.pdf.geometry import (
     _get_pdf_elem_rect,
     _get_pdf_primary_paragraph_rect,
     _get_pdf_render_bbox,
 )
-from phoena_translator.pdf.math_detection import (
+from phoena_translator.pdf.text_shape import (
     _looks_like_pdf_list_marker,
     _collapsed_plain_text,
 )
-
 log = logging.getLogger("translator")
-
 from phoena_translator.pdf.semantic_references import (
     _looks_like_pdf_reference_entry_lead,
     _pdf_reference_entry_lead_counts,
@@ -41,6 +34,12 @@ from phoena_translator.pdf.semantic_text import (
 )
 from phoena_translator.pdf.model import ElementType, LayoutClass
 from phoena_translator.pdf.semantic_grouping import ParagraphIndent, build_merged_text_element, dominant_group_style, first_and_body_x0, group_adjacent, group_plain_and_rich, group_rect, group_source_lines, merge_groups
+
+
+_PDF_SEMANTIC_TERMINAL_RE = re.compile(
+    r"[.!?。！？:：;；][\"'’”)]*$"
+)
+
 
 
 def _pdf_detached_list_marker_target_score(

@@ -6,12 +6,11 @@ import fitz
 
 from phoena_translator.math_text import MATH_FUNCTION_WORDS
 from phoena_translator.pdf.semantic_text import log
-from phoena_translator.pdf.types import (
-    DISCLAIMER_PATTERNS,
+from phoena_translator.pdf.patterns import (
     PDF_FORMULA_GUARD_PADDING,
     PDF_TRANSLATABLE_CITATION_LABELS,
-    WATERMARK_PATTERNS,
 )
+from phoena_translator.pdf.semantic_text import DISCLAIMER_PATTERNS, WATERMARK_PATTERNS
 from phoena_translator.pdf.semantic_formulae import (
     _split_pdf_formula_adjacent_paragraph_elements,
     _pdf_wrapped_math_fragment_prose_words,

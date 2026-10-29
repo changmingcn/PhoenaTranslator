@@ -12,10 +12,7 @@ from phoena_translator.pdf.geometry import (
     _get_pdf_render_bbox,
     _get_pdf_source_ink_rect,
 )
-from phoena_translator.pdf.math_detection import (
-    _plain_text,
-    _collapsed_plain_text,
-)
+from phoena_translator.pdf.text_shape import _plain_text, _collapsed_plain_text
 from phoena_translator.pdf.semantic_text import (
     _join_pdf_line_fragments,
     _parse_pdf_toc_leader,

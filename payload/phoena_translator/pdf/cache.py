@@ -20,20 +20,15 @@ import stat
 import tempfile
 from pathlib import Path
 import fitz
-from phoena_translator.pdf.math_detection import (
+from phoena_translator.pdf.signatures import _pdf_signature_number
+from phoena_translator.pdf.inline_markup import (
     _pdf_inline_markup_preserved,
     _pdf_inline_math_fragments_preserved,
-    _pdf_signature_number,
-    _collapsed_plain_text,
 )
+from phoena_translator.pdf.text_shape import _collapsed_plain_text
 from phoena_translator.pdf.targets import (
     _pdf_element_requires_translation,
     _translate_pdf_deterministic_labels,
-)
-from phoena_translator.pdf.types import (
-    PDF_LAYOUT_CACHE_COMPATIBLE_VERSIONS,
-    PDF_LAYOUT_SEMANTICS_VERSION,
-    PDF_PAGE_CACHE_SCHEMA_VERSION,
 )
 from phoena_translator.pdf.translation import (
     _pdf_element_translation_needs_retry,
@@ -45,6 +40,28 @@ from phoena_translator.pdf.model import (
     PdfAudit,
     SkipReason,
 )
+
+
+PDF_PAGE_CACHE_SCHEMA_VERSION = 3
+PDF_LAYOUT_SEMANTICS_VERSION = "2026-08-semantic-paragraphs-v39"
+# These older geometry identities remain safe to rebind. The identity
+# migration rejects split/merged cells, and active validation retranslates
+# semantically incomplete survivors.
+PDF_LAYOUT_CACHE_COMPATIBLE_VERSIONS = {
+    PDF_LAYOUT_SEMANTICS_VERSION,
+    "2026-07-semantic-paragraphs-v29",
+    "2026-07-semantic-paragraphs-v28",
+    "2026-07-semantic-paragraphs-v27",
+    "2026-07-semantic-paragraphs-v26",
+    "2026-07-semantic-paragraphs-v22",
+    "2026-07-semantic-paragraphs-v21",
+    "2026-07-semantic-paragraphs-v20",
+    "2026-07-semantic-paragraphs-v19",
+    "2026-07-semantic-paragraphs-v13",
+    "2026-07-semantic-paragraphs-v12",
+    "2026-07-semantic-paragraphs-v11",
+}
+
 
 log = logging.getLogger("translator")
 

@@ -15,21 +15,20 @@ from phoena_translator.math_text import (
     is_math_block as _is_math_block,
     unicode_math_symbol_count as _unicode_math_symbol_count,
 )
-from phoena_translator.pdf.types import (
-    PDFStructureValidationError,
-)
-from phoena_translator.pdf.math_detection import (
-    _looks_like_pdf_identifier_line,
+from phoena_translator.pdf.errors import PDFStructureValidationError
+from phoena_translator.pdf.math_detection import _looks_like_pdf_identifier_line
+from phoena_translator.pdf.signatures import _pdf_formula_region_signature
+from phoena_translator.pdf.superscripts import (
     _pdf_exact_source_native_superscript_matches,
-    _pdf_formula_region_signature,
     _pdf_is_semantic_superscript_marker,
-    _pdf_marker_pattern,
     _pdf_nearby_superscript_reference,
     _pdf_span_has_lexical_text,
-    _pdf_superscript_signature,
-    _plain_text,
-    _collapsed_plain_text,
 )
+from phoena_translator.pdf.inline_markup import (
+    _pdf_marker_pattern,
+    _pdf_superscript_signature,
+)
+from phoena_translator.pdf.text_shape import _plain_text, _collapsed_plain_text
 from phoena_translator.pdf.extraction import (
     _pdf_vector_ocr_normalized_match_text,
     _render_pdf_page_png_for_ocr,

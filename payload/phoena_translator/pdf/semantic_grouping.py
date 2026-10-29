@@ -19,7 +19,7 @@ from phoena_translator.pdf.geometry import (
     _get_pdf_primary_paragraph_rect,
     _get_pdf_render_bbox,
 )
-from phoena_translator.pdf.math_detection import _collapsed_plain_text, _plain_text
+from phoena_translator.pdf.text_shape import _collapsed_plain_text, _plain_text
 from phoena_translator.pdf.semantic_text import (
     _join_pdf_line_fragments,
     _pick_pdf_dominant_value,

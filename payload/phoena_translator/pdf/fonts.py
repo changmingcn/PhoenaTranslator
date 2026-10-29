@@ -5,10 +5,8 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from phoena_translator.pdf.math_detection import (
-    _normalize_pdf_translation,
-    _plain_text,
-)
+from phoena_translator.pdf.inline_markup import _normalize_pdf_translation
+from phoena_translator.pdf.text_shape import _plain_text
 from phoena_translator.pdf.model import ElementType
 
 try:

@@ -146,16 +146,16 @@ def test_get_app_config_is_memoized():
 
 
 def test_pdf_constants_share_the_process_config():
-    import phoena_translator.pdf.types as pdf_types
+    import phoena_translator.pdf.settings as pdf_settings
 
     config = get_app_config()
     assert (
-        pdf_types.PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE
+        pdf_settings.PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE
         == config.pdf_min_acceptable_htmlbox_scale
     )
-    assert pdf_types.PDF_VECTOR_OCR_DPI == config.pdf_vector_ocr_dpi
+    assert pdf_settings.PDF_VECTOR_OCR_DPI == config.pdf_vector_ocr_dpi
     assert (
-        pdf_types.PDF_VECTOR_OCR_MIN_ALPHA_WORDS
+        pdf_settings.PDF_VECTOR_OCR_MIN_ALPHA_WORDS
         == config.pdf_vector_ocr_min_alpha_words
     )
 
@@ -1071,7 +1071,7 @@ class TestZeroProgressCircuitBreaker:
         from phoena_translator.pdf.translation_stage import (
             _require_translated_page_progress,
         )
-        from phoena_translator.pdf.types import PDFPageTranslationError
+        from phoena_translator.pdf.errors import PDFPageTranslationError
 
         context = self._context(
             {
@@ -1285,9 +1285,7 @@ class TestCrossPageRichDestination:
             _collect_pdf_superscript_expectations,
             _validate_pdf_orphan_tail_decision,
         )
-        from phoena_translator.pdf.math_detection import (
-            _pdf_superscript_signature,
-        )
+        from phoena_translator.pdf.inline_markup import _pdf_superscript_signature
         from phoena_translator.pdf.semantic_cross_page import (
             _merge_cross_page_sentences,
         )
@@ -3004,7 +3002,7 @@ def test_cache_identity_typed_core_preserves_legacy_digest():
 
 
 def test_native_superscript_flag_does_not_turn_same_baseline_prose_into_markup():
-    from phoena_translator.pdf.math_detection import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
 
     # This mirrors the corrupt MuPDF span flags observed after a split T_3 1/2
     # expression: the following ordinary 11.96pt prose is flagged as native
@@ -3059,7 +3057,7 @@ def test_native_superscript_flag_does_not_turn_same_baseline_prose_into_markup()
 
 
 def test_native_superscript_flag_keeps_a_smaller_raised_marker():
-    from phoena_translator.pdf.math_detection import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
 
     spans = [
         {
@@ -3092,7 +3090,7 @@ def test_native_superscript_flag_keeps_a_smaller_raised_marker():
 
 
 def test_native_superscript_flag_keeps_a_same_size_raised_marker():
-    from phoena_translator.pdf.math_detection import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
 
     spans = [
         {
@@ -3124,7 +3122,7 @@ def test_native_superscript_flag_keeps_a_same_size_raised_marker():
 
 
 def test_native_superscript_flag_keeps_a_marker_only_line():
-    from phoena_translator.pdf.math_detection import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
 
     spans = [{
         "text": "\u2020",
@@ -3144,7 +3142,7 @@ def test_native_superscript_flag_keeps_a_marker_only_line():
 
 
 def test_native_superscript_flag_rejects_a_remote_unrelated_reference():
-    from phoena_translator.pdf.math_detection import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
 
     spans = [
         {
@@ -3175,7 +3173,7 @@ def test_native_superscript_flag_rejects_a_remote_unrelated_reference():
 
 
 def test_native_superscript_geometry_accepts_the_inclusive_raise_boundary():
-    from phoena_translator.pdf.math_detection import _mark_pdf_superscript_spans
+    from phoena_translator.pdf.superscripts import _mark_pdf_superscript_spans
 
     spans = [
         {
@@ -3389,7 +3387,7 @@ def test_render_failure_restores_source_pages_without_restarting_pipeline(
     import fitz
 
     from phoena_translator.pdf import assembly
-    from phoena_translator.pdf.types import PDFPageRenderError
+    from phoena_translator.pdf.errors import PDFPageRenderError
 
     source_path = tmp_path / "source.pdf"
     work_path = tmp_path / "assembly-work.pdf"
@@ -3456,7 +3454,7 @@ def test_assembly_continues_after_an_inline_render_source_fallback(monkeypatch):
     from types import SimpleNamespace
 
     from phoena_translator.pdf import assembly
-    from phoena_translator.pdf.types import PDFPageRenderError
+    from phoena_translator.pdf.errors import PDFPageRenderError
 
     attempted = []
 
@@ -4015,11 +4013,11 @@ def test_three_page_merges_keep_two_independent_source_owners():
 
 def test_pdf_lexical_angle_phrase_survives_translation_protection_and_rendering():
     """BOJ p4: ``<JPY short position>`` is prose, not an HTML tag."""
-    from phoena_translator.pdf.math_detection import (
-        _normalize_pdf_translation,
+    from phoena_translator.pdf.placeholders import (
         _protect_pdf_inline_math_fragments,
         _restore_pdf_inline_math_fragments,
     )
+    from phoena_translator.pdf.inline_markup import _normalize_pdf_translation
     from phoena_translator.pdf.rendering import _pdf_text_to_html
 
     source = "valuation losses of inventories <JPY short position> caused by appreciation"
@@ -4050,7 +4048,7 @@ def test_pdf_lexical_angle_phrase_survives_translation_protection_and_rendering(
 
 
 def test_pdf_normalizer_still_removes_known_html_wrappers():
-    from phoena_translator.pdf.math_detection import _normalize_pdf_translation
+    from phoena_translator.pdf.inline_markup import _normalize_pdf_translation
 
     assert _normalize_pdf_translation("<p>Hello</p>") == "Hello"
 
@@ -4330,9 +4328,7 @@ def _single_formula_page(rotation: int):
 
 
 def test_formula_signature_survives_a_rotated_page():
-    from phoena_translator.pdf.math_detection import (
-        _pdf_formula_region_signature,
-    )
+    from phoena_translator.pdf.signatures import _pdf_formula_region_signature
 
     bbox = [295.0, 686.0, 390.0, 706.0]
     upright_doc, upright_page = _single_formula_page(0)

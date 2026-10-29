@@ -19,16 +19,14 @@ from phoena_translator.pdf.geometry import (
     _pdf_rect_intersects_protected,
     _subtract_pdf_protected_rects,
 )
-from phoena_translator.pdf.math_detection import (
-    _normalize_pdf_translation,
-    _plain_text,
-    _collapsed_plain_text,
-)
-from phoena_translator.pdf.types import (
-    PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE,
-    PDF_TEXT_NEIGHBOR_GUARD_PADDING,
-)
+from phoena_translator.pdf.inline_markup import _normalize_pdf_translation
+from phoena_translator.pdf.text_shape import _plain_text, _collapsed_plain_text
+from phoena_translator.pdf.settings import PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE
 from phoena_translator.pdf.model import ElementType
+
+
+PDF_TEXT_NEIGHBOR_GUARD_PADDING = 0.6
+
 
 log = logging.getLogger("translator")
 
