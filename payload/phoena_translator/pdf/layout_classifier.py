@@ -147,3 +147,43 @@ def _classify_pdf_page_text_elements(elements: list[dict], page_rect: fitz.Rect)
 
     _mark_pdf_glossary_term_elements(elements, page_rect)
     return classifications
+
+
+def _pdf_element_is_body_prose(elem: dict, dominant_fontsize: float) -> bool:
+    """Running prose set in the document's body type — never a table cell.
+
+    A preserved element keeps its English ink, which is right for grid cells
+    and chart labels and never right for a paragraph.  Three signals have to
+    agree, because each one alone has a real counter-example:
+
+    * body type — data tables and chart annotations are set smaller than the
+      running text, but a term/definition table is not;
+    * a sentence's worth of words (the threshold matches
+      ``_looks_like_pdf_body_text_false_table`` so both prose/table
+      discriminators read the same), but a cell can hold a whole sentence;
+    * and either enough words that no cell would hold them, or a line wrap —
+      a cell is laid out to fit its row, a paragraph wraps.
+    """
+    if elem.get("type") != ElementType.TEXT:
+        return False
+    plain = _collapsed_plain_text(elem.get("content") or "")
+    words = len(re.findall(r"[A-Za-z][A-Za-z'’-]*", plain))
+    if words < 8:
+        return False
+    fontsize = float(
+        elem.get("fontsize", dominant_fontsize) or dominant_fontsize
+    )
+    if fontsize < dominant_fontsize * 0.92:
+        return False
+    if words >= 12:
+        return True
+    line_height = max(
+        float(elem.get("line_height", 0.0) or 0.0),
+        fontsize * 1.2,
+        8.0,
+    )
+    try:
+        rect = _get_pdf_elem_rect(elem)
+    except Exception:
+        return False
+    return rect.height > line_height * 1.6

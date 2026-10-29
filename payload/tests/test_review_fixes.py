@@ -1580,7 +1580,7 @@ class TestTablePreservation:
     """2026-07-24 policy: tables keep their original English ink verbatim."""
 
     def test_table_dominated_page_is_preserved(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1600,7 +1600,7 @@ class TestTablePreservation:
         assert {entry["trigger"] for entry in preserved} == {"page-density"}
 
     def test_prose_page_stray_table_elements_keep_translating(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1613,7 +1613,7 @@ class TestTablePreservation:
         assert all("skip_translate_reason" not in e for e in elements)
 
     def test_region_detected_cells_always_preserved(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1627,7 +1627,7 @@ class TestTablePreservation:
         assert elements[6]["skip_translate_reason"] == "table_preserved"
 
     def test_grid_union_sweeps_misclassified_cells(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1674,7 +1674,7 @@ class TestTablePreservation:
         assert "skip_translate_reason" not in notes
 
     def test_title_page_author_block_keeps_translating(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1712,7 +1712,7 @@ class TestTablePreservation:
         assert all("skip_translate_reason" not in e for e in elements)
 
     def test_existing_skip_reason_is_not_overridden(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1743,7 +1743,7 @@ class TestTablePreservation:
     # paragraphs; one of those seeded the sweep, and the sweep — one box grown
     # from cells in BOTH text columns — then walked up the page.
     def test_body_paragraph_stamped_table_keeps_translating(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1782,7 +1782,7 @@ class TestTablePreservation:
         assert "skip_translate_reason" not in body
 
     def test_grid_sweep_does_not_cross_text_columns(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1824,7 +1824,7 @@ class TestTablePreservation:
         assert "skip_translate_reason" not in neighbour
 
     def test_grid_sweep_leaves_stacked_reference_entries_alone(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1858,7 +1858,7 @@ class TestTablePreservation:
     def test_grid_sweep_stops_at_the_running_footer(self):
         import fitz
 
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1886,7 +1886,7 @@ class TestTablePreservation:
         assert "skip_translate_reason" not in footer
 
     def test_page_prose_freeze_rolls_the_whole_page_back(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.table_preservation import (
             _mark_pdf_table_preserved_elements,
         )
 
@@ -1917,7 +1917,7 @@ class TestTablePreservation:
         assert rollbacks[0]["released_elements"] == 5
 
     def test_untranslated_delivered_page_is_reported(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.leak_audit import (
             collect_untranslated_delivered_pages,
         )
 
@@ -1942,7 +1942,7 @@ class TestTablePreservation:
         assert findings[0]["reasons"] == ["table_preserved"]
 
     def test_all_table_page_is_not_reported_as_untranslated(self):
-        from phoena_translator.pdf.extraction_stage import (
+        from phoena_translator.pdf.leak_audit import (
             collect_untranslated_delivered_pages,
         )
 
@@ -2809,7 +2809,7 @@ def test_warm_cache_policy_transition_reconciles_before_completion(tmp_path):
 
 def test_table_cache_policy_transition_matrix(tmp_path):
     from phoena_translator.pdf import cache
-    from phoena_translator.pdf.extraction_stage import (
+    from phoena_translator.pdf.table_preservation import (
         _mark_pdf_table_preserved_elements,
     )
 

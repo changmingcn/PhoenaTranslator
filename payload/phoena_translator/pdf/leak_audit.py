@@ -13,8 +13,18 @@ from phoena_translator.pdf.translation_targets import (
     _pdf_element_requires_translation,
     _pdf_translation_language_views,
 )
-from phoena_translator.pdf.model import ElementType
+from phoena_translator.pdf.model import ElementType, PageExtraction
 from phoena_translator.math_text import MATH_FUNCTION_WORDS
+from phoena_translator.pdf.semantic_cross_page import _cross_page_dominant_fontsize
+from phoena_translator.pdf.layout_classifier import _pdf_element_is_body_prose
+
+
+# A page with less running prose than this is a plate: a full-page chart, a
+# table sheet, a cover.  Above it, delivering almost none of that prose in the
+# target language is a defect however the elements got exempted.
+PDF_UNTRANSLATED_PAGE_MIN_PROSE_CHARS = 400
+PDF_UNTRANSLATED_PAGE_MIN_TRANSLATED_SHARE = 0.25
+
 
 
 _PDF_UNTRANSLATED_LEAK_WORD_RE = re.compile(
@@ -205,3 +215,59 @@ def _pdf_collect_untranslated_english_leaks(
     except Exception:
         return entries
     return entries
+
+
+def collect_untranslated_delivered_pages(
+    page_extractions: dict[int, PageExtraction],
+    page_rects: dict | None = None,
+) -> list[dict]:
+    """Report pages whose body prose will ship almost entirely as source.
+
+    Every existing delivery gate keys off ``skip_translate_reason`` or
+    ``_pdf_element_requires_translation``, so the one decision that exempts an
+    element also excuses it from every later check.  Page 4 of a 2020 Bank of
+    Japan Review shipped 100% English with an empty leak list, no element
+    fallbacks and ``structure_check: ok``, because "everything was exempted"
+    is indistinguishable from "nothing leaked".  This asks the one question
+    none of them ask: did the reader get this page in the target language?
+
+    Reports only.  Nothing here may block or fall back — a page that is
+    legitimately all table still delivers.
+    """
+    del page_rects  # reserved; prose detection is typographic, not positional
+    findings: list[dict] = []
+    dominant_fontsize = _cross_page_dominant_fontsize(page_extractions or {})
+    for page_num in sorted(page_extractions or {}):
+        info = page_extractions.get(page_num) or {}
+        elements = info.get("elements") or []
+        if not elements:
+            continue  # appendix, skip page, or an already-declared fallback
+        prose = [
+            elem
+            for elem in elements
+            if _pdf_element_is_body_prose(elem, dominant_fontsize)
+        ]
+        total = sum(len(str(elem.get("content", ""))) for elem in prose)
+        if total < PDF_UNTRANSLATED_PAGE_MIN_PROSE_CHARS:
+            continue
+        translatable = sum(
+            len(str(elem.get("content", "")))
+            for elem in prose
+            if _pdf_element_requires_translation(elem)
+        )
+        if translatable >= total * PDF_UNTRANSLATED_PAGE_MIN_TRANSLATED_SHARE:
+            continue
+        reasons = sorted(
+            {
+                str(elem.get("skip_translate_reason"))
+                for elem in prose
+                if elem.get("skip_translate_reason")
+            }
+        )
+        findings.append({
+            "page": int(page_num) + 1,
+            "prose_chars": int(total),
+            "translatable_prose_chars": int(translatable),
+            "reasons": reasons,
+        })
+    return findings
