@@ -48,10 +48,8 @@ from phoena_translator.pdf.semantic_text import (
     _mark_watermark_elements,
 )
 from phoena_translator.pdf.semantic_cross_page import _merge_cross_page_sentences
-from phoena_translator.pdf.targets import (
-    _classify_pdf_page_text_elements,
-    _pdf_element_requires_translation,
-)
+from phoena_translator.pdf.layout_classifier import _classify_pdf_page_text_elements
+from phoena_translator.pdf.translation_targets import _pdf_element_requires_translation
 from phoena_translator.pdf.translation import _validate_pdf_page_translations
 from phoena_translator.storage_layout import pdf_page_cache_dir
 from phoena_translator.pdf.errors import (

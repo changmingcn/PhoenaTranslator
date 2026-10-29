@@ -58,7 +58,7 @@ from phoena_translator.pdf.pipeline import (
     PDFPipelineDependencies,
     translate_pdf as _translate_pdf_impl,
 )
-from phoena_translator.pdf.targets import _extract_page_elements
+from phoena_translator.pdf.page_extraction import _extract_page_elements
 from phoena_translator.pdf.translation import (
     PDFTranslationDependencies,
     translate_text as _translate_text_impl,

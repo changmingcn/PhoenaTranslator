@@ -38,7 +38,7 @@ class _BrokenPage:
 
 
 def test_pdf_text_extraction_failure_propagates():
-    from phoena_translator.pdf.targets import _extract_pdf_text_elements
+    from phoena_translator.pdf.page_extraction import _extract_pdf_text_elements
 
     with pytest.raises(RuntimeError, match="mupdf page decode failed"):
         _extract_pdf_text_elements(_BrokenPage(), [])
@@ -1721,7 +1721,7 @@ class TestTablePreservation:
         )
 
     def test_preserved_elements_leave_translation_set(self):
-        from phoena_translator.pdf.targets import (
+        from phoena_translator.pdf.translation_targets import (
             _pdf_element_requires_translation,
         )
 
@@ -2072,8 +2072,10 @@ class TestTablePreservation:
         assert _pdf_internal_paragraph_lead_residuals(merged) == []
 
     def test_two_column_study_group_directory_preserves_names(self):
-        from phoena_translator.pdf.targets import (
+        from phoena_translator.pdf.semantic_entities import (
             _mark_pdf_entity_directory_elements,
+        )
+        from phoena_translator.pdf.translation_targets import (
             _pdf_element_requires_translation,
         )
 
@@ -2475,7 +2477,7 @@ def test_cross_page_merge_keeps_regular_wrap_after_bold_page_top_line():
 
 
 def test_pdf_bold_run_in_sentence_wrapping_into_mixed_line_stays_one_segment():
-    from phoena_translator.pdf.targets import _split_pdf_heading_segments
+    from phoena_translator.pdf.page_extraction import _split_pdf_heading_segments
 
     lines = [
         {
@@ -2516,7 +2518,7 @@ def test_pdf_bold_run_in_sentence_wrapping_into_mixed_line_stays_one_segment():
 
 
 def test_pdf_standalone_bold_heading_still_splits_from_regular_body():
-    from phoena_translator.pdf.targets import _split_pdf_heading_segments
+    from phoena_translator.pdf.page_extraction import _split_pdf_heading_segments
 
     heading = {
         "plain": "Economic Outlook",
@@ -4348,7 +4350,7 @@ def test_formula_signature_survives_a_rotated_page():
 
 
 def test_one_unsignable_formula_does_not_strip_its_page_siblings(monkeypatch):
-    from phoena_translator.pdf import targets
+    from phoena_translator.pdf import page_extraction
 
     attempted = []
 
@@ -4359,7 +4361,7 @@ def test_one_unsignable_formula_does_not_strip_its_page_siblings(monkeypatch):
         return {"signature_sha256": "b" * 64, "span_count": 1}
 
     monkeypatch.setattr(
-        targets,
+        page_extraction,
         "_pdf_formula_region_signature",
         flaky_signature,
     )
@@ -4370,7 +4372,7 @@ def test_one_unsignable_formula_does_not_strip_its_page_siblings(monkeypatch):
         {"type": "formula_image", "bbox": [10.0, 90.0, 40.0, 110.0]},
     ]
 
-    enriched = targets._enrich_pdf_page_elements(page, elements, [])
+    enriched = page_extraction._enrich_pdf_page_elements(page, elements, [])
 
     assert len(attempted) == 3, "every formula must be attempted"
     assert "math_signature" not in enriched[0]
@@ -4390,7 +4392,7 @@ def _glyph_span(text: str, x0: float, x1: float, y0: float = 86.83, color: int =
 
 
 def test_ink_stroked_twice_in_place_is_collapsed_to_one_span():
-    from phoena_translator.pdf.targets import _drop_pdf_duplicate_glyph_spans
+    from phoena_translator.pdf.page_extraction import _drop_pdf_duplicate_glyph_spans
 
     line = "that this is equivalent to maximizing the expected value "
     page_dict = {
@@ -4413,7 +4415,7 @@ def test_ink_stroked_twice_in_place_is_collapsed_to_one_span():
 
 
 def test_repeated_text_at_a_different_position_is_kept():
-    from phoena_translator.pdf.targets import _drop_pdf_duplicate_glyph_spans
+    from phoena_translator.pdf.page_extraction import _drop_pdf_duplicate_glyph_spans
 
     page_dict = {
         "blocks": [
@@ -4440,7 +4442,7 @@ def test_repeated_text_at_a_different_position_is_kept():
 
 
 def test_duplicate_detection_leaves_image_blocks_and_whitespace_alone():
-    from phoena_translator.pdf.targets import _drop_pdf_duplicate_glyph_spans
+    from phoena_translator.pdf.page_extraction import _drop_pdf_duplicate_glyph_spans
 
     page_dict = {
         "blocks": [
@@ -4482,7 +4484,7 @@ def test_a_bare_doi_line_is_not_protected_as_formula_geometry():
 
 
 def test_duplicate_collapse_keeps_the_last_drawn_copy_not_the_white_knockout():
-    from phoena_translator.pdf.targets import _drop_pdf_duplicate_glyph_spans
+    from phoena_translator.pdf.page_extraction import _drop_pdf_duplicate_glyph_spans
 
     line = "differs from the semiconductor industry in at least "
     # Apache FOP emits a white knockout copy FIRST and the readable copy
@@ -4694,8 +4696,10 @@ class TestRotatedPageCoordinateSpace:
         import fitz
 
         from phoena_translator.pdf.geometry import _pdf_page_extraction_rect
-        from phoena_translator.pdf.targets import (
-            _classify_pdf_page_text_elements, _extract_page_elements)
+        from phoena_translator.pdf.page_extraction import _extract_page_elements
+        from phoena_translator.pdf.layout_classifier import (
+            _classify_pdf_page_text_elements,
+        )
 
         doc, page = self._rotated_page(90)
         elements = _extract_page_elements(page, doc)
@@ -4755,7 +4759,7 @@ class TestStructuredIdentifierRowExemption:
     ]
 
     def test_identifier_rows_are_recognized(self):
-        from phoena_translator.pdf.targets import (
+        from phoena_translator.pdf.translation_targets import (
             _looks_like_pdf_structured_identifier_row,
         )
 
@@ -4763,7 +4767,7 @@ class TestStructuredIdentifierRowExemption:
             assert _looks_like_pdf_structured_identifier_row(row), row
 
     def test_prose_and_caption_labels_are_not(self):
-        from phoena_translator.pdf.targets import (
+        from phoena_translator.pdf.translation_targets import (
             _looks_like_pdf_structured_identifier_row,
         )
 
@@ -4791,7 +4795,7 @@ class TestStructuredIdentifierRowExemption:
         )
 
     def test_admission_gate_skips_identifier_rows(self):
-        from phoena_translator.pdf.targets import (
+        from phoena_translator.pdf.translation_targets import (
             _pdf_element_requires_translation,
         )
 
@@ -4813,7 +4817,7 @@ class TestStructuredIdentifierRowExemption:
         assert not _pdf_element_requires_translation(table)
 
     def test_bold_or_body_rows_keep_translating(self):
-        from phoena_translator.pdf.targets import (
+        from phoena_translator.pdf.translation_targets import (
             _pdf_element_requires_translation,
         )
 
@@ -4830,7 +4834,7 @@ class TestStructuredIdentifierRowExemption:
         assert _pdf_element_requires_translation(body_row)
 
     def test_header_cells_keep_translating(self):
-        from phoena_translator.pdf.targets import (
+        from phoena_translator.pdf.translation_targets import (
             _pdf_element_requires_translation,
         )
 
@@ -4952,13 +4956,17 @@ class TestContactLineAndDateLabelExemption:
     ]
 
     def test_contact_lines_are_recognized(self):
-        from phoena_translator.pdf.targets import _looks_like_pdf_contact_line
+        from phoena_translator.pdf.translation_targets import (
+            _looks_like_pdf_contact_line,
+        )
 
         for line in self.CONTACT_LINES:
             assert _looks_like_pdf_contact_line(line), line
 
     def test_prose_with_numbers_is_not(self):
-        from phoena_translator.pdf.targets import _looks_like_pdf_contact_line
+        from phoena_translator.pdf.translation_targets import (
+            _looks_like_pdf_contact_line,
+        )
 
         for text in self.MUST_STILL_TRANSLATE:
             assert not _looks_like_pdf_contact_line(text), text
@@ -4972,7 +4980,7 @@ class TestContactLineAndDateLabelExemption:
             assert not _short_translation_needs_retry(line, line), line
 
     def test_full_date_labels_translate_deterministically(self):
-        from phoena_translator.pdf.targets import (
+        from phoena_translator.pdf.deterministic_labels import (
             _pdf_full_date_label_translation,
             _translate_pdf_deterministic_labels,
         )
@@ -4984,7 +4992,9 @@ class TestContactLineAndDateLabelExemption:
         assert _translate_pdf_deterministic_labels("05 August 2026") == "2026年8月5日"
 
     def test_partial_or_prose_dates_stay_with_the_model(self):
-        from phoena_translator.pdf.targets import _pdf_full_date_label_translation
+        from phoena_translator.pdf.deterministic_labels import (
+            _pdf_full_date_label_translation,
+        )
 
         assert _pdf_full_date_label_translation("May 2026") is None
         assert _pdf_full_date_label_translation("Released on 05 August 2026") is None
@@ -4992,7 +5002,7 @@ class TestContactLineAndDateLabelExemption:
         assert _pdf_full_date_label_translation("32 March 2026") is None
 
     def test_admission_gate_skips_bylines_and_dates(self):
-        from phoena_translator.pdf.targets import (
+        from phoena_translator.pdf.translation_targets import (
             _pdf_element_requires_translation,
         )
 

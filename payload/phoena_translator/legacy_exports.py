@@ -62,8 +62,10 @@ from phoena_translator.pdf.semantic_formulae import (
     _PDF_WRAPPED_MATH_PROSE_WORD_RE,  # noqa: F401 - legacy facade
     _PDF_WRAPPED_MATH_SCRIPT_LEAD_RE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.targets import (
+from phoena_translator.pdf.deterministic_labels import (
     PDF_FIXED_SHORT_LABEL_TRANSLATIONS,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.translation_targets import (
     _PDF_DISPLAY_IDENTITY_END_WORDS,  # noqa: F401 - legacy facade
     _PDF_PERSON_HONORIFICS,  # noqa: F401 - legacy facade
     _PDF_PROPER_NAME_SUFFIXES,  # noqa: F401 - legacy facade
@@ -251,13 +253,15 @@ from phoena_translator.pdf.semantic_references import (
     _translate_pdf_citation_labels,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.semantic_tables import (
-    _make_pdf_glossary_column_fragment,  # noqa: F401 - legacy facade
-    _merge_pdf_glossary_cell_group,  # noqa: F401 - legacy facade
     _merge_pdf_semantic_table_cells,  # noqa: F401 - legacy facade
     _merge_pdf_table_cell_group,  # noqa: F401 - legacy facade
-    _normalize_pdf_glossary_cells,  # noqa: F401 - legacy facade
     _pdf_compact_open_table_cell_groups,  # noqa: F401 - legacy facade
     _pdf_table_visual_line_bands,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.semantic_glossary import (
+    _make_pdf_glossary_column_fragment,  # noqa: F401 - legacy facade
+    _merge_pdf_glossary_cell_group,  # noqa: F401 - legacy facade
+    _normalize_pdf_glossary_cells,  # noqa: F401 - legacy facade
     _prepare_pdf_glossary_column_geometry,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.semantic_continuations import (
@@ -282,24 +286,34 @@ from phoena_translator.pdf.semantic_formulae import (
     _promote_pdf_formula_overlaps,  # noqa: F401 - legacy facade
     _split_pdf_formula_adjacent_paragraph_elements,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.targets import (
-    _classify_pdf_page_text_elements,  # noqa: F401 - legacy facade
-    _dedupe_pdf_translation_targets,  # noqa: F401 - legacy facade
+from phoena_translator.pdf.page_extraction import (
     _extract_page_elements,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.layout_classifier import (
+    _classify_pdf_page_text_elements,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.semantic_entities import (
+    _looks_like_pdf_entity_directory_row,  # noqa: F401 - legacy facade
+    _mark_pdf_entity_directory_elements,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.semantic_glossary import (
+    _mark_pdf_glossary_term_elements,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.deterministic_labels import (
+    _translate_pdf_deterministic_labels,  # noqa: F401 - legacy facade
+    _translate_pdf_fixed_short_label,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.translation_targets import (
+    _dedupe_pdf_translation_targets,  # noqa: F401 - legacy facade
     _is_preserved_nonlinguistic_text,  # noqa: F401 - legacy facade
     _is_preserved_short_citation,  # noqa: F401 - legacy facade
-    _looks_like_pdf_entity_directory_row,  # noqa: F401 - legacy facade
     _looks_like_pdf_proper_name_label,  # noqa: F401 - legacy facade
     _looks_like_pdf_translatable_short_label,  # noqa: F401 - legacy facade
     _looks_like_tiny_pdf_label,  # noqa: F401 - legacy facade
     _looks_like_translatable_english,  # noqa: F401 - legacy facade
-    _mark_pdf_entity_directory_elements,  # noqa: F401 - legacy facade
-    _mark_pdf_glossary_term_elements,  # noqa: F401 - legacy facade
     _pdf_element_is_multiline_display_title,  # noqa: F401 - legacy facade
     _pdf_element_requires_translation,  # noqa: F401 - legacy facade
     _pdf_translation_language_views,  # noqa: F401 - legacy facade
-    _translate_pdf_deterministic_labels,  # noqa: F401 - legacy facade
-    _translate_pdf_fixed_short_label,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.assembly import (
     PDF_HTMLBOX_SUPERSCRIPT_CSS,  # noqa: F401 - legacy facade

@@ -26,7 +26,7 @@ from phoena_translator.pdf.text_shape import _plain_text, _collapsed_plain_text
 from phoena_translator.pdf.semantic_references import (
     _looks_like_pdf_reference_entry_lead,
 )
-from phoena_translator.pdf.targets import (
+from phoena_translator.pdf.translation_targets import (
     _looks_like_pdf_contact_line,
     _looks_like_pdf_structured_identifier_row,
     _looks_like_pdf_translatable_short_label,

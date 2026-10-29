@@ -48,7 +48,7 @@ from phoena_translator.pdf.semantic_text import (
     _derive_pdf_page_layout_styles,
     _strip_pdf_toc_label,
 )
-from phoena_translator.pdf.targets import _translate_pdf_fixed_short_label
+from phoena_translator.pdf.deterministic_labels import _translate_pdf_fixed_short_label
 from phoena_translator.pdf.translation import (
     _pdf_collect_untranslated_english_leaks,
     _pdf_toc_entries,

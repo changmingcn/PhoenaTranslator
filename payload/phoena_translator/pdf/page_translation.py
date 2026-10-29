@@ -26,12 +26,14 @@ from phoena_translator.pdf.inline_markup import (
 )
 from phoena_translator.pdf.text_shape import _plain_text
 from phoena_translator.pdf.semantic_text import _is_disclaimer_block
-from phoena_translator.pdf.targets import (
+from phoena_translator.pdf.deterministic_labels import (
+    _translate_pdf_deterministic_labels,
+)
+from phoena_translator.pdf.translation_targets import (
     _dedupe_pdf_translation_targets,
     _looks_like_translatable_english,
     _pdf_element_requires_translation,
     _pdf_translation_language_views,
-    _translate_pdf_deterministic_labels,
 )
 from phoena_translator.pdf.translation import (
     _build_pdf_batch_segment_envelope,

@@ -26,10 +26,10 @@ from phoena_translator.pdf.inline_markup import (
     _pdf_inline_math_fragments_preserved,
 )
 from phoena_translator.pdf.text_shape import _collapsed_plain_text
-from phoena_translator.pdf.targets import (
-    _pdf_element_requires_translation,
+from phoena_translator.pdf.deterministic_labels import (
     _translate_pdf_deterministic_labels,
 )
+from phoena_translator.pdf.translation_targets import _pdf_element_requires_translation
 from phoena_translator.pdf.translation import (
     _pdf_element_translation_needs_retry,
 )

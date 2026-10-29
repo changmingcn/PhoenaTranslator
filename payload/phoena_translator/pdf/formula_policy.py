@@ -10,7 +10,7 @@ from phoena_translator.pdf.model import (
     PageExtraction,
     SkipReason,
 )
-from phoena_translator.pdf.targets import _pdf_element_requires_translation
+from phoena_translator.pdf.translation_targets import _pdf_element_requires_translation
 from phoena_translator.pdf.semantic_text import (
     _ends_with_sentence_boundary,
     _is_heading_like_elem,
