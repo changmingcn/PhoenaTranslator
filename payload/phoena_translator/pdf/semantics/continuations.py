@@ -154,16 +154,8 @@ def _merge_pdf_detached_list_marker_elements(
     merged_elements = list(elements)
     removed_indices: set[int] = set()
     for marker_index, marker in enumerate(merged_elements):
-        marker_plain = _collapsed_plain_text(marker.get("content", ""))
-        if (
-            marker.get("type") != ElementType.TEXT
-            or not _looks_like_pdf_list_marker(marker_plain)
-            or marker.get("table_hint")
-            or marker.get("preserve_source_style")
-            or marker.get("non_horizontal")
-        ):
+        if not _is_pdf_detached_list_marker(marker):
             continue
-
         scored_targets = []
         for candidate_index, candidate in enumerate(merged_elements):
             if candidate_index in removed_indices:
@@ -177,117 +169,12 @@ def _merge_pdf_detached_list_marker_elements(
                 scored_targets.append((score, candidate_index))
         if not scored_targets:
             continue
-
         _, target_index = min(scored_targets)
-        target = merged_elements[target_index]
-        target_paragraph = next(
-            paragraph
-            for paragraph in (target.get("paragraphs") or [])
-            if (paragraph.get("plain") or "").strip()
+        merged_elements[target_index] = _merge_pdf_list_marker_into(
+            marker,
+            merged_elements[target_index],
+            page_rect,
         )
-        marker_rect = _get_pdf_primary_paragraph_rect(marker)
-        target_rect = _get_pdf_primary_paragraph_rect(target)
-        merged_rect = marker_rect | target_rect
-
-        target_plain = _collapsed_plain_text(target.get("content", ""))
-        target_rich = (target.get("rich_content") or target.get("content", "")).strip()
-        marker_rich = (marker.get("rich_content") or marker.get("content", "")).strip()
-        merged_plain = f"{marker_plain} {target_plain}".strip()
-        merged_rich = f"{marker_rich} {target_rich}".strip()
-
-        source_lines = [
-            dict(line)
-            for line in (target_paragraph.get("source_lines") or [])
-            if (line.get("plain") or "").strip()
-        ]
-        if source_lines:
-            first_line = dict(source_lines[0])
-            first_line_rect = (
-                fitz.Rect(first_line.get("bbox", target_rect)) | marker_rect
-            )
-            first_line.update(
-                {
-                    "plain": f"{marker_plain} {first_line.get('plain', '').strip()}".strip(),
-                    "rich": f"{marker_rich} {(first_line.get('rich') or first_line.get('plain', '')).strip()}".strip(),
-                    "bbox": [float(value) for value in first_line_rect],
-                }
-            )
-            source_lines[0] = first_line
-        else:
-            source_lines = [
-                {
-                    "plain": merged_plain,
-                    "rich": merged_rich,
-                    "bbox": [float(value) for value in merged_rect],
-                }
-            ]
-
-        body_x0 = float(target_rect.x0)
-        paragraph = dict(target_paragraph)
-        paragraph.update(
-            {
-                "plain": merged_plain,
-                "rich": merged_rich,
-                "source_bbox": [float(value) for value in merged_rect],
-                "source_line_bboxes": [
-                    [float(value) for value in line["bbox"]] for line in source_lines
-                ],
-                "source_lines": source_lines,
-                "margin_left": min(
-                    max(body_x0 - merged_rect.x0, 0.0),
-                    merged_rect.width * PARAGRAPH_MAX_MARGIN_SHARE,
-                ),
-                "text_indent": max(
-                    -merged_rect.width * PARAGRAPH_MAX_HANGING_SHARE,
-                    float(marker_rect.x0) - body_x0,
-                ),
-                "gap_before": 0.0,
-                "text_align": "left",
-                "nowrap": None,
-                "first_line_indent": False,
-                "toc_leader": _parse_pdf_toc_leader(merged_plain),
-            }
-        )
-
-        merged = dict(target)
-        merged.update(
-            {
-                "y": float(merged_rect.y0),
-                "x": float(merged_rect.x0),
-                "rect": fitz.Rect(merged_rect),
-                "bbox": [float(value) for value in merged_rect],
-                "render_bbox": _get_pdf_render_bbox(
-                    merged_rect,
-                    page_rect,
-                    [paragraph],
-                    float(target.get("fontsize", DEFAULT_FONTSIZE)),
-                ),
-                "content": merged_plain,
-                "rich_content": merged_rich
-                if (target.get("rich_content") or marker.get("rich_content"))
-                else None,
-                "paragraphs": [paragraph],
-                "superscript_runs": [
-                    dict(run)
-                    for elem in (marker, target)
-                    for run in (elem.get("superscript_runs") or [])
-                ],
-                "inline_math_fragments": [
-                    dict(fragment)
-                    for elem in (marker, target)
-                    for fragment in (elem.get("inline_math_fragments") or [])
-                ],
-                "merged_visual_line_count": max(
-                    int(target.get("merged_visual_line_count") or 1),
-                    len(source_lines),
-                ),
-                "source_line_bboxes": [
-                    [float(value) for value in line["bbox"]] for line in source_lines
-                ],
-                "detached_list_marker_merged": True,
-            }
-        )
-        merged_elements[target_index] = merged
         removed_indices.add(marker_index)
 
     result = [
@@ -305,6 +192,166 @@ def _merge_pdf_detached_list_marker_elements(
         )
     )
     return result
+
+
+def _is_pdf_detached_list_marker(elem: dict) -> bool:
+    return not (
+        elem.get("type") != ElementType.TEXT
+        or not _looks_like_pdf_list_marker(_collapsed_plain_text(elem.get("content", "")))
+        or elem.get("table_hint")
+        or elem.get("preserve_source_style")
+        or elem.get("non_horizontal")
+    )
+
+
+def _merge_pdf_list_marker_into(marker: dict, target: dict, page_rect: fitz.Rect) -> dict:
+    """The target paragraph with ``marker`` prefixed to its text and geometry."""
+    target_paragraph = next(
+        paragraph
+        for paragraph in (target.get("paragraphs") or [])
+        if (paragraph.get("plain") or "").strip()
+    )
+    marker_rect = _get_pdf_primary_paragraph_rect(marker)
+    target_rect = _get_pdf_primary_paragraph_rect(target)
+    merged_rect = marker_rect | target_rect
+
+    marker_plain = _collapsed_plain_text(marker.get("content", ""))
+    target_plain = _collapsed_plain_text(target.get("content", ""))
+    target_rich = (target.get("rich_content") or target.get("content", "")).strip()
+    marker_rich = (marker.get("rich_content") or marker.get("content", "")).strip()
+    merged_plain = f"{marker_plain} {target_plain}".strip()
+    merged_rich = f"{marker_rich} {target_rich}".strip()
+
+    source_lines = _pdf_list_marker_source_lines(
+        target_paragraph, marker_plain, marker_rich, marker_rect, target_rect
+    ) or [
+        {
+            "plain": merged_plain,
+            "rich": merged_rich,
+            "bbox": [float(value) for value in merged_rect],
+        }
+    ]
+    paragraph = _pdf_list_item_paragraph(
+        target_paragraph,
+        plain=merged_plain,
+        rich=merged_rich,
+        merged_rect=merged_rect,
+        marker_rect=marker_rect,
+        body_x0=float(target_rect.x0),
+        source_lines=source_lines,
+    )
+
+    merged = dict(target)
+    merged.update(
+        {
+            "y": float(merged_rect.y0),
+            "x": float(merged_rect.x0),
+            "rect": fitz.Rect(merged_rect),
+            "bbox": [float(value) for value in merged_rect],
+            "render_bbox": _get_pdf_render_bbox(
+                merged_rect,
+                page_rect,
+                [paragraph],
+                float(target.get("fontsize", DEFAULT_FONTSIZE)),
+            ),
+            "content": merged_plain,
+            "rich_content": merged_rich
+            if (target.get("rich_content") or marker.get("rich_content"))
+            else None,
+            "paragraphs": [paragraph],
+            "superscript_runs": [
+                dict(run)
+                for elem in (marker, target)
+                for run in (elem.get("superscript_runs") or [])
+            ],
+            "inline_math_fragments": [
+                dict(fragment)
+                for elem in (marker, target)
+                for fragment in (elem.get("inline_math_fragments") or [])
+            ],
+            "merged_visual_line_count": max(
+                int(target.get("merged_visual_line_count") or 1),
+                len(source_lines),
+            ),
+            "source_line_bboxes": [
+                [float(value) for value in line["bbox"]] for line in source_lines
+            ],
+            "detached_list_marker_merged": True,
+        }
+    )
+    return merged
+
+
+def _pdf_list_marker_source_lines(
+    target_paragraph: dict,
+    marker_plain: str,
+    marker_rich: str,
+    marker_rect: fitz.Rect,
+    target_rect: fitz.Rect,
+) -> list[dict]:
+    """The target's recorded lines with the marker prefixed to the first.
+
+    Returns ``[]`` when the target recorded no visible source line.
+    """
+    source_lines = [
+        dict(line)
+        for line in (target_paragraph.get("source_lines") or [])
+        if (line.get("plain") or "").strip()
+    ]
+    if not source_lines:
+        return []
+    first_line = dict(source_lines[0])
+    first_line_rect = (
+        fitz.Rect(first_line.get("bbox", target_rect)) | marker_rect
+    )
+    first_line.update(
+        {
+            "plain": f"{marker_plain} {first_line.get('plain', '').strip()}".strip(),
+            "rich": f"{marker_rich} {(first_line.get('rich') or first_line.get('plain', '')).strip()}".strip(),
+            "bbox": [float(value) for value in first_line_rect],
+        }
+    )
+    source_lines[0] = first_line
+    return source_lines
+
+
+def _pdf_list_item_paragraph(
+    target_paragraph: dict,
+    *,
+    plain: str,
+    rich: str,
+    merged_rect: fitz.Rect,
+    marker_rect: fitz.Rect,
+    body_x0: float,
+    source_lines: list[dict],
+) -> dict:
+    """A left-aligned paragraph whose hanging indent puts the marker first."""
+    paragraph = dict(target_paragraph)
+    paragraph.update(
+        {
+            "plain": plain,
+            "rich": rich,
+            "source_bbox": [float(value) for value in merged_rect],
+            "source_line_bboxes": [
+                [float(value) for value in line["bbox"]] for line in source_lines
+            ],
+            "source_lines": source_lines,
+            "margin_left": min(
+                max(body_x0 - merged_rect.x0, 0.0),
+                merged_rect.width * PARAGRAPH_MAX_MARGIN_SHARE,
+            ),
+            "text_indent": max(
+                -merged_rect.width * PARAGRAPH_MAX_HANGING_SHARE,
+                float(marker_rect.x0) - body_x0,
+            ),
+            "gap_before": 0.0,
+            "text_align": "left",
+            "nowrap": None,
+            "first_line_indent": False,
+            "toc_leader": _parse_pdf_toc_leader(plain),
+        }
+    )
+    return paragraph
 
 
 def _pdf_semantic_continuation_elements_can_merge(
