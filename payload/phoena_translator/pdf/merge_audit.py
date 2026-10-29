@@ -21,7 +21,7 @@ from phoena_translator.pdf.semantic_cross_page import (
     _strip_trailing_footnote_marker,
 )
 from phoena_translator.pdf.text_shape import _collapsed_plain_text
-from phoena_translator.pdf.semantic_text import _ends_with_sentence_boundary
+from phoena_translator.pdf.text_shape import _ends_with_sentence_boundary
 
 
 def _is_accepted_merge_endpoint(

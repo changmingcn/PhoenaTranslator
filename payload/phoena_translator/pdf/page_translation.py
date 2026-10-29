@@ -24,7 +24,7 @@ from phoena_translator.pdf.inline_markup import (
     _restore_pdf_superscript_markup,
 )
 from phoena_translator.pdf.text_shape import _collapsed_plain_text, _plain_text
-from phoena_translator.pdf.semantic_text import _is_disclaimer_block
+from phoena_translator.pdf.watermarks import _is_disclaimer_block
 from phoena_translator.pdf.deterministic_labels import (
     _translate_pdf_deterministic_labels,
 )

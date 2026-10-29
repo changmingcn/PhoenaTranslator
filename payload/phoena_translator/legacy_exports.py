@@ -47,14 +47,18 @@ from phoena_translator.pdf.semantic_references import (
 from phoena_translator.pdf.superscripts import (
     _PDF_LEADING_SUPERSCRIPT_FOOTNOTE_MARKER_RE,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_text import (
+from phoena_translator.pdf.paragraphs import (
+    _PDF_FOOTNOTE_MARKER_RE,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.watermarks import (
     DISCLAIMER_PATTERNS,  # noqa: F401 - legacy facade
     WATERMARK_PATTERNS,  # noqa: F401 - legacy facade
-    _PDF_BULLETED_PARAGRAPH_LEAD_RE,  # noqa: F401 - legacy facade
-    _PDF_FOOTNOTE_MARKER_RE,  # noqa: F401 - legacy facade
-    _PDF_NUMBERED_PARAGRAPH_LEAD_RE,  # noqa: F401 - legacy facade
     _PDF_TRANSLATABLE_DISCLAIMER_LABELS,  # noqa: F401 - legacy facade
     _PDF_TRANSLATABLE_REPORT_STRUCTURE_RE,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.text_shape import (
+    _PDF_BULLETED_PARAGRAPH_LEAD_RE,  # noqa: F401 - legacy facade
+    _PDF_NUMBERED_PARAGRAPH_LEAD_RE,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.semantic_formulae import (
     _PDF_WRAPPED_MATH_DANGLING_TAIL_RE,  # noqa: F401 - legacy facade
@@ -192,44 +196,52 @@ from phoena_translator.pdf.table_detection import (
     _pdf_table_cell_rects,  # noqa: F401 - legacy facade
     _pdf_table_list,  # noqa: F401 - legacy facade
 )
-from phoena_translator.pdf.semantic_text import (
-    _bucket_pdf_fontsize,  # noqa: F401 - legacy facade
+from phoena_translator.pdf.paragraphs import (
     _build_pdf_paragraphs,  # noqa: F401 - legacy facade
-    _color_int_to_rgb,  # noqa: F401 - legacy facade
-    _derive_pdf_page_layout_styles,  # noqa: F401 - legacy facade
     _detect_pdf_drop_cap_span,  # noqa: F401 - legacy facade
-    _ends_with_sentence_boundary,  # noqa: F401 - legacy facade
-    _is_disclaimer_block,  # noqa: F401 - legacy facade
-    _is_heading_like_elem,  # noqa: F401 - legacy facade
     _is_new_pdf_paragraph,  # noqa: F401 - legacy facade
     _is_pdf_first_line_indent_continuation,  # noqa: F401 - legacy facade
     _is_pdf_hanging_list_continuation,  # noqa: F401 - legacy facade
     _is_pdf_single_visual_line_element,  # noqa: F401 - legacy facade
-    _is_pdf_translatable_disclaimer_label,  # noqa: F401 - legacy facade
-    _join_pdf_line_fragments,  # noqa: F401 - legacy facade
-    _looks_light_gray,  # noqa: F401 - legacy facade
-    _looks_like_heading_text,  # noqa: F401 - legacy facade
     _looks_like_pdf_drop_cap_token,  # noqa: F401 - legacy facade
-    _looks_like_pdf_paragraph_lead,  # noqa: F401 - legacy facade
     _looks_like_split_layout_line,  # noqa: F401 - legacy facade
     _make_pdf_space_span,  # noqa: F401 - legacy facade
     _make_pdf_text_element_from_lines,  # noqa: F401 - legacy facade
-    _mark_watermark_elements,  # noqa: F401 - legacy facade
     _merge_adjacent_heading_elements,  # noqa: F401 - legacy facade
     _merge_pdf_list_marker_clusters,  # noqa: F401 - legacy facade
     _normalize_pdf_drop_cap_lines,  # noqa: F401 - legacy facade
     _normalize_pdf_footnote_alignment,  # noqa: F401 - legacy facade
-    _normalize_watermark_text,  # noqa: F401 - legacy facade
-    _pdf_element_footnote_definition_marker,  # noqa: F401 - legacy facade
     _pdf_element_prefers_single_line_heading,  # noqa: F401 - legacy facade
-    _pdf_source_line_footnote_definition_marker,  # noqa: F401 - legacy facade
-    _pdf_text_colors_semantically_compatible,  # noqa: F401 - legacy facade
     _pdf_visual_line_info_from_element,  # noqa: F401 - legacy facade
-    _pick_pdf_dominant_value,  # noqa: F401 - legacy facade
     _rebase_pdf_split_paragraph_layout,  # noqa: F401 - legacy facade
     _should_keep_pdf_lines_separate,  # noqa: F401 - legacy facade
     _split_pdf_disjoint_line_segments,  # noqa: F401 - legacy facade
     _split_pdf_text_elements_into_semantic_fragments,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.page_styles import (
+    _derive_pdf_page_layout_styles,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.watermarks import (
+    _color_int_to_rgb,  # noqa: F401 - legacy facade
+    _is_disclaimer_block,  # noqa: F401 - legacy facade
+    _is_pdf_translatable_disclaimer_label,  # noqa: F401 - legacy facade
+    _looks_light_gray,  # noqa: F401 - legacy facade
+    _mark_watermark_elements,  # noqa: F401 - legacy facade
+    _normalize_watermark_text,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.text_shape import (
+    _bucket_pdf_fontsize,  # noqa: F401 - legacy facade
+    _ends_with_sentence_boundary,  # noqa: F401 - legacy facade
+    _is_heading_like_elem,  # noqa: F401 - legacy facade
+    _join_pdf_line_fragments,  # noqa: F401 - legacy facade
+    _looks_like_heading_text,  # noqa: F401 - legacy facade
+    _looks_like_pdf_paragraph_lead,  # noqa: F401 - legacy facade
+    _pdf_text_colors_semantically_compatible,  # noqa: F401 - legacy facade
+    _pick_pdf_dominant_value,  # noqa: F401 - legacy facade
+)
+from phoena_translator.pdf.superscripts import (
+    _pdf_element_footnote_definition_marker,  # noqa: F401 - legacy facade
+    _pdf_source_line_footnote_definition_marker,  # noqa: F401 - legacy facade
 )
 from phoena_translator.pdf.toc import (
     _parse_pdf_toc_leader,  # noqa: F401 - legacy facade

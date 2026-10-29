@@ -975,7 +975,7 @@ class TestWatermarkKeywordCorroboration:
         return page_extractions, page_rects
 
     def test_black_footer_keyword_line_is_not_erased(self):
-        from phoena_translator.pdf.semantic_text import _mark_watermark_elements
+        from phoena_translator.pdf.watermarks import _mark_watermark_elements
 
         page_extractions, page_rects = self._pages(3)
         _mark_watermark_elements(page_extractions, page_rects, 3)
@@ -983,7 +983,7 @@ class TestWatermarkKeywordCorroboration:
             assert "skip_translate_reason" not in info["elements"][0]
 
     def test_rotated_stamp_is_still_a_watermark(self):
-        from phoena_translator.pdf.semantic_text import _mark_watermark_elements
+        from phoena_translator.pdf.watermarks import _mark_watermark_elements
 
         page_extractions, page_rects = self._pages(
             3,
@@ -997,7 +997,7 @@ class TestWatermarkKeywordCorroboration:
             )
 
     def test_large_keyword_stamp_is_still_a_watermark(self):
-        from phoena_translator.pdf.semantic_text import _mark_watermark_elements
+        from phoena_translator.pdf.watermarks import _mark_watermark_elements
 
         page_extractions, page_rects = self._pages(
             3,
@@ -1125,7 +1125,7 @@ class TestBuildParagraphsEmptyInput:
     def test_returns_declared_tuple_shape(self):
         import fitz
 
-        from phoena_translator.pdf.semantic_text import _build_pdf_paragraphs
+        from phoena_translator.pdf.paragraphs import _build_pdf_paragraphs
 
         assert _build_pdf_paragraphs([], fitz.Rect(0, 0, 10, 10), 10.0) == ([], 0.0)
 
@@ -2553,7 +2553,7 @@ def test_pdf_standalone_bold_heading_still_splits_from_regular_body():
 def test_pdf_mixed_visual_line_keeps_inline_bold_markup():
     import fitz
 
-    from phoena_translator.pdf.semantic_text import _make_pdf_text_element_from_lines
+    from phoena_translator.pdf.paragraphs import _make_pdf_text_element_from_lines
 
     line = {
         "plain": "Bold opening sentence. Regular body follows.",

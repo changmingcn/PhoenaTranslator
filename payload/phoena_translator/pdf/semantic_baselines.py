@@ -7,12 +7,14 @@ import re
 import fitz
 
 from phoena_translator.pdf.text_shape import _looks_like_pdf_list_marker
-from phoena_translator.pdf.semantic_text import (
+from phoena_translator.pdf.text_shape import (
     _join_pdf_line_fragments,
     _looks_like_pdf_paragraph_lead,
     _pdf_has_terminal_sentence_boundary,
-    _pdf_source_line_footnote_definition_marker,
     _pdf_text_colors_semantically_compatible,
+)
+from phoena_translator.pdf.superscripts import (
+    _pdf_source_line_footnote_definition_marker,
 )
 
 

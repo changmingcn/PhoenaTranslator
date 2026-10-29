@@ -1,111 +1,43 @@
-"""Semantic text helpers for deterministic PDF processing."""
+"""Build paragraphs from native lines: line grouping, list-marker and
+drop-cap handling, paragraph geometry, and splitting elements into
+semantic fragments."""
 
 from __future__ import annotations
 
-import html
-import logging
-import re
 import fitz
-from phoena_translator.pdf.patterns import _PDF_PARAGRAPH_MARKER_ATOM
+import re
+import logging
+import html
+from phoena_translator.pdf.text_shape import (
+    _collapsed_plain_text,
+    _ends_with_sentence_boundary,
+    _is_heading_like_elem,
+    _join_pdf_line_fragments,
+    _looks_like_heading_text,
+    _looks_like_pdf_list_marker,
+    _looks_like_pdf_paragraph_lead,
+    _pdf_has_terminal_sentence_boundary,
+    _pdf_text_colors_semantically_compatible,
+    _pick_pdf_dominant_value,
+    _plain_text,
+)
+from phoena_translator.pdf.superscripts import (
+    _pdf_source_line_footnote_definition_marker,
+)
+from phoena_translator.pdf.model import ElementType
+from phoena_translator.pdf.toc import _parse_pdf_toc_leader
+from phoena_translator.pdf.placeholders import (
+    _select_pdf_inline_math_fragments_for_text,
+)
 from phoena_translator.pdf.geometry import (
     _detect_pdf_text_align,
     _get_pdf_elem_rect,
     _get_pdf_render_bbox,
 )
-from phoena_translator.pdf.superscripts import (
-    _pdf_source_line_leading_superscript_footnote_marker,
-)
-from phoena_translator.pdf.placeholders import (
-    _select_pdf_inline_math_fragments_for_text,
-)
-from phoena_translator.pdf.text_shape import (
-    _looks_like_pdf_list_marker,
-    _plain_text,
-    _collapsed_plain_text,
-)
-from phoena_translator.pdf.model import ElementType, SkipReason
-from phoena_translator.pdf.toc import _parse_pdf_toc_leader
 
 
-DISCLAIMER_PATTERNS = re.compile(
-    r'(?i)^(\s*\*?\s*(disclaimer|copyright|all rights reserved|legal notice|terms of use|'
-    r'this (document|report|paper|publication) (is|was|has been)|'
-    r'the views expressed|the opinions expressed|'
-    r'for informational purposes only|not intended as|'
-    r'source:|sources?:|\[\d+\]|footnote|endnote))',
-    re.MULTILINE
-)
-_PDF_TRANSLATABLE_DISCLAIMER_LABELS = {
-    "this report is intended for",
-}
-_PDF_TRANSLATABLE_REPORT_STRUCTURE_RE = re.compile(
-    r"(?is)^\s*this\s+report\s+is\s+"
-    r"(?:comprised|composed|organised|organized|structured|divided|arranged|made\s+up)\s+"
-    r"(?:of|into)\b"
-)
-WATERMARK_PATTERNS = re.compile(
-    r'(?i)\b(draft|confidential|sample|watermark|do not distribute|internal use|'
-    r'for review only|preliminary|intended for|copy)\b'
-)
-_PDF_NUMBERED_PARAGRAPH_LEAD_RE = re.compile(
-    rf"^\s*(?P<marker>(?:{_PDF_PARAGRAPH_MARKER_ATOM}[.)]|"
-    rf"\({_PDF_PARAGRAPH_MARKER_ATOM}\)))\s+(?=\S)"
-)
-_PDF_BULLETED_PARAGRAPH_LEAD_RE = re.compile(
-    r"^\s*[\u2022\u25aa\u25cf\u25e6\u2043\u2219\uf0b7\-*\u00b7]+\s+(?=\S)"
-)
 _PDF_FOOTNOTE_MARKER_RE = re.compile(r"^(?:\d{1,3}|[*\u2020\u2021\u00a7\u00b6]{1,3})$")
-
-
 log = logging.getLogger("translator")
-
-
-def _is_pdf_translatable_disclaimer_label(text: str) -> bool:
-    plain = _collapsed_plain_text(text or "")
-    normalized = plain.rstrip(" \t\r\n:;,.!?").casefold()
-    return normalized in _PDF_TRANSLATABLE_DISCLAIMER_LABELS
-
-
-def _is_disclaimer_block(text: str) -> bool:
-    """Check if a text block is a disclaimer/copyright notice.
-    More robust than just regex: requires either the DISCLAIMER_PATTERNS match,
-    or a copyright notice (©) that makes up a significant portion of the block."""
-    if _is_pdf_translatable_disclaimer_label(text):
-        return False
-    # Structural prose such as ``This Report is comprised of eight chapters``
-    # describes the document and is ordinary translatable body text.  The old
-    # broad legal-notice prefix treated every ``This report is ...`` sentence
-    # as a disclaimer and silently left entire paragraphs in English.
-    if _PDF_TRANSLATABLE_REPORT_STRUCTURE_RE.search(_plain_text(text or "")):
-        return False
-    if DISCLAIMER_PATTERNS.search(text):
-        return True
-    # Check for © at line start, but only if the block is primarily a copyright notice
-    if re.search(r"(?m)^\s*©", text):
-        plain = re.sub(r"<[^>]+>", "", text).strip()
-        # Only treat as disclaimer if it's a standalone copyright block (>60% of text
-        # is the copyright line), not a header that happens to include ©
-        lines = [l.strip() for l in plain.splitlines() if l.strip()]
-        copyright_lines = [
-            l
-            for l in lines
-            if l.startswith("©")
-            or "all rights reserved" in l.lower()
-            or "bridgewater" in l.lower()
-            and "©" in l
-        ]
-        if len(copyright_lines) >= len(lines) * 0.5:
-            return True
-    return False
-
-
-def _join_pdf_line_fragments(lines: list[str]) -> str:
-    cleaned = [
-        re.sub(r"\s+", " ", line).strip() for line in lines if line and line.strip()
-    ]
-    if not cleaned:
-        return ""
-    return " ".join(cleaned).strip()
 
 
 def _looks_like_pdf_drop_cap_token(text: str) -> bool:
@@ -161,55 +93,6 @@ def _detect_pdf_drop_cap_span(span_entries: list[dict]) -> dict | None:
         "body_y0": min(float(span["y0"]) for span in body_entries),
         "body_y1": max(float(span["y1"]) for span in body_entries),
     }
-
-
-def _pdf_source_line_footnote_definition_marker(
-    line: dict,
-) -> str | None:
-    """Return an explicit footnote-definition marker for one source line."""
-    superscript_marker = _pdf_source_line_leading_superscript_footnote_marker(line)
-    if superscript_marker:
-        return superscript_marker
-    plain = _collapsed_plain_text((line or {}).get("plain", ""))
-    match = re.match(
-        r"^(?P<marker>[*\u2020\u2021\u00a7\u00b6]{1,3})\s+(?P<body>\S.*)$",
-        plain,
-    )
-    if match and len(match.group("body")) >= 4:
-        return match.group("marker")
-    return None
-
-
-def _pdf_element_footnote_definition_marker(elem: dict) -> str | None:
-    for paragraph in elem.get("paragraphs") or []:
-        source_lines = [
-            line
-            for line in (paragraph.get("source_lines") or [])
-            if (line.get("plain") or "").strip()
-        ]
-        if source_lines:
-            return _pdf_source_line_footnote_definition_marker(source_lines[0])
-    return None
-
-
-def _looks_like_pdf_paragraph_lead(text: str) -> bool:
-    """Return whether a visual line starts a numbered/bulleted paragraph.
-
-    Legal and regulatory PDFs often encode every visual line as a separate
-    text block.  A lead such as ``7.``, ``7.1.`` or ``7.2.1.`` identifies the
-    first line of one semantic paragraph; its indented following lines belong
-    to the same translation and render box.
-    """
-    plain = _collapsed_plain_text(text or "")
-    numbered_match = _PDF_NUMBERED_PARAGRAPH_LEAD_RE.match(plain)
-    if numbered_match and re.fullmatch(
-        r"\((?:18|19|20)\d{2}\)",
-        numbered_match.group("marker"),
-    ):
-        # A citation year at the beginning of a wrapped visual line, e.g.
-        # ``(2016) show ...``, continues the preceding prose paragraph.
-        numbered_match = None
-    return bool(numbered_match or _PDF_BULLETED_PARAGRAPH_LEAD_RE.match(plain))
 
 
 def _make_pdf_space_span(prev_span: dict, next_span: dict) -> dict:
@@ -407,11 +290,6 @@ def _split_pdf_disjoint_line_segments(
             current.append(line)
     segments.append(current)
     return segments
-
-
-def _pdf_has_terminal_sentence_boundary(text: str) -> bool:
-    plain = _collapsed_plain_text(text or "")
-    return bool(re.search(r"[.!?。！？][\"'’”）)\]]*$", plain))
 
 
 def _pdf_marked_run_in_wraps_to_next_line(
@@ -774,25 +652,6 @@ def _build_pdf_paragraphs(
     return paragraphs, top_padding
 
 
-def _bucket_pdf_fontsize(value: float) -> float:
-    return round(max(float(value), 1.0) * 2.0) / 2.0
-
-
-def _pick_pdf_dominant_value(weighted_values: list[tuple[object, float]], default):
-    if not weighted_values:
-        return default
-
-    scores = {}
-    for value, weight in weighted_values:
-        if value is None:
-            continue
-        scores[value] = scores.get(value, 0.0) + max(float(weight), 0.1)
-
-    if not scores:
-        return default
-    return max(scores.items(), key=lambda item: (item[1], item[0]))[0]
-
-
 def _normalize_pdf_footnote_alignment(elem: dict, page_rect: fitz.Rect) -> bool:
     """Force bottom-of-page footnote definitions to use a stable left edge.
 
@@ -838,135 +697,6 @@ def _normalize_pdf_footnote_alignment(elem: dict, page_rect: fitz.Rect) -> bool:
         paragraph["text_align"] = "left"
     elem["footnote_hint"] = True
     return True
-
-
-def _derive_pdf_page_layout_styles(
-    elements: list[dict], page_rect: fitz.Rect
-) -> dict[str, dict]:
-    text_elements = [
-        elem
-        for elem in elements
-        if elem.get("type") == ElementType.TEXT and not elem.get("skip_translate_reason")
-    ]
-    if not text_elements:
-        return {
-            "body": {
-                "fontsize": 11.0,
-                "line_height": 15.4,
-                "color": 0,
-                "color_hex": "#000000",
-                "padding_ratio": 0.34,
-            },
-            "table": {
-                "fontsize": 9.0,
-                "line_height": 11.0,
-                "color": 0,
-                "color_hex": "#000000",
-                "padding_ratio": 0.28,
-            },
-            "scattered": {
-                "fontsize": 10.0,
-                "line_height": 12.8,
-                "color": 0,
-                "color_hex": "#000000",
-                "padding_ratio": 0.30,
-            },
-        }
-
-    overall_fontsize = _pick_pdf_dominant_value(
-        [
-            (
-                _bucket_pdf_fontsize(elem.get("fontsize", 11.0)),
-                max(len(_plain_text(elem.get("content", "")).strip()), 1),
-            )
-            for elem in text_elements
-        ],
-        11.0,
-    )
-    overall_color = _pick_pdf_dominant_value(
-        [
-            (
-                elem.get("color", 0),
-                max(len(_plain_text(elem.get("content", "")).strip()), 1),
-            )
-            for elem in text_elements
-        ],
-        0,
-    )
-
-    class_defaults = {
-        "body": {
-            "fallback_size": overall_fontsize,
-            "line_height_ratio": 1.42,
-            "padding_ratio": 0.34,
-        },
-        "table": {
-            "fallback_size": max(
-                7.0,
-                min(
-                    overall_fontsize,
-                    overall_fontsize - 1.0
-                    if overall_fontsize > 9.0
-                    else overall_fontsize,
-                ),
-            ),
-            "line_height_ratio": 1.24,
-            "padding_ratio": 0.26,
-        },
-        "scattered": {
-            "fallback_size": max(8.0, min(max(overall_fontsize, 10.0), 12.0)),
-            "line_height_ratio": 1.30,
-            "padding_ratio": 0.30,
-        },
-    }
-
-    styles = {}
-    for layout_class, defaults in class_defaults.items():
-        class_elems = [
-            elem for elem in text_elements if elem.get("layout_class") == layout_class
-        ]
-        size = _pick_pdf_dominant_value(
-            [
-                (
-                    _bucket_pdf_fontsize(
-                        elem.get("fontsize", defaults["fallback_size"])
-                    ),
-                    max(len(_plain_text(elem.get("content", "")).strip()), 1),
-                )
-                for elem in class_elems
-            ],
-            defaults["fallback_size"],
-        )
-        color = _pick_pdf_dominant_value(
-            [
-                (
-                    elem.get("color", overall_color),
-                    max(len(_plain_text(elem.get("content", "")).strip()), 1),
-                )
-                for elem in class_elems
-            ],
-            overall_color,
-        )
-
-        if layout_class == "body":
-            size = max(9.0, min(float(size), 13.0))
-        elif layout_class == "table":
-            size = max(7.0, min(float(size), max(float(overall_fontsize), 9.5)))
-        else:
-            size = max(8.0, min(float(size), 12.0))
-
-        r_val = (int(color) >> 16) & 0xFF
-        g_val = (int(color) >> 8) & 0xFF
-        b_val = int(color) & 0xFF
-        styles[layout_class] = {
-            "fontsize": float(size),
-            "line_height": float(size) * defaults["line_height_ratio"],
-            "color": int(color),
-            "color_hex": f"#{r_val:02x}{g_val:02x}{b_val:02x}",
-            "padding_ratio": defaults["padding_ratio"],
-        }
-
-    return styles
 
 
 def _make_pdf_text_element_from_lines(
@@ -1198,23 +928,6 @@ def _pdf_visual_line_info_from_element(elem: dict) -> dict:
         "math_mixed": False,
         "math_symbol_count": 0,
     }
-
-
-def _pdf_text_colors_semantically_compatible(first: int, second: int) -> bool:
-    """Treat tiny neutral-black PDF color variations as the same body style."""
-    first = int(first or 0)
-    second = int(second or 0)
-    if first == second:
-        return True
-    first_rgb = ((first >> 16) & 0xFF, (first >> 8) & 0xFF, first & 0xFF)
-    second_rgb = ((second >> 16) & 0xFF, (second >> 8) & 0xFF, second & 0xFF)
-    first_neutral = max(first_rgb) - min(first_rgb) <= 6 and max(first_rgb) <= 80
-    second_neutral = max(second_rgb) - min(second_rgb) <= 6 and max(second_rgb) <= 80
-    return bool(
-        first_neutral
-        and second_neutral
-        and max(abs(a - b) for a, b in zip(first_rgb, second_rgb)) <= 40
-    )
 
 
 def _rebase_pdf_split_paragraph_layout(
@@ -1475,43 +1188,6 @@ def _normalize_pdf_drop_cap_lines(
     return normalized
 
 
-def _color_int_to_rgb(color_int: int) -> tuple[int, int, int]:
-    return ((color_int >> 16) & 0xFF, (color_int >> 8) & 0xFF, color_int & 0xFF)
-
-
-def _looks_light_gray(color_int: int) -> bool:
-    r_val, g_val, b_val = _color_int_to_rgb(color_int)
-    spread = max(r_val, g_val, b_val) - min(r_val, g_val, b_val)
-    avg = (r_val + g_val + b_val) / 3
-    return avg >= 125 and spread <= 28
-
-
-def _normalize_watermark_text(text: str) -> str:
-    plain = _collapsed_plain_text(text).casefold()
-    return re.sub(r"\s+", " ", plain)
-
-
-def _looks_like_heading_text(text: str) -> bool:
-    """Heading signal that works even when the PDF fakes headings without a
-    bold font: a short line whose letters are overwhelmingly uppercase."""
-    stripped = (text or "").strip()
-    if not stripped or len(stripped) > 130:
-        return False
-    letters = [c for c in stripped if c.isalpha()]
-    if len(letters) < 4:
-        return False
-    upper = sum(1 for c in letters if c.isupper())
-    return upper / len(letters) >= 0.8
-
-
-def _is_heading_like_elem(elem: dict) -> bool:
-    if elem.get("bold"):
-        return True
-    content = _plain_text(elem.get("content", ""))
-    lines = [line for line in content.splitlines() if line.strip()]
-    return bool(lines) and all(_looks_like_heading_text(line) for line in lines)
-
-
 def _pdf_element_prefers_single_line_heading(elem: dict, page_rect: fitz.Rect) -> bool:
     """Return whether a short source heading should stay on one rendered line."""
     if (
@@ -1608,120 +1284,3 @@ def _merge_adjacent_heading_elements(elements: list[dict]) -> list[dict]:
                 continue
         merged.append(elem)
     return merged
-
-
-def _mark_watermark_elements(page_extractions, page_rects, total_pages: int):
-    """Identify repeated watermark-like text blocks and skip translating them."""
-    groups = {}
-    min_repeat_pages = 2 if total_pages <= 6 else 3
-
-    for page_num, info in page_extractions.items():
-        elements = info.get("elements", [])
-        page_rect = page_rects.get(page_num)
-        if not page_rect:
-            continue
-        page_area = max(page_rect.width * page_rect.height, 1)
-
-        for elem_idx, elem in enumerate(elements):
-            if elem.get("type") != ElementType.TEXT:
-                continue
-
-            raw_text = elem.get("content", "")
-            norm_text = _normalize_watermark_text(raw_text)
-            if len(norm_text) < 4 or len(norm_text) > 120:
-                continue
-
-            rect = _get_pdf_elem_rect(elem)
-            cx = ((rect.x0 + rect.x1) / 2) / max(page_rect.width, 1)
-            cy = ((rect.y0 + rect.y1) / 2) / max(page_rect.height, 1)
-            area_ratio = (rect.width * rect.height) / page_area
-            pos_bucket = (round(cx, 1), round(cy, 1))
-            groups.setdefault(norm_text, []).append(
-                {
-                    "page_num": page_num,
-                    "elem_idx": elem_idx,
-                    "bucket": pos_bucket,
-                    "centerish": 0.18 <= cx <= 0.82 and 0.18 <= cy <= 0.82,
-                    "header_footer": cy <= 0.14 or cy >= 0.86,
-                    "light_gray": _looks_light_gray(elem.get("color", 0)),
-                    "non_horizontal": bool(elem.get("non_horizontal")),
-                    "large": elem.get("fontsize", 0) >= 18 or area_ratio >= 0.035,
-                    "keyword": bool(WATERMARK_PATTERNS.search(raw_text)),
-                    "text": raw_text,
-                }
-            )
-
-    for norm_text, records in groups.items():
-        pages = {record["page_num"] for record in records}
-        if len(pages) < min_repeat_pages:
-            continue
-
-        bucket_counts = {}
-        for record in records:
-            bucket_counts.setdefault(record["bucket"], set()).add(record["page_num"])
-        best_bucket, best_pages = max(
-            bucket_counts.items(), key=lambda item: len(item[1])
-        )
-        if len(best_pages) < min_repeat_pages:
-            continue
-
-        for record in records:
-            if record["bucket"] != best_bucket:
-                continue
-
-            # A keyword alone is not proof: repeated compliance footers such
-            # as "For internal use only. Do not distribute." are printed in
-            # normal black body type and are document content, not watermark
-            # stamps.  The keyword arm therefore needs one visual watermark
-            # trait; plain repeated keyword lines fall through to normal
-            # translation instead of being erased.
-            looks_like_watermark = (
-                (
-                    record["keyword"]
-                    and (
-                        record["light_gray"]
-                        or record["non_horizontal"]
-                        or record["large"]
-                    )
-                )
-                or record["non_horizontal"]
-                or (
-                    record["light_gray"]
-                    and (record["centerish"] or record["header_footer"])
-                )
-                or (record["centerish"] and record["large"])
-            )
-            if not looks_like_watermark:
-                continue
-
-            elem = page_extractions[record["page_num"]]["elements"][record["elem_idx"]]
-            elem["skip_translate_reason"] = SkipReason.WATERMARK
-
-    marked = sum(
-        1
-        for info in page_extractions.values()
-        for elem in info.get("elements", [])
-        if elem.get("skip_translate_reason") == SkipReason.WATERMARK
-    )
-    if marked:
-        log.info(f"Marked {marked} text blocks as watermarks")
-
-
-def _ends_with_sentence_boundary(text: str) -> bool:
-    """Check if text ends at a sentence boundary (i.e. does NOT need merging).
-    Returns True if the text ends with any punctuation EXCEPT comma-like marks.
-    Returns False (needs merging) if text has no trailing punctuation or ends with comma."""
-    stripped = text.rstrip()
-    if not stripped:
-        return True
-    last = stripped[-1]
-    # Comma-like marks: sentence is mid-flow, need to merge
-    if last in ",，、":
-        return False
-    # Any other punctuation: sentence boundary, no merge needed
-    import unicodedata
-
-    if unicodedata.category(last).startswith("P"):
-        return True
-    # No punctuation at all: incomplete sentence, need to merge
-    return False

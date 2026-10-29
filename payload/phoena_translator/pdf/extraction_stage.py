@@ -41,10 +41,8 @@ from phoena_translator.pdf.source_fallbacks import (
 from phoena_translator.pdf.context import ImmutableElementPolicy
 from phoena_translator.pdf.page_filters import _is_skip_page
 from phoena_translator.pdf.geometry import _pdf_page_extraction_rect
-from phoena_translator.pdf.semantic_text import (
-    _derive_pdf_page_layout_styles,
-    _mark_watermark_elements,
-)
+from phoena_translator.pdf.page_styles import _derive_pdf_page_layout_styles
+from phoena_translator.pdf.watermarks import _mark_watermark_elements
 from phoena_translator.pdf.semantic_cross_page import _merge_cross_page_sentences
 from phoena_translator.pdf.layout_classifier import (
     _classify_pdf_page_text_elements,

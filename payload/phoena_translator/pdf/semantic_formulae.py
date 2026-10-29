@@ -32,7 +32,7 @@ from phoena_translator.pdf.text_shape import (
 )
 log = logging.getLogger("translator")
 from phoena_translator.pdf.semantic_references import _translate_pdf_citation_labels
-from phoena_translator.pdf.semantic_text import (
+from phoena_translator.pdf.text_shape import (
     _join_pdf_line_fragments,
     _looks_like_heading_text,
     _looks_like_pdf_paragraph_lead,

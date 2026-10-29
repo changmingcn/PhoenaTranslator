@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import fitz
 import re
-from phoena_translator.pdf.semantic_text import (
-    _bucket_pdf_fontsize,
-    _is_disclaimer_block,
+from phoena_translator.pdf.paragraphs import (
     _normalize_pdf_footnote_alignment,
     _pdf_element_prefers_single_line_heading,
+)
+from phoena_translator.pdf.watermarks import _is_disclaimer_block
+from phoena_translator.pdf.text_shape import (
+    _bucket_pdf_fontsize,
     _pick_pdf_dominant_value,
 )
 from phoena_translator.pdf.text_shape import _collapsed_plain_text, _plain_text

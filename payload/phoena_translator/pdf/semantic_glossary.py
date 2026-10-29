@@ -16,7 +16,7 @@ from phoena_translator.pdf.translation_targets import (
     _looks_like_pdf_proper_name_label,
     _looks_like_translatable_english,
 )
-from phoena_translator.pdf.semantic_text import _is_disclaimer_block
+from phoena_translator.pdf.watermarks import _is_disclaimer_block
 
 
 _PDF_GLOSSARY_TERM_HEADERS = frozenset(

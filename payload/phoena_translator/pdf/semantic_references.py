@@ -19,7 +19,7 @@ from phoena_translator.pdf.placeholders import (
 )
 from phoena_translator.pdf.text_shape import _plain_text, _collapsed_plain_text
 log = logging.getLogger("translator")
-from phoena_translator.pdf.semantic_text import (
+from phoena_translator.pdf.text_shape import (
     _is_heading_like_elem,
     _join_pdf_line_fragments,
 )

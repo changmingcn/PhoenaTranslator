@@ -1,4 +1,4 @@
-"""Detect footnote and ordinal superscripts in native PDF spans."""
+"""Detect footnote and ordinal superscripts and footnote-definition markers."""
 
 from __future__ import annotations
 
@@ -267,3 +267,32 @@ def _pdf_source_line_leading_superscript_footnote_marker(
     if not re.match(rf"^{re.escape(marker)}\s+", plain):
         return None
     return marker
+
+
+def _pdf_source_line_footnote_definition_marker(
+    line: dict,
+) -> str | None:
+    """Return an explicit footnote-definition marker for one source line."""
+    superscript_marker = _pdf_source_line_leading_superscript_footnote_marker(line)
+    if superscript_marker:
+        return superscript_marker
+    plain = _collapsed_plain_text((line or {}).get("plain", ""))
+    match = re.match(
+        r"^(?P<marker>[*\u2020\u2021\u00a7\u00b6]{1,3})\s+(?P<body>\S.*)$",
+        plain,
+    )
+    if match and len(match.group("body")) >= 4:
+        return match.group("marker")
+    return None
+
+
+def _pdf_element_footnote_definition_marker(elem: dict) -> str | None:
+    for paragraph in elem.get("paragraphs") or []:
+        source_lines = [
+            line
+            for line in (paragraph.get("source_lines") or [])
+            if (line.get("plain") or "").strip()
+        ]
+        if source_lines:
+            return _pdf_source_line_footnote_definition_marker(source_lines[0])
+    return None

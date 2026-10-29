@@ -13,18 +13,20 @@ from phoena_translator.pdf.math_detection import (
     _pdf_line_math_evidence,
     _propagate_pdf_math_line_context,
 )
-from phoena_translator.pdf.semantic_text import (
+from phoena_translator.pdf.paragraphs import (
     _detect_pdf_drop_cap_span,
-    _ends_with_sentence_boundary,
-    _looks_like_heading_text,
     _looks_like_split_layout_line,
     _make_pdf_text_element_from_lines,
     _merge_adjacent_heading_elements,
     _merge_pdf_list_marker_clusters,
     _normalize_pdf_drop_cap_lines,
-    _pick_pdf_dominant_value,
     _split_pdf_disjoint_line_segments,
     _split_pdf_text_elements_into_semantic_fragments,
+)
+from phoena_translator.pdf.text_shape import (
+    _ends_with_sentence_boundary,
+    _looks_like_heading_text,
+    _pick_pdf_dominant_value,
 )
 from phoena_translator.pdf.geometry import (
     _cluster_pdf_line_spans,

@@ -18,10 +18,10 @@ from phoena_translator.pdf.text_shape import _plain_text, _collapsed_plain_text
 
 log = logging.getLogger("translator")
 
-from phoena_translator.pdf.semantic_text import (
+from phoena_translator.pdf.watermarks import _is_disclaimer_block
+from phoena_translator.pdf.text_shape import (
     _bucket_pdf_fontsize,
     _ends_with_sentence_boundary,
-    _is_disclaimer_block,
     _is_heading_like_elem,
     _pick_pdf_dominant_value,
 )

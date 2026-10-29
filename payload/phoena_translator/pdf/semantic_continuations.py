@@ -20,16 +20,20 @@ from phoena_translator.pdf.semantic_references import (
     _looks_like_pdf_reference_entry_lead,
     _pdf_reference_entry_lead_counts,
 )
-from phoena_translator.pdf.semantic_text import (
-    _is_heading_like_elem,
+from phoena_translator.pdf.paragraphs import (
     _is_pdf_single_visual_line_element,
+    _make_pdf_text_element_from_lines,
+    _pdf_visual_line_info_from_element,
+)
+from phoena_translator.pdf.text_shape import (
+    _is_heading_like_elem,
     _join_pdf_line_fragments,
     _looks_like_pdf_paragraph_lead,
-    _make_pdf_text_element_from_lines,
+    _pdf_text_colors_semantically_compatible,
+)
+from phoena_translator.pdf.superscripts import (
     _pdf_element_footnote_definition_marker,
     _pdf_source_line_footnote_definition_marker,
-    _pdf_text_colors_semantically_compatible,
-    _pdf_visual_line_info_from_element,
 )
 from phoena_translator.pdf.toc import _parse_pdf_toc_leader
 from phoena_translator.pdf.model import ElementType, LayoutClass

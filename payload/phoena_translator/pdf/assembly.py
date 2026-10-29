@@ -45,7 +45,7 @@ from phoena_translator.pdf.rendering import (
     _resolve_pdf_render_style,
     _restore_pdf_source_text_element,
 )
-from phoena_translator.pdf.semantic_text import _derive_pdf_page_layout_styles
+from phoena_translator.pdf.page_styles import _derive_pdf_page_layout_styles
 from phoena_translator.pdf.toc import _strip_pdf_toc_label
 from phoena_translator.pdf.deterministic_labels import _translate_pdf_fixed_short_label
 from phoena_translator.pdf.leak_audit import _pdf_collect_untranslated_english_leaks
