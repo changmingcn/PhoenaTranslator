@@ -165,10 +165,6 @@ def _plain(elem: dict) -> str:
     return _collapsed_plain_text(elem.get("content") or "")
 
 
-def _plain(elem: dict) -> str:
-    return _collapsed_plain_text(elem.get("content") or "")
-
-
 def _fontsize(elem: dict) -> float:
     try:
         return float(elem.get("fontsize") or 0.0)
