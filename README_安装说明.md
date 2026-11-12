@@ -1,19 +1,17 @@
 # PhoenaTranslator 干净重装包
 
-版本：`2026.10.29-modular-runtime`
+版本：`2026.11.12-figure-table-fallback`
 
 这是当前已修正翻译程序的恢复安装版。它只包含运行所需的程序与依赖文件以及安装元数据（测试保留在源码仓库，不进安装包），不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
 
 ## 相对上一版的变化
 
-本版是内部结构重构，翻译、排版和输出行为不变：两份合成 PDF 的端到端黄金快照在重构前后逐字节一致，每个被拆分的模块都与重构前的版本做过随机输入的并排比对。
+PDF 排版退回规则只在图和表的范围内放弃翻译：图或表里有一处文字排不下时，只把这个图或表保留为原文，页面其余部分照常译成中文；不再把整页换回英文原页，也不再因跨页合并连带前后页。
 
-- 修复：同一任务被并发保存时（例如翻译进度更新与网页续跑同时发生），内存中的任务状态可能比磁盘上的记录旧，网页列表或状态页偶尔显示过期进度。现在磁盘写入与内存更新在同一把任务锁内完成。
-- 运行时由一个组合根统一构建（LLM 网关、任务仓库、工作池、PDF/EPUB 流水线），导入程序不再产生副作用；`gunicorn app:app` 入口、安装方式和配置项不变。
-- 移除旧的兼容入口：`app.py` 不再把 345 个内部函数名转交出去，`phoena_translator.application` 也不再提供旧的模块级全局变量。只影响直接 import 这些内部名字的自定义脚本；网页、API 和安装器不受影响。
-- 长函数拆分为命名步骤，并补齐测试（492 项通过）；安装包不再携带测试文件与测试依赖清单；删除冗余的 `EXCLUSIONS.md` 与 `payload/SYSTEM_DEPENDENCIES.md`（内容已包含在本说明、`README.md` 与安装器中）。
-- 任务记录、PDF 页面缓存与 EPUB 检查点格式未改，上一版未完成的任务可直接续跑。没有新增运行时依赖。
-
+- 触发：单元格的译文放不下而原文也放不回原处（以前整页退回原页），或者原文要在原处重新排版（以前那一格换成重排的英文、常与相邻文字重叠）。图表编号标题（Figure/Table/Exhibit N）之下到来源行、正文或下一个标题之间的文字，或表格检测区域内的文字，作为一个整体保留原文墨迹，不重排、不重绘。
+- 只在能确定范围时才这样做：正文段落、正文字号的文字、标题与图注、来源与注释行、脚注、页眉页脚、跨页合并的句子一律不并入；任一条件不满足就按原来的方式处理（单格原文重排或整页退回）。单元格原文重排时，若那组文字里有未标为表格的正文或标题类文字，也按原来的方式处理。
+- 记录：任务与审计记录新增 `figure_table_source_fallbacks`（页、触发元素、原因、保留的元素与撤回的译文）；撤回的每段译文同时记入 `element_source_fallbacks`（stage `render-figure-table`）。页面后来整页退回原页时，这些记录随之删除。只有元素级退回的任务完成状态仍是 `completed`。
+- 没有新增运行时依赖；配置项、提示词、提取与页面缓存格式未改，上一版未完成的任务可直接续跑。
 ## 支持范围
 
 - 已在当前生产基线确认：Debian 13、x86_64、Python 3.13。
@@ -27,9 +25,9 @@
 先在下载目录校验压缩包（校验文件与压缩包应在同一目录）：
 
 ```bash
-sha256sum -c PhoenaTranslator-20261029-modular-runtime-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20261029-modular-runtime-reinstall.tar.gz
-cd PhoenaTranslator-20261029-modular-runtime-reinstall
+sha256sum -c PhoenaTranslator-20261112-figure-table-fallback-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261112-figure-table-fallback-reinstall.tar.gz
+cd PhoenaTranslator-20261112-figure-table-fallback-reinstall
 # 可选的完整预检（需要系统已装 python3）
 ./install.sh --verify-only
 sudo ./install.sh

@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "package_name": "PhoenaTranslator-20261029-modular-runtime-reinstall",
-  "version": "2026.10.29-modular-runtime",
-  "built_at_utc": "2026-10-29T07:04:15.301511+00:00",
-  "source_policy": "release 2026.10.29-modular-runtime: internal modularity refactor of 2026.10.28-epub-tolerant-publish (Runtime composition root, task-state save race fix, legacy facade removal, decomposition of long functions with characterization tests, redundant documents removed); translation behaviour unchanged",
-  "active_release": "/opt/phoena-translator/releases/release-2026.10.29-modular-runtime",
-  "payload_file_count": 86,
-  "payload_total_bytes": 1051182,
-  "payload_manifest_sha256": "d53242bf00dda071165b1528d338d5374865acaf8844b4ffc161ec7d515359f9",
-  "prior_deployment_content_aggregate_sha256": "34f6a039c8e20bec54448ec6bc7a7758cf372f983ef35f9a106102610932c794",
-  "supersedes": "PhoenaTranslator-20261028-epub-tolerant-publish-reinstall (2026.10.28-epub-tolerant-publish)",
+  "package_name": "PhoenaTranslator-20261112-figure-table-fallback-reinstall",
+  "version": "2026.11.12-figure-table-fallback",
+  "built_at_utc": "2026-11-12T05:36:51.817742+00:00",
+  "source_policy": "release 2026.11.12-figure-table-fallback: when text inside a figure or table cannot be typeset, only that figure or table keeps its exact source ink and the rest of the page is translated (no source-page fallback, no cross-page expansion from this cause); groups are proposed from layout and accepted only if every element passes an attribute-only validator; prompts, extraction and caches unchanged",
+  "active_release": "/opt/phoena-translator/releases/release-2026.11.12-figure-table-fallback",
+  "payload_file_count": 87,
+  "payload_total_bytes": 1107932,
+  "payload_manifest_sha256": "01122b9da7c0e42639270822ab48b11433c4b70151c1af761262906e329da7b7",
+  "prior_deployment_content_aggregate_sha256": "d53242bf00dda071165b1528d338d5374865acaf8844b4ffc161ec7d515359f9",
+  "supersedes": "PhoenaTranslator-20261029-modular-runtime-reinstall (2026.10.29-modular-runtime)",
   "excluded_classes": [
     "credentials and environment files",
     "TLS certificates and private keys",
@@ -18,5 +18,5 @@
     "fonts, audit evidence, backups and Git metadata",
     "tests, test requirements and release tooling (kept in the source repository)"
   ],
-  "validation": "Local regression suite: 492 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including end-to-end golden snapshots of two synthetic PDFs that are identical before and after the refactor, an upload-to-download run through the worker pool, gunicorn app:app serving /api/health and /api/tasks, and scratch differential fuzzing of each decomposed module against its previous version. Not yet validated on the production host or against real documents."
+  "validation": "Local regression suite: 559 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including 67 figure/table fallback tests with a seeded property test of the group guarantees; an offline, keyless reassembly of a real 9-page production job on the production host turned its four source-page fallbacks into four narrowed figures/tables with every other page unchanged; three review rounds by two independent reviewers."
 }

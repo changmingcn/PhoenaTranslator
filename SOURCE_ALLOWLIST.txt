@@ -39,6 +39,7 @@ phoena_translator/pdf/progress.py
 phoena_translator/pdf/recovery.py
 phoena_translator/pdf/render/__init__.py
 phoena_translator/pdf/render/assembly.py
+phoena_translator/pdf/render/figure_table_groups.py
 phoena_translator/pdf/render/fonts.py
 phoena_translator/pdf/render/page_styles.py
 phoena_translator/pdf/render/paragraph_html.py
