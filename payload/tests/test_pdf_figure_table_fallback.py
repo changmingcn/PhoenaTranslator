@@ -1099,6 +1099,8 @@ def test_narrowed_page_pulled_back_by_a_later_page_keeps_no_record(
     assert document.fallback_pages() == [1, 2]
     assert "Below we show" in first
     _assert_no_narrowing_left(document, page_one)
+    # Refuter round-2 F4: no empty key left behind, as at 7fb1aa1.
+    assert "figure_table_source_fallbacks" not in document.audit
 
 
 def test_later_page_failure_record_and_task_record_have_no_stale_group(
@@ -1152,7 +1154,7 @@ def test_structure_fallback_drops_the_narrowing_of_its_page(tmp_path):
     stage._apply_structure_fallbacks(context)
 
     assert [entry["page"] for entry in audit["source_page_fallbacks"]] == [1]
-    assert audit["figure_table_source_fallbacks"] == []
+    assert "figure_table_source_fallbacks" not in audit
     # The baseline's own element entries are left as 7fb1aa1 leaves them.
     assert audit["element_source_fallbacks"] == [{"page": 1, "element": 3, "stage": "render"}]
     assert "skip_translate_reason" not in elements[0]

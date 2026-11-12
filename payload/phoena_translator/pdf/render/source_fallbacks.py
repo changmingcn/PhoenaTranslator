@@ -141,11 +141,16 @@ def _drop_pdf_figure_table_audit_records(
     if not pages:
         return
     if "figure_table_source_fallbacks" in audit:
-        audit["figure_table_source_fallbacks"] = [
+        kept = [
             entry
             for entry in audit.get("figure_table_source_fallbacks") or []
             if int(entry.get("page", 0) or 0) not in pages
         ]
+        if kept:
+            audit["figure_table_source_fallbacks"] = kept
+        else:
+            # The key exists only while something was narrowed, as before.
+            del audit["figure_table_source_fallbacks"]
     if "element_source_fallbacks" in audit:
         audit["element_source_fallbacks"] = [
             entry
