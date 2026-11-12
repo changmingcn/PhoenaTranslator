@@ -1807,6 +1807,41 @@ def test_page_failure_without_any_narrowing_keeps_the_baseline_records(
 
 
 # ---------------------------------------------------------------------------
+# Review round 3, ruling S3: running out of attempts gives the page fallback
+# ---------------------------------------------------------------------------
+
+
+def test_exhausting_the_attempts_delivers_the_source_page(tmp_path, font_path, monkeypatch):
+    # Every attempt fails with a fresh accepted group (which a real page
+    # cannot produce): after the last attempt the page error is re-raised,
+    # the page is delivered as its source page and the job completes.
+    elements = [_body(100), *_figure(200)]
+    document = Document(tmp_path, font_path, [(elements, {0: ZH[:20], 3: "单元一"})])
+    attempts = []
+
+    def always_narrowing(context, page_num, *args, **kwargs):
+        attempts.append(page_num)
+        error = PDFPageRenderError(page_num + 1, 3, "injected no-fit")
+        error.figure_table_group = groups.FigureTableGroup(
+            kind=groups.CAPTION_BAND,
+            trigger_element=len(attempts),
+            reason="injected",
+            members=frozenset({len(attempts)}),
+            bbox=(0.0, 0.0, 1.0, 1.0),
+        )
+        raise error
+
+    monkeypatch.setattr(assembly, "_assemble_page", always_narrowing)
+
+    (text,) = document.assemble()
+
+    assert len(attempts) == 2 * groups.RULES.max_groups_per_page + 1
+    assert document.fallback_pages() == [1]
+    assert "Below we show" in text and "Cell 1 AUM" in text
+    assert "figure_table_source_fallbacks" not in document.audit
+
+
+# ---------------------------------------------------------------------------
 # Task record
 # ---------------------------------------------------------------------------
 

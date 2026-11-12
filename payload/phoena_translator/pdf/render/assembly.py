@@ -1785,13 +1785,14 @@ def _assemble_page_with_figure_table_fallbacks(
     restored, and the page is assembled again with the group kept in its
     exact source ink.
 
-    Bound: an attempt is repeated only for an accepted group (at most
-    ``max_groups_per_page``, the decision refuses beyond it) or for the
-    safety net that drops a group whose invariant failed (at most once per
-    accepted group, its seed is then barred), so a page takes at most
-    ``2 * max_groups_per_page + 1`` attempts.  A failure that is not narrowed
-    is raised for the page-level fallback with the page's state as before
-    the first attempt.
+    Bound: the loop makes at most ``2 * max_groups_per_page + 1`` attempts.
+    An attempt is repeated only for an accepted group (each with a seed
+    never grouped before on the page; at most ``max_groups_per_page`` held
+    at once) or for the safety net that drops a group whose invariant
+    failed (its seed is then barred).  On exhaustion, and for any failure
+    that is not narrowed, the page's state is restored to before the first
+    attempt and the page error is raised, so the page-level fallback
+    applies.
     """
     if not _figure_table_fallback_enabled(context):
         _assemble_page(context, page_num)
@@ -1801,11 +1802,13 @@ def _assemble_page_with_figure_table_fallbacks(
     refused: set[int] = set()
     discarded = False  # whether an attempt was thrown away (state to restore)
     max_attempts = 2 * FIGURE_TABLE_RULES.max_groups_per_page + 1
+    last_error: PDFPageRenderError | None = None
     for _attempt in range(max_attempts):
         try:
             _assemble_page(context, page_num, tuple(groups), refused)
             return
         except PDFPageRenderError as error:
+            last_error = error
             dropped = getattr(error, "figure_table_refused", None)
             group = getattr(error, "figure_table_group", None)
             if dropped is not None and dropped in groups:
@@ -1835,10 +1838,12 @@ def _assemble_page_with_figure_table_fallbacks(
             discarded = True
             snapshot.restore(context, page_num)
             context.logger.warning(f"[{context.task_id}] Page {page_num + 1} {message}")
-    raise RuntimeError(
-        f"figure/table narrowing exceeded its bound of {max_attempts} attempts "
-        f"on page {page_num + 1}"
+    snapshot.restore(context, page_num)
+    context.logger.warning(
+        f"[{context.task_id}] Page {page_num + 1}: figure/table narrowing used "
+        f"all {max_attempts} attempts; the page-level fallback applies"
     )
+    raise last_error
 
 
 def _continue_assembly_with_source_pages(
