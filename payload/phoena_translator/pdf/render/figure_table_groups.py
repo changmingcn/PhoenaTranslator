@@ -594,9 +594,65 @@ def _trusted_band(elements: list[dict], members: set[int] | None, seed: int) -> 
     return table_cells >= len(members) * RULES.min_band_table_share
 
 
-def element_is_prose(elements: list[dict], index: int, dominant_fontsize: float) -> bool:
-    """Prose by the grouping rule's definition, judged against the whole page."""
-    return _is_prose(elements, index, _text_indices(elements), dominant_fontsize)
+def validate_figure_table_group(
+    elements: list[dict],
+    members,
+    extras,
+    *,
+    trigger: str,
+    dominant_fontsize: float,
+    page_rect,
+    protected_indices=frozenset(),
+) -> str:
+    """The guarantees every group must meet; ``""`` when it may be used.
+
+    Checked on the finished group, members and the outside elements kept
+    with them alike, from each element's own attributes and the trigger
+    only (no neighbours, no drawings, no bands of other text), so a guess
+    made by the geometry above cannot carry a paragraph into a group:
+
+    G1  no element is body prose (``_pdf_element_is_body_prose``) or set at
+        body type size; an outside element that is a numbered figure/table
+        title may be any size.
+    G2  under the element-restore trigger, no element reads as running prose
+        unless the extractor marked it as table text (``table_hint`` or class
+        ``table``): there, the alternative is one re-typeset cell.
+    G3  no element is a title, caption, source or note line, footnote,
+        running header or footer, cross-page merge endpoint or merged-away
+        text (the G1 title exception aside).
+    """
+    protected = set(protected_indices or ())
+    member_set = set(members)
+    for index in sorted(member_set | set(extras)):
+        elem = elements[index]
+        if elem.get("type") == ElementType.MERGED_AWAY:
+            return f"G3: elem {index} is merged-away text"
+        if index in protected:
+            return f"G3: elem {index} is a cross-page merge endpoint"
+        if not _is_text(elem):
+            return f"G3: elem {index} is not translatable text"
+        title_extra = index not in member_set and _is_title(elem, dominant_fontsize)
+        if not title_extra:
+            if _pdf_element_is_body_prose(elem, dominant_fontsize):
+                return f"G1: elem {index} is body prose"
+            if _fontsize(elem) >= dominant_fontsize * RULES.body_type_share:
+                return f"G1: elem {index} is set at body type size"
+            plain = _plain(elem)
+            if _TITLE_RE.match(plain) or _SOURCE_NOTE_RE.match(plain):
+                return f"G3: elem {index} is a title, caption, source or note line"
+            if elem.get("footnote_hint") or elem.get("reference_entry_hint"):
+                return f"G3: elem {index} is a footnote or reference entry"
+            if _in_header_band(elem, page_rect) or _pdf_element_in_page_footer_band(
+                elem, page_rect
+            ):
+                return f"G3: elem {index} is a running header or footer"
+        if (
+            trigger == ELEMENT_RESTORE
+            and _reads_as_prose(elem)
+            and not (elem.get("table_hint") or elem.get("layout_class") == LayoutClass.TABLE)
+        ):
+            return f"G2: elem {index} reads as running prose"
+    return ""
 
 
 def find_figure_table_group(
@@ -666,12 +722,24 @@ def find_figure_table_group(
     if members & set(protected_indices):
         return None
     extras: frozenset[int] = frozenset()
+    why = ""
     if extend is not None:
         extras, why = extend(frozenset(members))
-        if why:
-            if refusals is not None:
-                refusals.append(why)
-            return None
+    # Every group leaves through this check, members and kept outside
+    # elements alike.
+    why = why or validate_figure_table_group(
+        elements,
+        members,
+        extras,
+        trigger=trigger,
+        dominant_fontsize=dominant_fontsize,
+        page_rect=page_rect,
+        protected_indices=protected_indices,
+    )
+    if why:
+        if refusals is not None:
+            refusals.append(why)
+        return None
     return FigureTableGroup(
         kind=kind,
         trigger_element=seed,
@@ -689,7 +757,7 @@ __all__ = [
     "PAGE_FAILURE",
     "RULES",
     "TABLE_REGION",
-    "element_is_prose",
+    "validate_figure_table_group",
     "FigureTableGroup",
     "FigureTableGroupRules",
     "find_figure_table_group",

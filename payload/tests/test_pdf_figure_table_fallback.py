@@ -7,6 +7,8 @@ Run from ``payload``: ``python -m pytest tests -q``.
 from __future__ import annotations
 
 import logging
+import random
+import re
 import shutil
 from dataclasses import replace
 from types import SimpleNamespace
@@ -22,6 +24,7 @@ from phoena_translator.pdf.pipeline import _new_pdf_audit
 from phoena_translator.pdf.render import assembly
 from phoena_translator.pdf.render import figure_table_groups as groups
 from phoena_translator.pdf.render import stage
+from phoena_translator.pdf.semantics import layout_classifier
 
 ZH = "的一是在不了有和人这中大为上个国我以要他时来用们生到作地于出就分对成会可"
 PAGE = fitz.Rect(0, 0, 612, 792)
@@ -1335,6 +1338,148 @@ def test_at_the_group_cap_an_element_restore_still_completes_locally(
     assert [record["element"] for record in document.figure_tables()] == [3]
     assert _render_stage_restores(document) == [8]
     assert ZH[:20] in _squash(text) and ZH[5:20] in _squash(text)
+
+
+# ---------------------------------------------------------------------------
+# Review round 2, ruling G: every group meets the attribute-only guarantees
+# ---------------------------------------------------------------------------
+
+_WORDS = (
+    "spreads credit insurers widened quarter issuance demand pension funds "
+    "softened sectors yield market defaults recovery rates distressed ratio"
+).split()
+
+
+def _random_page(rng):
+    """A page of random boxes, sizes, classes, word counts and hints."""
+    elements = []
+    page_height = 792.0
+
+    def words(count):
+        return " ".join(rng.choice(_WORDS) for _ in range(count))
+
+    for _ in range(rng.randint(8, 26)):
+        kind = rng.random()
+        x0 = rng.choice([45.0, 72.0, 212.0, 320.0, 430.0]) + rng.uniform(-4, 4)
+        y0 = rng.uniform(20, 760)
+        size = rng.choice([2.9, 3.6, 5.0, 5.16, 7.0, 7.8, 8.3, 9.0, 9.5, 10.0, 11.0])
+        extra = {}
+        if kind < 0.12:
+            text = f"{rng.choice(['Figure', 'Table', 'Exhibit'])} {rng.randint(1, 20)}: {words(rng.randint(2, 14))}"
+            width, height = rng.uniform(80, 400), size * rng.choice([1.0, 2.2])
+        elif kind < 0.2:
+            text = f"{rng.choice(['Source', 'Note'])}: {words(rng.randint(2, 10))}"
+            width, height = rng.uniform(80, 300), size
+        elif kind < 0.45:
+            text = words(rng.randint(8, 40))
+            width, height = rng.uniform(150, 470), size * rng.choice([1.0, 2.4, 4.8])
+            extra["layout_class"] = rng.choice(["body", "body", "scattered", "table", None])
+        else:
+            text = rng.choice([words(rng.randint(1, 4)), f"{rng.randint(1, 999)}.{rng.randint(0, 9)}%"])
+            width, height = rng.uniform(10, 90), size * rng.choice([1.0, 1.0, 2.2])
+            extra["layout_class"] = rng.choice(["table", "table", "scattered", None])
+        if rng.random() < 0.25:
+            extra["table_hint"] = True
+        if rng.random() < 0.05:
+            extra["footnote_hint"] = True
+        if rng.random() < 0.04:
+            extra["skip_translate_reason"] = SkipReason.WATERMARK
+        if extra.get("layout_class") is None:
+            extra.pop("layout_class", None)
+        elements.append(
+            _text([x0, y0, min(x0 + width, 590.0), min(y0 + height, page_height - 2)], text, fontsize=size, **extra)
+        )
+    for _ in range(rng.randint(0, 2)):
+        x0, y0 = rng.uniform(40, 300), rng.uniform(60, 600)
+        elements.append(_region([x0, y0, x0 + rng.uniform(100, 300), y0 + rng.uniform(40, 200)]))
+    if rng.random() < 0.2:
+        x0, y0 = rng.uniform(40, 400), rng.uniform(60, 700)
+        elements.append({"type": ElementType.MERGED_AWAY, "bbox": [x0, y0, x0 + 100, y0 + 10], "content": "x"})
+    graphics = []
+    for _ in range(rng.randint(0, 4)):
+        x0, y0 = rng.uniform(20, 400), rng.uniform(40, 700)
+        graphics.append(
+            fitz.Rect(x0, y0, x0 + rng.uniform(1, 500), y0 + rng.choice([0.5, 1.0, 4.0, 20.0, 120.0]))
+        )
+    return elements, graphics
+
+
+_OWN_TITLE = re.compile(r"^\s*(figure|fig\.?|exhibit|chart|table|graph)\s*[A-Z]?\d", re.IGNORECASE)
+_OWN_SOURCE = re.compile(r"^\s*(sources?|notes?)\s*:", re.IGNORECASE)
+
+
+def _breaks_a_guarantee(elements, group, trigger, endpoints):
+    """G1-G3 restated independently of the code under test."""
+    for index in sorted(group.members | group.extra_members):
+        elem = elements[index]
+        if elem.get("type") != ElementType.TEXT or elem.get("skip_translate_reason") == SkipReason.WATERMARK:
+            return f"{index}: not text"
+        if index in endpoints:
+            return f"{index}: merge endpoint"
+        plain = " ".join(str(elem.get("content", "")).split())
+        title_extra = index not in group.members and _OWN_TITLE.match(plain)
+        x0, y0, x1, y1 = elem["bbox"]
+        if not title_extra:
+            if layout_classifier._pdf_element_is_body_prose(elem, 10.0):
+                return f"{index}: body prose"
+            if float(elem["fontsize"]) >= 9.2:
+                return f"{index}: body type size"
+            if _OWN_TITLE.match(plain) or _OWN_SOURCE.match(plain):
+                return f"{index}: title/caption/source/note"
+            if elem.get("footnote_hint"):
+                return f"{index}: footnote"
+            centre = (y0 + y1) / 2.0 / 792.0
+            if centre <= 0.08 or centre >= 0.92:
+                return f"{index}: running header/footer"
+        if trigger == groups.ELEMENT_RESTORE and not (
+            elem.get("table_hint") or elem.get("layout_class") == "table"
+        ):
+            count = len(re.findall(r"[A-Za-z][A-Za-z'’-]*", plain))
+            size = float(elem["fontsize"])
+            wrapped = (y1 - y0) > max(size * 1.2, 8.0) * 1.6
+            if count >= 12 or (count >= 8 and wrapped):
+                return f"{index}: running prose under element restore"
+    return ""
+
+
+def test_every_group_and_kept_outside_element_meets_the_guarantees():
+    rng = random.Random(20261112)
+    produced = 0
+    for _case in range(300):
+        elements, graphics = _random_page(rng)
+        texts = [
+            i for i, e in enumerate(elements)
+            if e["type"] == ElementType.TEXT and e.get("skip_translate_reason") != SkipReason.WATERMARK
+        ]
+        if not texts:
+            continue
+        translated = {i for i in texts if rng.random() < 0.7}
+        watermark = {
+            i for i, e in enumerate(elements) if e.get("skip_translate_reason") == SkipReason.WATERMARK
+        }
+        merged_away = {i for i, e in enumerate(elements) if e["type"] == ElementType.MERGED_AWAY}
+        endpoints = set(rng.sample(texts, k=min(len(texts), rng.randint(0, 1))))
+        for seed in rng.sample(texts, k=min(len(texts), 4)):
+            for trigger in (groups.PAGE_FAILURE, groups.ELEMENT_RESTORE):
+                group = groups.find_figure_table_group(
+                    elements,
+                    seed,
+                    page_rect=PAGE,
+                    dominant_fontsize=10.0,
+                    protected_indices=endpoints,
+                    graphics=graphics,
+                    trigger=trigger,
+                    extend=lambda members: assembly._figure_table_closure(
+                        elements, members, set(), translated, watermark, merged_away, endpoints
+                    ),
+                )
+                if group is None:
+                    continue
+                produced += 1
+                assert not _breaks_a_guarantee(elements, group, trigger, endpoints), (
+                    _case, seed, trigger, _breaks_a_guarantee(elements, group, trigger, endpoints)
+                )
+    assert produced >= 40
 
 
 # ---------------------------------------------------------------------------

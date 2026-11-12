@@ -27,7 +27,6 @@ from phoena_translator.pdf.render.figure_table_groups import (
     PAGE_FAILURE as FIGURE_TABLE_PAGE_FAILURE,
     RULES as FIGURE_TABLE_RULES,
     FigureTableGroup,
-    element_is_prose,
     find_figure_table_group,
 )
 from phoena_translator.pdf.render.page_styles import _derive_pdf_page_layout_styles
@@ -626,7 +625,6 @@ def _figure_table_closure(
     watermark: set[int],
     merged_away: set[int],
     endpoints: set[int],
-    dominant_fontsize: float,
 ) -> tuple[frozenset[int], str]:
     """Outside elements that must stay in source with ``members``, or a refusal.
 
@@ -639,7 +637,8 @@ def _figure_table_closure(
     of the next attempt (this attempt's translated text less what the group
     keeps), so it is settled before any attempt is discarded.  A watermark
     (always removed), a merged-away element or a cross-page merge endpoint
-    cannot be kept: refusal.
+    cannot be kept: refusal.  Every element added here is checked by
+    ``validate_figure_table_group`` with the members.
     """
     own = set(kept) | set(members)
     remaining = set(translated) - own
@@ -659,8 +658,8 @@ def _figure_table_closure(
                 return frozenset(), (
                     f"cross-page merge elem {culprit} overlaps kept element(s) {sorted(reached)}"
                 )
-            if element_is_prose(elements, culprit, dominant_fontsize):
-                return frozenset(), f"prose elem {culprit} overlaps kept element(s) {sorted(reached)}"
+            # Whether a kept outside element is acceptable (prose, body type,
+            # titles) is decided with the members by the group validator.
             extras.add(culprit)
             remaining.discard(culprit)
     return frozenset(), "no fixed point for the elements to keep"
@@ -722,7 +721,6 @@ def _decide_figure_table_group(
             watermark,
             merged_away,
             endpoints,
-            dominant_fontsize,
         ),
         refusals=refusals,
     )
