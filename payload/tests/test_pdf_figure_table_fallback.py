@@ -907,6 +907,141 @@ def test_small_body_paragraph_keeps_its_translation(tmp_path, font_path):
 
 
 # ---------------------------------------------------------------------------
+# Review round P2f, ruling I2: nothing inside a narrowed group is redrawn
+# ---------------------------------------------------------------------------
+
+
+def _capture_plans(monkeypatch):
+    plans = []
+    real = assembly._prepare_page
+
+    def prepare(*args, **kwargs):
+        plan = real(*args, **kwargs)
+        if plan is not None:
+            plans.append(plan)
+        return plan
+
+    monkeypatch.setattr(assembly, "_prepare_page", prepare)
+    return plans
+
+
+def _assert_no_kept_element_drawn(plans, extra=()):
+    for plan in plans:
+        kept = set(extra).union(*(group.members for group in plan.source_groups))
+        if plan.source_groups:
+            assert not kept & plan.render_indices
+            assert not kept & plan.redraw_source_indices
+
+
+def test_title_overlapping_a_member_is_kept_with_the_group(tmp_path, font_path, monkeypatch):
+    # Refuter R1: cell 2 overlaps the translated title by 2 pt.
+    elements = [_body(100), *_figure(200), _body(400)]
+    elements[2]["bbox"] = [72, 207, 112, 213]
+    translations = {0: ZH[:20], 1: "图3：敞口", 2: "单元零", 3: "单元一", 7: ZH[3:20]}
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    plans = _capture_plans(monkeypatch)
+    _inject_render_failures(monkeypatch, {(0, 3)})
+
+    (text,) = document.assemble()
+
+    assert document.fallback_pages() == []
+    (record,) = document.figure_tables()
+    assert record["elements"] == [2, 3, 4, 5]
+    assert record["extra_kept_elements"] == [1]
+    assert "Figure 3" in text and "图3" not in _squash(text)
+    assert ZH[:20] in _squash(text) and ZH[3:20] in _squash(text)
+    stages = {entry["element"]: entry["stage"] for entry in document.audit["element_source_fallbacks"]}
+    assert stages == {1: "render-figure-table", 2: "render-figure-table", 3: "render-figure-table"}
+    placements = {event["element"] for event in document.audit["htmlbox_placement_events"]}
+    assert not placements & {1, 2, 3, 4, 5}
+    _assert_no_kept_element_drawn(plans, extra={1})
+
+
+def test_codex_overlap_input_keeps_group_ink_identical_to_source(tmp_path, font_path, monkeypatch):
+    # Codex F2: the caption overlaps two region cells that overlap each other.
+    elements = [
+        _body(100),
+        _text([72, 180, 400, 207], "Figure 1: annual forecast", fontsize=9.0),
+        _region([60, 204, 560, 260]),
+        _cell(350, 205, "illiquid liquidity", width=100, table_hint=True),
+        _cell(385, 205, "Other", width=40, table_hint=True),
+        _cell(72, 230, LONG_CELL, width=24, table_hint=True),
+        _body(400),
+    ]
+    translations = {0: ZH[:30], 1: ZH[:8], 3: ZH[:5], 4: ZH[:5], 5: ZH * 4, 6: ZH[5:30]}
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    plans = _capture_plans(monkeypatch)
+
+    (text,) = document.assemble()
+
+    (record,) = document.figure_tables()
+    assert record["elements"] == [3, 4, 5] and record["extra_kept_elements"] == [1]
+    placements = {event["element"] for event in document.audit["htmlbox_placement_events"]}
+    assert not placements & {1, 3, 4, 5}
+    assert ZH[:30] in _squash(text) and ZH[5:30] in _squash(text)
+    _assert_no_kept_element_drawn(plans, extra={1})
+    clip = fitz.Rect(record["bbox"]) | fitz.Rect(elements[1]["bbox"])
+    with fitz.open(str(document.source_path)) as source, fitz.open(str(document.work_path)) as output:
+        before = source[0].get_pixmap(clip=clip, dpi=144)
+        after = output[0].get_pixmap(clip=clip, dpi=144)
+        assert before.samples == after.samples
+
+
+def test_watermark_overlapping_a_member_refuses_the_group(tmp_path, font_path, monkeypatch):
+    elements = [_body(100), *_figure(200)]
+    elements.append(
+        _text([300, 210, 360, 230], "DRAFT", fontsize=9.0, skip_translate_reason=SkipReason.WATERMARK)
+    )
+    document = Document(tmp_path, font_path, [(elements, {0: ZH[:20], 3: "单元一"})])
+    _inject_render_failures(monkeypatch, {(0, 3)})
+
+    document.assemble()
+
+    assert document.figure_tables() == []
+    assert document.fallback_pages() == [1]
+    assert "figure/table group refused" not in document.audit["source_page_fallbacks"][0]["reason"]
+
+
+def test_prose_overlapping_a_member_refuses_the_group_and_restores_as_today(
+    tmp_path, font_path
+):
+    figure = _figure(200)
+    figure[1] = _cell(72, 214, LONG_CELL, width=24.0, layout_class="scattered")
+    # Cell 5 is clipped by the body paragraph below it; as a table cell it
+    # is redrawn in its own box, as today.
+    figure[4]["table_hint"] = True
+    elements = [_body(100), *figure[:-1], _body(228)]
+    translations = {0: ZH[:30], 2: ZH * 4, 3: "单元一", 6: ZH[5:30]}
+    document = Document(tmp_path, font_path, [(elements, translations)])
+
+    (text,) = document.assemble()
+
+    assert document.figure_tables() == []
+    assert document.fallback_pages() == []
+    assert _render_stage_restores(document) == [2]
+    assert ZH[5:30] in _squash(text)
+
+
+def test_a_kept_element_still_redrawn_refuses_the_group(tmp_path, font_path, monkeypatch):
+    # The invariant holds even if the fixed point were skipped.
+    elements = [_body(100), *_figure(200), _body(400)]
+    elements[2]["bbox"] = [72, 207, 112, 213]
+    translations = {0: ZH[:20], 1: "图3：敞口", 3: "单元一", 7: ZH[3:20]}
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    monkeypatch.setattr(
+        assembly,
+        "_keep_redraw_culprits_in_source",
+        lambda context, layout, groups, *rest: set().union(*(g.members for g in groups)),
+    )
+    _inject_render_failures(monkeypatch, {(0, 3)})
+
+    document.assemble()
+
+    assert document.figure_tables() == []
+    assert document.fallback_pages() == [1]
+
+
+# ---------------------------------------------------------------------------
 # Task record
 # ---------------------------------------------------------------------------
 

@@ -27,6 +27,7 @@ from phoena_translator.pdf.render.figure_table_groups import (
     PAGE_FAILURE as FIGURE_TABLE_PAGE_FAILURE,
     RULES as FIGURE_TABLE_RULES,
     FigureTableGroup,
+    element_is_prose,
     find_figure_table_group,
 )
 from phoena_translator.pdf.render.page_styles import _derive_pdf_page_layout_styles
@@ -111,9 +112,10 @@ class PDFPageAssemblyPlan:
     translated_indices: set[int]
     redraw_source_indices: set[int]
     render_indices: set[int]
-    # Figures/tables this attempt keeps in source ink (see
-    # ``_assemble_page_with_figure_table_fallbacks``).
+    # Figures/tables this attempt keeps in source ink, and failing elements
+    # whose group was refused (see ``_assemble_page_with_figure_table_fallbacks``).
     source_groups: tuple[FigureTableGroup, ...] = ()
+    refused_seeds: frozenset[int] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -291,6 +293,7 @@ def _prepare_page(
     context: PDFAssemblyContext,
     page_num: int,
     source_groups: tuple[FigureTableGroup, ...] = (),
+    refused_seeds: frozenset[int] = frozenset(),
 ) -> PDFPageAssemblyPlan | None:
     """Resolve translations and validate formula-safe placement before redaction.
 
@@ -334,8 +337,10 @@ def _prepare_page(
         and i in page_trans
         and page_trans[i] != elem.get("content", "")
     }
-    for group in source_groups:
+    group_entries = [
         _keep_figure_table_source_ink(context, layout, group, page_trans, translated_indices)
+        for group in source_groups
+    ]
 
     # Validate formula-safe placement before redacting any source text.
     # Previously this check happened only during insertion, after the
@@ -345,6 +350,15 @@ def _prepare_page(
     # original source ink while the rest of the page still translates.
     for i in sorted(_unplaceable_indices(context, layout, page_trans, translated_indices)):
         _keep_source_ink(context, layout, i, page_trans, translated_indices)
+    kept_in_source = _keep_redraw_culprits_in_source(
+        context,
+        layout,
+        source_groups,
+        group_entries,
+        page_trans,
+        translated_indices,
+        merged_away_indices,
+    )
     _audit_untranslated_english(context, page_num, elements, page_trans)
 
     if not translated_indices and not layout.watermark_indices and not merged_away_indices:
@@ -355,6 +369,14 @@ def _prepare_page(
         elements,
         set(translated_indices) | set(layout.watermark_indices) | merged_away_indices,
     )
+    if kept_in_source & (redraw_source_indices | translated_indices):
+        # Invariant: nothing inside a narrowed figure/table is redacted,
+        # redrawn or re-typeset (the fixed point above guarantees it).
+        raise _figure_table_refusal(
+            page_num,
+            source_groups[-1],
+            "a kept element would still be redrawn",
+        )
     if redraw_source_indices:
         context.logger.info(
             f"[{context.task_id}] Page {page_num + 1}: redrawing {len(redraw_source_indices)} "
@@ -372,6 +394,7 @@ def _prepare_page(
         redraw_source_indices=redraw_source_indices,
         render_indices=set(translated_indices) | redraw_source_indices,
         source_groups=tuple(source_groups),
+        refused_seeds=frozenset(refused_seeds),
     )
 
 
@@ -505,7 +528,7 @@ def _keep_figure_table_source_ink(
     group: FigureTableGroup,
     page_trans: dict[int, str],
     translated_indices: set[int],
-) -> None:
+) -> dict:
     """Leave a whole figure or table untouched in its source ink and record it."""
     page_number = layout.page_num + 1
     reason = (
@@ -536,7 +559,7 @@ def _keep_figure_table_source_ink(
             reason,
             source_text=layout.elements[index].get("content", ""),
         )
-    context.pdf_audit.setdefault("figure_table_source_fallbacks", []).append({
+    entry = {
         "page": page_number,
         "element": group.trigger_element,
         "stage": "render",
@@ -545,13 +568,110 @@ def _keep_figure_table_source_ink(
         "trigger": group.trigger,
         "elements": sorted(group.members),
         "narrowed_elements": narrowed,
+        # Outside elements kept too, so that no member has to be redrawn.
+        "extra_kept_elements": [],
         "bbox": list(group.bbox),
-    })
+    }
+    context.pdf_audit.setdefault("figure_table_source_fallbacks", []).append(entry)
     context.logger.warning(
         f"[{context.task_id}] Page {page_number} elem {group.trigger_element}: "
         f"keeping the whole figure/table ({group.kind}, {len(group.members)} "
         f"element(s), {len(narrowed)} translation(s) withdrawn) in its exact "
         "source ink and translating the rest of the page"
+    )
+    return entry
+
+
+def _figure_table_refusal(
+    page_num: int,
+    group: FigureTableGroup,
+    why: str,
+) -> PDFPageRenderError:
+    """The error that withdraws ``group``: its failure takes today's path."""
+    error = PDFPageRenderError(
+        page_num + 1,
+        group.trigger_element,
+        f"{group.reason}; figure/table group refused: {why}",
+    )
+    error.figure_table_refused = group
+    return error
+
+
+def _keep_redraw_culprits_in_source(
+    context: PDFAssemblyContext,
+    layout: _PageLayout,
+    source_groups: tuple[FigureTableGroup, ...],
+    group_entries: list[dict],
+    page_trans: dict[int, str],
+    translated_indices: set[int],
+    merged_away_indices: set[int],
+) -> set[int]:
+    """Keep in source ink every outside element whose redaction would force a
+    kept element to be redrawn; return all elements kept in source.
+
+    Redacting a translated element erases the glyphs of any text whose box it
+    clips, and that text is then re-typeset.  For a kept figure/table member
+    that would break the promise of exact source ink, so the outside element
+    (typically the figure's own title or an adjacent label) stays in source
+    too, repeated to a fixed point.  Prose, a cross-page merge endpoint, a
+    merged-away element or a watermark (always removed) cannot be kept that
+    way: the group is refused instead.
+    """
+    if not source_groups:
+        return set()
+    elements = layout.elements
+    page_number = layout.page_num + 1
+    owner: dict[int, int] = {}
+    for position, group in enumerate(source_groups):
+        for member in group.members:
+            owner.setdefault(member, position)
+    always_removed = set(layout.watermark_indices) | set(merged_away_indices)
+    endpoints = _merge_endpoint_indices(context, page_number)
+    dominant_fontsize = _cross_page_dominant_fontsize(context.page_extractions)
+    for _ in range(len(elements) + 1):
+        removal = set(translated_indices) | always_removed
+        if not _collect_pdf_overlap_redraw_indices(elements, removal) & set(owner):
+            return set(owner)
+        for culprit in sorted(removal):
+            reached = _collect_pdf_overlap_redraw_indices(elements, {culprit}) & set(owner)
+            if not reached:
+                continue
+            position = min(owner[index] for index in reached)
+            if culprit in layout.watermark_indices:
+                why = f"watermark elem {culprit} overlaps kept element(s) {sorted(reached)}"
+            elif culprit in merged_away_indices or culprit in endpoints:
+                why = f"cross-page merge elem {culprit} overlaps kept element(s) {sorted(reached)}"
+            elif element_is_prose(elements, culprit, dominant_fontsize):
+                why = f"prose elem {culprit} overlaps kept element(s) {sorted(reached)}"
+            else:
+                why = ""
+            if why:
+                raise _figure_table_refusal(layout.page_num, source_groups[-1], why)
+            elem = elements[culprit]
+            translated_indices.discard(culprit)
+            page_trans[culprit] = elem.get("content", "")
+            if not elem.get("skip_translate_reason"):
+                elem["skip_translate_reason"] = SkipReason.RENDER_FIGURE_TABLE_SOURCE
+            _exclude_pdf_audit_expectations_for_element(context.pdf_audit, page_number, culprit)
+            group = source_groups[position]
+            _record_pdf_element_source_fallback(
+                context.pdf_audit,
+                page_number,
+                culprit,
+                "render-figure-table",
+                f"kept with {group.kind} figure/table of elem {group.trigger_element}: "
+                f"redacting it would force kept element(s) {sorted(reached)} to be redrawn",
+                source_text=elem.get("content", ""),
+            )
+            group_entries[position]["extra_kept_elements"].append(culprit)
+            owner[culprit] = position
+            context.logger.warning(
+                f"[{context.task_id}] Page {page_number} elem {culprit}: kept in "
+                f"source ink with the figure/table of elem {group.trigger_element} "
+                f"so that kept element(s) {sorted(reached)} need no redraw"
+            )
+    raise _figure_table_refusal(
+        layout.page_num, source_groups[-1], "no fixed point for the elements to keep"
     )
 
 
@@ -787,6 +907,7 @@ def _narrow_figure_table_instead_of_restore(
         page_plan.page_num,
         PDFPageRenderError(page_number, index, reason),
         list(page_plan.source_groups),
+        page_plan.refused_seeds,
     )
     if group is None:
         return
@@ -1373,6 +1494,7 @@ def _assemble_page(
     context: PDFAssemblyContext,
     page_num: int,
     source_groups: tuple[FigureTableGroup, ...] = (),
+    refused_seeds: frozenset[int] = frozenset(),
 ) -> None:
     """Assemble one output page and checkpoint HTML-box work when configured."""
 
@@ -1380,7 +1502,7 @@ def _assemble_page(
     pdf_password = context.pdf_password
     assembly_work_path = context.assembly_work_path
     out_doc = context.out_doc
-    plan = _prepare_page(context, page_num, source_groups)
+    plan = _prepare_page(context, page_num, source_groups, refused_seeds)
     if plan is None:
         return
     render_indices = plan.render_indices
@@ -1537,8 +1659,12 @@ def _figure_table_group_for_error(
     page_num: int,
     error: PDFPageRenderError,
     groups: list[FigureTableGroup],
+    refused_seeds: frozenset[int] = frozenset(),
 ) -> FigureTableGroup | None:
-    """The figure or table to keep as source for this failure, if one is bounded."""
+    """The figure or table to keep as source for this failure, if one is bounded.
+
+    A seed whose group was refused on this page is not grouped again.
+    """
     page_number = page_num + 1
     if int(getattr(error, "page", 0) or 0) != page_number:
         return None
@@ -1561,7 +1687,7 @@ def _figure_table_group_for_error(
         page_rect=page_rect,
         dominant_fontsize=_cross_page_dominant_fontsize(context.page_extractions),
         reason=str(error),
-        protected_indices=_merge_endpoint_indices(context, page_number),
+        protected_indices=_merge_endpoint_indices(context, page_number) | set(refused_seeds),
         kept_indices=frozenset().union(*(group.members for group in groups)),
         graphics=_page_graphic_rects(context, page_num),
     )
@@ -1596,8 +1722,12 @@ def _assemble_page_with_figure_table_fallbacks(
     uncommitted ink is discarded (the page was checkpointed before this
     attempt), its audit and element state are restored, and the page is
     assembled again with that whole figure or table kept in its exact source
-    ink.  Every retry keeps at least one more element than the last, so the
-    loop ends; a failure that cannot be narrowed is raised for the page-level
+    ink.  A group whose kept text a translated neighbour would still force
+    to be redrawn, and that cannot be fixed by keeping the neighbour too, is
+    refused: its failing element takes today's path on the next attempt.
+    Every narrowing keeps at least one more element and every refusal bars
+    one more failing element, under a hard cap on attempts, so the loop
+    ends; a failure that cannot be narrowed is raised for the page-level
     fallback, with the page's state as before the first attempt.
     """
     if not _figure_table_fallback_enabled(context):
@@ -1605,23 +1735,43 @@ def _assemble_page_with_figure_table_fallbacks(
         return
     snapshot = _PageAttemptSnapshot.capture(context, page_num)
     groups: list[FigureTableGroup] = []
-    while True:
+    refused: set[int] = set()
+    max_attempts = 2 * FIGURE_TABLE_RULES.max_groups_per_page + 1
+    for attempt in range(1, max_attempts + 1):
         try:
-            _assemble_page(context, page_num, tuple(groups))
+            _assemble_page(context, page_num, tuple(groups), frozenset(refused))
             return
         except PDFPageRenderError as error:
-            group = _figure_table_group_for_error(context, page_num, error, groups)
-            if group is None:
-                if groups:
-                    snapshot.restore(context, page_num)
-                    context.logger.warning(
-                        f"[{context.task_id}] Page {page_num + 1}: keeping "
-                        f"{len(groups)} figure/table group(s) in source did not "
-                        "make the page renderable; the page-level fallback applies"
-                    )
+            refused_group = getattr(error, "figure_table_refused", None)
+            if refused_group is not None and refused_group in groups:
+                groups.remove(refused_group)
+                refused.add(refused_group.trigger_element)
+                group = None
+            else:
+                group = _figure_table_group_for_error(
+                    context, page_num, error, groups, frozenset(refused)
+                )
+                if group is None or attempt == max_attempts:
+                    if groups or refused:
+                        snapshot.restore(context, page_num)
+                        context.logger.warning(
+                            f"[{context.task_id}] Page {page_num + 1}: keeping "
+                            f"{len(groups)} figure/table group(s) in source did not "
+                            "make the page renderable; the page-level fallback applies"
+                        )
+                    raise
+            if attempt == max_attempts:
+                snapshot.restore(context, page_num)
                 raise
             _discard_page_attempt(context)
             snapshot.restore(context, page_num)
+            if group is None:
+                context.logger.warning(
+                    f"[{context.task_id}] Page {page_num + 1} elem "
+                    f"{refused_group.trigger_element}: figure/table group refused "
+                    f"({error}); reassembling the page without it"
+                )
+                continue
             groups.append(group)
             context.logger.warning(
                 f"[{context.task_id}] Page {page_num + 1} elem "
