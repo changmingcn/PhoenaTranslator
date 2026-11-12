@@ -1147,6 +1147,37 @@ def test_structure_fallback_drops_the_narrowing_of_its_page(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Review round P2f, ruling I5
+# ---------------------------------------------------------------------------
+
+
+def test_dominant_type_size_is_computed_once_per_assembly(tmp_path, font_path, monkeypatch):
+    first = _figure(150, title="Figure 3: Insurer exposure")
+    second = _figure(300, title="Figure 4: Hyperscaler holders")
+    first[1] = _cell(72, 164, LONG_CELL, width=24.0, layout_class="scattered")
+    elements = [_body(80), *first, *second, _body(450)]
+    translations = {index: f"译文{index}" for index in (0, 1, 3, 7, 9, 13)}
+    translations[2] = ZH * 4
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    calls = []
+    real = assembly._cross_page_dominant_fontsize
+
+    def counted(page_extractions):
+        calls.append(1)
+        return real(page_extractions)
+
+    monkeypatch.setattr(assembly, "_cross_page_dominant_fontsize", counted)
+    _inject_render_failures(monkeypatch, {(0, 9)})
+
+    document.assemble()
+
+    assert len(document.figure_tables()) == 2
+    assert len(calls) == 1
+    cached = document.context.figure_table_cache["dominant_fontsize"]
+    assert cached == real(document.context.page_extractions)
+
+
+# ---------------------------------------------------------------------------
 # Task record
 # ---------------------------------------------------------------------------
 

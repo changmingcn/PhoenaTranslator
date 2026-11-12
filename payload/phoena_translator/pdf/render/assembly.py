@@ -629,7 +629,7 @@ def _keep_redraw_culprits_in_source(
             owner.setdefault(member, position)
     always_removed = set(layout.watermark_indices) | set(merged_away_indices)
     endpoints = _merge_endpoint_indices(context, page_number)
-    dominant_fontsize = _cross_page_dominant_fontsize(context.page_extractions)
+    dominant_fontsize = _assembly_dominant_fontsize(context)
     for _ in range(len(elements) + 1):
         removal = set(translated_indices) | always_removed
         if not _collect_pdf_overlap_redraw_indices(elements, removal) & set(owner):
@@ -1618,6 +1618,20 @@ def _merge_endpoint_indices(context: PDFAssemblyContext, page_number: int) -> se
     return endpoints
 
 
+def _assembly_dominant_fontsize(context: PDFAssemblyContext) -> float:
+    """The document's dominant type size, computed once per assembly.
+
+    Assembly never changes element type sizes, so the whole-document scan
+    is done on first use and reused by every grouping lookup.
+    """
+    cache = getattr(context, "figure_table_cache", None)
+    if cache is None:
+        return _cross_page_dominant_fontsize(context.page_extractions)
+    if "dominant_fontsize" not in cache:
+        cache["dominant_fontsize"] = _cross_page_dominant_fontsize(context.page_extractions)
+    return cache["dominant_fontsize"]
+
+
 def _page_graphic_rects(context: PDFAssemblyContext, page_num: int) -> list[fitz.Rect]:
     """Visible vector drawings of the source page: evidence of a figure's extent.
 
@@ -1687,7 +1701,7 @@ def _figure_table_group_for_error(
         elements,
         int(getattr(error, "element", -1)),
         page_rect=page_rect,
-        dominant_fontsize=_cross_page_dominant_fontsize(context.page_extractions),
+        dominant_fontsize=_assembly_dominant_fontsize(context),
         reason=str(error),
         protected_indices=_merge_endpoint_indices(context, page_number) | set(refused_seeds),
         kept_indices=frozenset().union(*(group.members for group in groups)),
