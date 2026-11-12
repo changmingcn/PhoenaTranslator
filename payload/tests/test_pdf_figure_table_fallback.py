@@ -1147,7 +1147,7 @@ def test_structure_fallback_drops_the_narrowing_of_its_page(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Review round P2f, ruling I5
+# Review round P2f, rulings I5 and I6
 # ---------------------------------------------------------------------------
 
 
@@ -1175,6 +1175,45 @@ def test_dominant_type_size_is_computed_once_per_assembly(tmp_path, font_path, m
     assert len(calls) == 1
     cached = document.context.figure_table_cache["dominant_fontsize"]
     assert cached == real(document.context.page_extractions)
+
+
+def test_render_failures_narrow_but_a_translation_fallback_alone_does_not(
+    tmp_path, font_path
+):
+    # Ruling I6. A table-preserved cell that a neighbour's redaction would
+    # force to be redrawn is a render-stage failure inside the table: it
+    # narrows the table.
+    preserved = [
+        _body(100),
+        _region([60, 200, 560, 260]),
+        _cell(72, 210, "Ticker", table_hint=True, skip_translate_reason=SkipReason.TABLE_PRESERVED),
+        _cell(72, 214, "GA AUM", table_hint=True),
+        _body(400),
+    ]
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    document = Document(tmp_path / "a", font_path, [(preserved, {0: ZH[:20], 3: "资产", 4: ZH[5:20]})])
+    document.assemble()
+    (record,) = document.figure_tables()
+    assert record["trigger"] == groups.PAGE_FAILURE and record["elements"] == [2, 3]
+    assert "table_preserved element would need a redraw" in record["reason"]
+
+    # A cell whose translation already fell back at the translation stage is
+    # simply not rendered: nothing narrows.
+    fallen_back = [
+        _body(100),
+        _region([60, 200, 560, 260]),
+        _cell(72, 210, "Ticker", table_hint=True, skip_translate_reason=SkipReason.TRANSLATION_INTEGRITY_FALLBACK),
+        _cell(200, 210, "GA AUM", table_hint=True),
+        _body(400),
+    ]
+    other = Document(tmp_path / "b", font_path, [(fallen_back, {0: ZH[:20], 2: "Ticker", 3: "资产", 4: ZH[5:20]})])
+    other.audit["element_source_fallbacks"] = [
+        {"page": 1, "element": 2, "stage": "translation", "reason": "untranslated-or-incomplete"}
+    ]
+    (text,) = other.assemble()
+    assert other.figure_tables() == []
+    assert "资产" in text and "Ticker" in text
 
 
 # ---------------------------------------------------------------------------
