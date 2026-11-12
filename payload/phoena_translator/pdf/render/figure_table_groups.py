@@ -221,12 +221,23 @@ def _is_prose(
     neighbours,
     dominant_fontsize: float,
 ) -> bool:
-    """Prose at any type size: prose-shaped and alone on its lines among
-    ``neighbours`` (indices of nearby text).  Long text in a row of other
-    cells is table text."""
+    """Prose: prose-shaped text, unless it is small type sitting in a row
+    beside extractor-marked table text.
+
+    Body type (body prose, or set at body type size) is always prose.
+    Smaller prose-shaped text is table text only when an element the
+    extractor marked as table text (``table_hint`` or class ``table``, of
+    any length) sits beside it on the same lines among ``neighbours``; two
+    unmarked paragraphs side by side stay prose at any size.
+    """
     elem = elements[index]
     if not _prose_shaped(elem, dominant_fontsize):
         return False
+    if (
+        _pdf_element_is_body_prose(elem, dominant_fontsize)
+        or _fontsize(elem) >= dominant_fontsize * RULES.body_type_share
+    ):
+        return True
     rect = _safe_rect(elem)
     if rect is None:
         return True
@@ -239,6 +250,10 @@ def _is_prose(
             other_rect is not None
             and _is_text(other_elem)
             and _plain(other_elem)
+            and (
+                other_elem.get("table_hint")
+                or other_elem.get("layout_class") == LayoutClass.TABLE
+            )
             and _same_line(rect, other_rect)
         ):
             return False

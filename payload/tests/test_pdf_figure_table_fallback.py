@@ -1549,6 +1549,189 @@ def test_a_refused_seed_is_not_proposed_again_on_the_page(tmp_path, font_path, m
 
 
 # ---------------------------------------------------------------------------
+# Review round 2, ruling R1 (amended): text beside text is not a table row
+# ---------------------------------------------------------------------------
+
+PARAGRAPH_ONE = (
+    "Spreads on investment grade credit widened over the quarter as issuance picked "
+    "up and demand from insurers and pension funds softened across sectors."
+)
+PARAGRAPH_TWO = (
+    "In the high yield market defaults remained low but recovery rates fell and the "
+    "distressed ratio climbed to its highest level since the pandemic year."
+)
+
+
+def _translate_all(elements):
+    return {
+        index: (ZH[: max(4, min(30, len(elem["content"]) // 2))] if len(elem["content"]) > 20 else f"译{index}")
+        for index, elem in enumerate(elements)
+        if elem["type"] == ElementType.TEXT
+    }
+
+
+def _inject_element_restores(monkeypatch, restoring):
+    """Send each (page index, element index) through the real element-level
+    restore path, as a translation that does not fit would."""
+    real = assembly._render_element
+
+    def render(context, plan, css, index):
+        if (plan.page_num, index) in restoring:
+            element_plan = assembly._prepare_element_render(context, plan, index)
+            if element_plan is not None:
+                assembly._restore_planned_source_or_raise(
+                    context, plan, element_plan, "injected htmlbox no-fit"
+                )
+            return None
+        return real(context, plan, css, index)
+
+    monkeypatch.setattr(assembly, "_render_element", render)
+
+
+def test_two_body_paragraphs_in_a_region_keep_their_translations(
+    tmp_path, font_path, monkeypatch
+):
+    # Refuter round-2 RG.
+    elements = [
+        _region([50, 100, 562, 300]),
+        _cell(60, 110, "Sector"),
+        _cell(200, 110, "Spread"),
+        _cell(340, 110, "Change"),
+        _cell(60, 122, "IG"),
+        _cell(200, 122, "112bp"),
+        _cell(340, 122, "+20bp"),
+        _text([60, 200, 296, 260], PARAGRAPH_ONE, fontsize=10.0, layout_class="body"),
+        _text([316, 200, 552, 260], PARAGRAPH_TWO, fontsize=10.0, layout_class="body"),
+        _body(400),
+    ]
+    translations = _translate_all(elements)
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    _inject_element_restores(monkeypatch, {(0, 5)})
+
+    (text,) = document.assemble()
+
+    assert translations[7] in _squash(text) and translations[8] in _squash(text)
+    for record in document.figure_tables():
+        assert not {7, 8} & set(record["elements"]) | set(record["extra_kept_elements"])
+
+
+def test_small_type_paragraphs_in_two_columns_close_the_band():
+    # Refuter round-2 G2 and G4.
+    g2 = [
+        _text([50, 100, 150, 109], "Figure 2: Rates", fontsize=8.0, layout_class="scattered"),
+        _cell(60, 115, "2025"),
+        _cell(150, 115, "2026"),
+        _cell(240, 115, "2027"),
+        _cell(60, 127, "UST"),
+        _cell(150, 127, "4.1%"),
+        _cell(240, 127, "4.3%"),
+        _text([50, 150, 290, 190], PARAGRAPH_ONE, fontsize=8.0, layout_class="body"),
+        _text([320, 100, 562, 190], PARAGRAPH_TWO + " " + PARAGRAPH_ONE, fontsize=8.0, layout_class="body"),
+        _text([50, 200, 290, 212], "2. Outlook for credit", fontsize=10.0, layout_class="heading"),
+    ]
+    group = groups.find_figure_table_group(
+        g2, 2, page_rect=PAGE, dominant_fontsize=10.0, graphics=[fitz.Rect(50, 112, 290, 140)]
+    )
+    assert sorted(group.members) == [1, 2, 3, 4, 5, 6]
+    g4 = [
+        _text([50, 100, 300, 109], "Figure 4: Spreads by sector", fontsize=8.0, layout_class="scattered"),
+        *[
+            _cell(x, y, label)
+            for y, row in ((115, ("Sector", "Spread", "Change")), (127, ("IG", "112bp", "+20bp")), (139, ("HY", "390bp", "+45bp")))
+            for x, label in zip((60, 200, 340), row)
+        ],
+        _text([50, 150, 296, 180], PARAGRAPH_ONE, fontsize=7.0, layout_class="body"),
+        _text([316, 150, 562, 180], PARAGRAPH_TWO, fontsize=7.0, layout_class="body"),
+        _text([50, 190, 300, 197], "Source: Bloomberg.", fontsize=7.0),
+    ]
+    group = groups.find_figure_table_group(
+        g4, 5, page_rect=PAGE, dominant_fontsize=10.0, graphics=[fitz.Rect(50, 112, 562, 146)]
+    )
+    assert sorted(group.members) == list(range(1, 10))
+
+
+def test_body_paragraph_clipping_a_member_refuses_the_group(tmp_path, font_path, monkeypatch):
+    # Refuter round-2 W: the left paragraph clips the last row by 1 pt, the
+    # right-column paragraph sits on its lines.
+    elements = [
+        _text([72, 200, 290, 209], "Figure 1: Spreads by sector", fontsize=9.0, layout_class="scattered"),
+        _cell(72, 214, "IG"),
+        _cell(150, 214, "HY"),
+        _cell(72, 226, "EM"),
+        _cell(150, 226, "Muni"),
+        _text([72, 231, 290, 281], PARAGRAPH_ONE, fontsize=10.0, layout_class="body"),
+        _text([320, 200, 540, 281], PARAGRAPH_TWO, fontsize=10.0, layout_class="body"),
+        _text([72, 400, 540, 440], BODY, fontsize=10.0, layout_class="body"),
+    ]
+    translations = _translate_all(elements)
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    _inject_element_restores(monkeypatch, {(0, 2)})
+
+    (text,) = document.assemble()
+
+    assert document.figure_tables() == []
+    assert "skip_translate_reason" not in elements[5] or (
+        elements[5]["skip_translate_reason"] != SkipReason.RENDER_FIGURE_TABLE_SOURCE
+    )
+    assert translations[5] in _squash(text)
+    assert 2 in _render_stage_restores(document)
+
+
+def _long_unmarked_cell_beside_long_marked_cell():
+    # The case 1 page 3 shape of elements 47 and 48: a long small-type cell
+    # whose only neighbour on its lines is a long cell the extractor marked.
+    return [
+        _text([45, 120, 431, 129], "Figure 3: A detailed snapshot of AI exposures", fontsize=9.0, layout_class="scattered"),
+        _text(
+            [138, 140, 282, 152],
+            "Adjusted invested assets (AIA), 06/30/26; non-GAAP, excluding co-invest vehicles and funds withheld at the reporting date",
+            fontsize=5.0,
+            layout_class="table",
+        ),
+        _text(
+            [378, 140, 566, 146],
+            "Sept 2026 investor deck p30, Data Center Exposure of 5.4bn and about 3.5 percent of assets under management",
+            fontsize=5.0,
+        ),
+        # Short marked cells on the long marked cell's second line only.
+        _cell(57, 146, "GBLATL", width=17),
+        _cell(125, 146, "155", width=8),
+        _cell(60, 160, "RGA", width=12),
+        _cell(125, 160, "142", width=8),
+        _text([45, 175, 182, 182], "Source: Company reports.", fontsize=7.0),
+    ]
+
+
+def test_a_long_cell_beside_a_long_marked_cell_stays_a_member():
+    elements = _long_unmarked_cell_beside_long_marked_cell()
+    group = groups.find_figure_table_group(
+        elements, 5, page_rect=PAGE, dominant_fontsize=10.0,
+        graphics=[fitz.Rect(45, 136, 566, 168)], trigger=groups.PAGE_FAILURE,
+    )
+    assert group is not None and 2 in group.members
+    assert sorted(group.members) == [1, 2, 3, 4, 5, 6]
+
+
+def test_body_size_text_beside_a_marked_cell_is_still_prose():
+    elements = [
+        _cell(60, 140, "MET", width=12),
+        _text([200, 138, 560, 168], BODY, fontsize=10.0, layout_class="table"),
+    ]
+    assert groups._is_prose(elements, 1, [0, 1], 10.0)
+
+
+def test_the_same_group_is_refused_under_the_element_restore_trigger():
+    refusals = []
+    group = groups.find_figure_table_group(
+        _long_unmarked_cell_beside_long_marked_cell(), 5, page_rect=PAGE,
+        dominant_fontsize=10.0, graphics=[fitz.Rect(45, 136, 566, 168)],
+        trigger=groups.ELEMENT_RESTORE, refusals=refusals,
+    )
+    assert group is None
+    assert refusals and refusals[0].startswith("G2: elem 2")
+
+
+# ---------------------------------------------------------------------------
 # Review round 2, ruling R3: a rule across the band is not the figure's width
 # ---------------------------------------------------------------------------
 
