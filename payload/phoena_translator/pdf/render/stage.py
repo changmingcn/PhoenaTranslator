@@ -28,6 +28,8 @@ from phoena_translator.pdf.render.fonts import (
 from phoena_translator.pdf.render.primitives import _compact_pdf_file_in_place
 from phoena_translator.pdf.render.source_fallbacks import (
     _append_pdf_source_page_fallback,
+    _clear_pdf_figure_table_skip_reasons,
+    _drop_pdf_figure_table_audit_records,
     _exclude_pdf_audit_expectations_for_source_pages,
     _pdf_source_page_fallback_entry,
     _replace_pdf_pages_with_source,
@@ -452,6 +454,7 @@ def _apply_structure_fallbacks(context: PDFOutputStageContext) -> None:
             candidate_audit,
             new_pages,
         )
+        _drop_pdf_figure_table_audit_records(candidate_audit, new_pages)
         # The output file is the transaction boundary: do not claim a source
         # fallback in the audit until the atomic page replacement succeeds.
         _replace_pdf_pages_with_source(
@@ -463,6 +466,7 @@ def _apply_structure_fallbacks(context: PDFOutputStageContext) -> None:
         )
         context.pdf_audit.clear()
         context.pdf_audit.update(candidate_audit)
+        _clear_pdf_figure_table_skip_reasons(context.page_extractions, new_pages)
         context.pdf_audit["structure_check"] = _run_structure_check(context)
 
 

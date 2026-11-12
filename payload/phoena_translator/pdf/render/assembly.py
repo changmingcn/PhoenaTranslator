@@ -50,6 +50,8 @@ from phoena_translator.pdf.render.primitives import (
 )
 from phoena_translator.pdf.render.source_fallbacks import (
     _append_pdf_source_page_fallback,
+    _clear_pdf_figure_table_skip_reasons,
+    _drop_pdf_figure_table_audit_records,
     _exclude_pdf_audit_expectations_for_element,
     _exclude_pdf_audit_expectations_for_source_pages,
     _pdf_source_page_fallback_entry,
@@ -1866,6 +1868,10 @@ def _continue_assembly_with_source_pages(
         context.pdf_audit,
         new_pages,
     )
+    # A page narrowed earlier in this pass and now pulled back to source
+    # through an accepted merge keeps no narrowing record or state.
+    _drop_pdf_figure_table_audit_records(context.pdf_audit, new_pages)
+    _clear_pdf_figure_table_skip_reasons(context.page_extractions, new_pages)
     context.pdf_audit.setdefault(
         "inline_render_source_page_fallbacks",
         [],

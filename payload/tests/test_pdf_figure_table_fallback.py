@@ -1042,6 +1042,111 @@ def test_a_kept_element_still_redrawn_refuses_the_group(tmp_path, font_path, mon
 
 
 # ---------------------------------------------------------------------------
+# Review round P2f, ruling I3: no narrowing record on a page delivered as source
+# ---------------------------------------------------------------------------
+
+
+def _merged_pages(page_one, translations_one):
+    page_two = [_body(100), _body(200)]
+    merge = {
+        "decision": "accepted",
+        "source_page": 1,
+        "source_element": len(page_one) - 1,
+        "destination_page": 2,
+        "destination_element": 0,
+    }
+    return [(page_one, translations_one), (page_two, {0: ZH[6:20], 1: ZH[9:20]})], [merge]
+
+
+def _assert_no_narrowing_left(document, page_elements):
+    assert document.figure_tables() == []
+    assert all(
+        entry["stage"] != "render-figure-table"
+        for entry in document.audit.get("element_source_fallbacks", [])
+    )
+    for elem in page_elements:
+        assert elem.get("skip_translate_reason") != SkipReason.RENDER_FIGURE_TABLE_SOURCE
+
+
+def test_narrowed_page_pulled_back_by_a_later_page_keeps_no_record(
+    tmp_path, font_path, monkeypatch
+):
+    # Refuter X: page 1's figure narrows on an element restore, then page 2
+    # fails on body text and the accepted merge 1 -> 2 makes both pages source.
+    figure = _figure(200)
+    figure[1] = _cell(72, 214, LONG_CELL, width=24.0, layout_class="scattered")
+    page_one = [_body(100), *figure, _body(400)]
+    pages, merges = _merged_pages(page_one, {0: ZH[:20], 2: ZH * 4, 3: "单元一", 7: ZH[3:20]})
+    document = Document(tmp_path, font_path, pages, merge_decisions=merges)
+    _inject_render_failures(monkeypatch, {(1, 1)})
+
+    first, _second = document.assemble()
+
+    assert document.fallback_pages() == [1, 2]
+    assert "Below we show" in first
+    _assert_no_narrowing_left(document, page_one)
+
+
+def test_later_page_failure_record_and_task_record_have_no_stale_group(
+    tmp_path, font_path, monkeypatch
+):
+    # Codex LATER_PAGE, then the real finalize_output export.
+    page_one = [_body(100), *_figure(200), _body(600)]
+    pages, merges = _merged_pages(page_one, {0: ZH[:20], 3: ZH[:5], 7: ZH[3:20]})
+    document = Document(tmp_path, font_path, pages, merge_decisions=merges)
+    _inject_render_failures(monkeypatch, {(0, 3), (1, 1)})
+
+    document.assemble()
+
+    assert document.fallback_pages() == [1, 2]
+    _assert_no_narrowing_left(document, page_one)
+    monkeypatch.setattr(stage, "_save_and_validate_pdf_audit", lambda *_a, **_k: "audit.json")
+    record = _finalize(document.audit)
+    assert record["completion_status"] == "completed_with_source_page_fallbacks"
+    assert "figure_table_source_fallbacks" not in record
+    assert all(entry["stage"] != "render-figure-table" for entry in record["element_source_fallbacks"])
+
+
+def test_structure_fallback_drops_the_narrowing_of_its_page(tmp_path):
+    source_path, out_path = tmp_path / "source.pdf", tmp_path / "out.pdf"
+    for path, text in ((source_path, "SOURCE"), (out_path, "TRANSLATED")):
+        document = fitz.open()
+        document.new_page().insert_text((72, 72), text)
+        document.save(str(path))
+        document.close()
+    elements = [_cell(72, 214, "Cell", skip_translate_reason=SkipReason.RENDER_FIGURE_TABLE_SOURCE)]
+    audit = _new_pdf_audit("t", 0.6, [])
+    audit["figure_table_source_fallbacks"] = [{"page": 1, "element": 0, "elements": [0]}]
+    audit["element_source_fallbacks"] = [
+        {"page": 1, "element": 0, "stage": "render-figure-table"},
+        {"page": 1, "element": 3, "stage": "render"},
+    ]
+    audit["structure_check"] = {"status": "warning", "warning_count": 1, "warnings": [{"page": 1, "type": "x"}]}
+    context = SimpleNamespace(
+        task_id="t",
+        out_path=str(out_path),
+        src_path=str(source_path),
+        pdf_password="",
+        pdf_audit=audit,
+        page_extractions={0: {"elements": elements}},
+        logger=logging.getLogger("test-figure-table"),
+        check_output_structure_serialized=lambda *a, **k: {
+            "status": "ok", "warning_count": 0, "warnings": []
+        },
+    )
+
+    stage._apply_structure_fallbacks(context)
+
+    assert [entry["page"] for entry in audit["source_page_fallbacks"]] == [1]
+    assert audit["figure_table_source_fallbacks"] == []
+    # The baseline's own element entries are left as 7fb1aa1 leaves them.
+    assert audit["element_source_fallbacks"] == [{"page": 1, "element": 3, "stage": "render"}]
+    assert "skip_translate_reason" not in elements[0]
+    with fitz.open(str(out_path)) as output:
+        assert "SOURCE" in output[0].get_text()
+
+
+# ---------------------------------------------------------------------------
 # Task record
 # ---------------------------------------------------------------------------
 

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import fitz
 
-from phoena_translator.pdf.model import PdfAudit
+from phoena_translator.pdf.model import PageExtraction, PdfAudit, SkipReason
 from phoena_translator.pdf.text_shape import _collapsed_plain_text
 
 log = logging.getLogger("translator")
@@ -125,6 +125,47 @@ def _exclude_pdf_audit_expectations_for_element(
         if removed:
             excluded[key] = int(excluded.get(key, 0) or 0) + removed
             audit[key] = retained
+
+
+def _drop_pdf_figure_table_audit_records(
+    audit: PdfAudit,
+    page_numbers: set[int] | list[int],
+) -> None:
+    """Forget figure/table narrowing on pages now delivered as source pages.
+
+    Only the narrowing's own records go: its ``figure_table_source_fallbacks``
+    entries and its ``render-figure-table`` element entries.  Other element
+    entries for those pages are left as they are.
+    """
+    pages = {int(page) for page in page_numbers if int(page) > 0}
+    if not pages:
+        return
+    if "figure_table_source_fallbacks" in audit:
+        audit["figure_table_source_fallbacks"] = [
+            entry
+            for entry in audit.get("figure_table_source_fallbacks") or []
+            if int(entry.get("page", 0) or 0) not in pages
+        ]
+    if "element_source_fallbacks" in audit:
+        audit["element_source_fallbacks"] = [
+            entry
+            for entry in audit.get("element_source_fallbacks") or []
+            if not (
+                int(entry.get("page", 0) or 0) in pages
+                and entry.get("stage") == "render-figure-table"
+            )
+        ]
+
+
+def _clear_pdf_figure_table_skip_reasons(
+    page_extractions: dict[int, PageExtraction],
+    page_numbers: set[int] | list[int],
+) -> None:
+    """Drop the narrowing's skip reason from elements of pages now source."""
+    for page in {int(page) for page in page_numbers if int(page) > 0}:
+        for elem in (page_extractions.get(page - 1) or {}).get("elements") or []:
+            if elem.get("skip_translate_reason") == SkipReason.RENDER_FIGURE_TABLE_SOURCE:
+                elem.pop("skip_translate_reason", None)
 
 
 def _replace_pdf_pages_with_source(
