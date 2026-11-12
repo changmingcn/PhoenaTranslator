@@ -1482,6 +1482,72 @@ def test_every_group_and_kept_outside_element_meets_the_guarantees():
     assert produced >= 40
 
 
+def test_the_validator_names_each_broken_guarantee():
+    # Direct checks of G1-G3 on hand-made groups (geometry never proposes
+    # most of these; the validator must refuse them anyway).
+    elements = [
+        _cell(72, 214, "IG"),
+        _text([72, 300, 540, 340], BODY, fontsize=10.0, layout_class="body"),
+        _text([72, 200, 400, 209], "Figure 1: Spreads", fontsize=9.0),
+        _text([72, 270, 360, 277], "Source: Bloomberg.", fontsize=7.0),
+        _cell(72, 20, "Header"),
+        _cell(72, 400, "Note one", footnote_hint=True),
+        _text([72, 450, 300, 470], DISCLAIMER, fontsize=7.0, layout_class="scattered"),
+        {"type": ElementType.MERGED_AWAY, "bbox": [72, 500, 172, 510], "content": "x"},
+    ]
+
+    def check(members, extras=(), trigger=groups.PAGE_FAILURE, protected=()):
+        return groups.validate_figure_table_group(
+            elements, set(members), set(extras), trigger=trigger,
+            dominant_fontsize=10.0, page_rect=PAGE, protected_indices=set(protected),
+        )
+
+    assert check([0]) == ""
+    assert check([0, 1]).startswith("G1: elem 1 is body prose")
+    assert check([0, 2]).startswith("G3: elem 2 is a title")
+    assert check([0], extras=[2]) == ""  # a numbered title kept outside the members
+    assert check([0, 3]).startswith("G3: elem 3 is a title, caption, source or note line")
+    assert check([0, 4]).startswith("G3: elem 4 is a running header or footer")
+    assert check([0, 5]).startswith("G3: elem 5 is a footnote")
+    assert check([0, 6]) == ""
+    assert check([0, 6], trigger=groups.ELEMENT_RESTORE).startswith("G2: elem 6")
+    assert check([0, 7]).startswith("G3: elem 7 is merged-away")
+    assert check([0], protected=[0]).startswith("G3: elem 0 is a cross-page merge endpoint")
+
+
+def test_a_refused_seed_is_not_proposed_again_on_the_page(tmp_path, font_path, monkeypatch):
+    # Figure 1's group is refused (a body paragraph clips its last row);
+    # figure 2's is accepted, which reassembles the page once.  The refused
+    # seed is not proposed again in that second attempt.
+    first = [
+        _text([72, 100, 290, 109], "Figure 1: Spreads by sector", fontsize=9.0, layout_class="scattered"),
+        _cell(72, 114, LONG_CELL, width=24.0),
+        _cell(150, 114, "HY"),
+        _cell(72, 126, "EM"),
+        _text([72, 131, 540, 171], BODY, fontsize=10.0, layout_class="body"),
+    ]
+    second = _figure(300, title="Figure 2: Holders")
+    elements = [*first, *second, _body(450)]
+    translations = {1: ZH * 4, 3: "单元三", 4: ZH[5:25], 7: "单元一", 11: ZH[:20]}
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    proposals = []
+    real_find = assembly.find_figure_table_group
+
+    def recording(elements_, seed, **kwargs):
+        proposals.append(seed)
+        return real_find(elements_, seed, **kwargs)
+
+    monkeypatch.setattr(assembly, "find_figure_table_group", recording)
+    _inject_render_failures(monkeypatch, {(0, 7)})
+
+    (text,) = document.assemble()
+
+    assert [record["element"] for record in document.figure_tables()] == [7]
+    assert proposals.count(1) == 1
+    assert 1 in _render_stage_restores(document)
+    assert ZH[5:25] in _squash(text)
+
+
 # ---------------------------------------------------------------------------
 # Review round 2, ruling R3: a rule across the band is not the figure's width
 # ---------------------------------------------------------------------------
