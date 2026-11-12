@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Callable
 
 import fitz
@@ -23,6 +23,8 @@ from phoena_translator.pdf.model import (
     DEFAULT_FONTSIZE,
 )
 from phoena_translator.pdf.render.figure_table_groups import (
+    ELEMENT_RESTORE as FIGURE_TABLE_ELEMENT_RESTORE,
+    PAGE_FAILURE as FIGURE_TABLE_PAGE_FAILURE,
     RULES as FIGURE_TABLE_RULES,
     FigureTableGroup,
     find_figure_table_group,
@@ -107,6 +109,9 @@ class PDFPageAssemblyPlan:
     translated_indices: set[int]
     redraw_source_indices: set[int]
     render_indices: set[int]
+    # Figures/tables this attempt keeps in source ink (see
+    # ``_assemble_page_with_figure_table_fallbacks``).
+    source_groups: tuple[FigureTableGroup, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -364,6 +369,7 @@ def _prepare_page(
         translated_indices=translated_indices,
         redraw_source_indices=redraw_source_indices,
         render_indices=set(translated_indices) | redraw_source_indices,
+        source_groups=tuple(source_groups),
     )
 
 
@@ -534,6 +540,7 @@ def _keep_figure_table_source_ink(
         "stage": "render",
         "reason": group.reason,
         "group": group.kind,
+        "trigger": group.trigger,
         "elements": sorted(group.members),
         "narrowed_elements": narrowed,
         "bbox": list(group.bbox),
@@ -719,7 +726,22 @@ def _restore_source_or_raise(
     line_height: float,
     reason: str,
 ) -> None:
-    """Restore the element's source text in place, or fail the page."""
+    """Restore the element's source text in place, or fail the page.
+
+    Inside a figure or table that can be bounded, the source is not
+    re-typeset: the page is reassembled with that figure or table kept whole
+    in its exact source ink instead.
+    """
+    _narrow_figure_table_instead_of_restore(
+        context,
+        page_plan,
+        index,
+        element,
+        fontsize=fontsize,
+        color=color,
+        line_height=line_height,
+        reason=reason,
+    )
     if not _try_restore_source_element(
         context,
         page_plan.out_page,
@@ -734,6 +756,59 @@ def _restore_source_or_raise(
         reason,
     ):
         raise PDFPageRenderError(page_plan.page_num + 1, index, reason)
+
+
+def _narrow_figure_table_instead_of_restore(
+    context: PDFAssemblyContext,
+    page_plan: PDFPageAssemblyPlan,
+    index: int,
+    element: dict,
+    *,
+    fontsize: float,
+    color: tuple[float, float, float],
+    line_height: float,
+    reason: str,
+) -> None:
+    """Raise for a figure/table retry when a source restore falls inside one.
+
+    The group is decided with the same rule, kept set and cap the retry loop
+    uses, and travels on the error, so a raise here is always narrowed; when
+    no group is bounded the caller restores the element as before.  The
+    restore is still tried, only to tell the two triggers apart: its ink is
+    discarded with the rest of this attempt.
+    """
+    if not _figure_table_fallback_enabled(context):
+        return
+    page_number = page_plan.page_num + 1
+    group = _figure_table_group_for_error(
+        context,
+        page_plan.page_num,
+        PDFPageRenderError(page_number, index, reason),
+        list(page_plan.source_groups),
+    )
+    if group is None:
+        return
+    restored, restore_message = _restore_pdf_source_text_element(
+        page_plan.out_page,
+        element,
+        _get_pdf_elem_rect(element),
+        color=color,
+        fontfile=context.font_path,
+        fontsize=fontsize,
+        lineheight_points=line_height,
+        protected_rects=page_plan.protected_formula_rects,
+    )
+    if restored:
+        trigger = FIGURE_TABLE_ELEMENT_RESTORE
+        detail = "source text would be re-typeset in place"
+    else:
+        trigger = FIGURE_TABLE_PAGE_FAILURE
+        detail = f"source restore also failed ({restore_message})"
+    error = PDFPageRenderError(page_number, index, f"{reason}; {detail}")
+    error.figure_table_group = replace(
+        group, trigger=trigger, reason=str(error)[:500]
+    )
+    raise error
 
 
 def _restore_planned_source_or_raise(
@@ -1429,6 +1504,9 @@ def _figure_table_group_for_error(
         return None
     if list(getattr(error, "fallback_pages", []) or []) != [page_number]:
         return None  # an accepted cross-page merge closure spans pages
+    attached = getattr(error, "figure_table_group", None)
+    if attached is not None:
+        return attached  # decided at the element-level restore, same state
     if len(groups) >= FIGURE_TABLE_RULES.max_groups_per_page:
         return None
     elements = (context.page_extractions.get(page_num) or {}).get("elements") or []
@@ -1472,7 +1550,8 @@ def _assemble_page_with_figure_table_fallbacks(
 ) -> None:
     """Assemble one page; a failing figure or table falls back alone.
 
-    When an element of a figure or table cannot be typeset, the page's
+    When an element of a figure or table cannot be typeset (the page would
+    fail, or its source text would be re-typeset in place), the page's
     uncommitted ink is discarded (the page was checkpointed before this
     attempt), its audit and element state are restored, and the page is
     assembled again with that whole figure or table kept in its exact source
@@ -1505,7 +1584,7 @@ def _assemble_page_with_figure_table_fallbacks(
             groups.append(group)
             context.logger.warning(
                 f"[{context.task_id}] Page {page_num + 1} elem "
-                f"{group.trigger_element}: render failure inside a figure/table "
+                f"{group.trigger_element}: {group.trigger} inside a figure/table "
                 f"({group.kind}); reassembling the page with its "
                 f"{len(group.members)} element(s) kept in exact source ink"
             )

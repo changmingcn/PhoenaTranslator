@@ -1,9 +1,9 @@
 """Bound the figure or table around a text element whose rendering failed.
 
-When a text element cannot be typeset at all (its translation does not fit
-and putting the source text back in place fails too), the renderer would
-give up the whole page.  If that element belongs to a figure or a table, the
-renderer instead keeps that one figure or table in its exact source ink and
+When a text element's translation cannot be placed, the renderer would
+re-typeset its source text in place, or give up the whole page when that
+fails too.  If that element belongs to a figure or a table, the renderer
+instead keeps that one figure or table in its exact source ink and
 translates the rest of the page.  This module decides what "that figure or
 table" is, and answers only when it is confident: ``None`` keeps the
 page-level fallback.
@@ -73,6 +73,11 @@ RULES = FigureTableGroupRules()
 TABLE_REGION = "table-region"
 CAPTION_BAND = "caption-band"
 
+# What made the renderer give the group up: the page could not be rendered
+# at all, or an element would have had its source text re-typeset in place.
+PAGE_FAILURE = "page-failure"
+ELEMENT_RESTORE = "element-restore"
+
 # A numbered figure/table title: the number is followed by a separator or
 # ends the line, so a sentence such as "Table 1 shows ..." is not a title.
 _TITLE_RE = re.compile(
@@ -92,6 +97,7 @@ class FigureTableGroup:
     reason: str
     members: frozenset[int]
     bbox: tuple[float, float, float, float]
+    trigger: str = PAGE_FAILURE
 
 
 def _is_text(elem: dict) -> bool:
@@ -384,6 +390,8 @@ def find_figure_table_group(
 
 __all__ = [
     "CAPTION_BAND",
+    "ELEMENT_RESTORE",
+    "PAGE_FAILURE",
     "RULES",
     "TABLE_REGION",
     "FigureTableGroup",

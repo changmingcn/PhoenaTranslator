@@ -195,6 +195,8 @@ def test_failing_cell_in_a_recognised_table_keeps_only_that_table(tmp_path, font
     (record,) = document.figure_tables()
     assert record["page"] == 1 and record["element"] == 4
     assert record["group"] == groups.TABLE_REGION
+    assert record["trigger"] == groups.PAGE_FAILURE
+    assert "source restore also failed" in record["reason"]
     assert record["elements"] == [2, 3, 4, 5]
     assert record["narrowed_elements"] == [2, 3, 4, 5]
     assert "Page 1 elem 4" in record["reason"]
@@ -510,6 +512,136 @@ def test_without_a_page_checkpoint_the_page_fallback_is_unchanged(font_path, mon
         )
     )
     assert attempted == [0, 1]
+
+
+# ---------------------------------------------------------------------------
+# Element-level source restores inside a figure or table (P1b)
+# ---------------------------------------------------------------------------
+
+
+def _table_with_restoring_cell():
+    """A detected table whose cell 4 cannot hold its translation but would
+    take its own source text re-typeset in place (no protected formula)."""
+    elements = [
+        _body(100),
+        _region([60, 200, 560, 260]),
+        _cell(72, 210, "Ticker", table_hint=True),
+        _cell(200, 210, "GA AUM", table_hint=True),
+        _cell(330, 210, LONG_CELL, width=24.0, table_hint=True),
+        _cell(72, 230, "MET", table_hint=True),
+        _body(400),
+    ]
+    translations = {0: ZH[:30], 2: "代码", 3: "资产", 4: ZH * 4, 5: "大都会", 6: ZH[5:30]}
+    return elements, translations
+
+
+def _render_stage_restores(document):
+    return [
+        entry["element"]
+        for entry in document.audit.get("element_source_fallbacks", [])
+        if entry["stage"] == "render"
+    ]
+
+
+def test_element_restore_inside_a_recognised_table_narrows_the_table(tmp_path, font_path):
+    elements, translations = _table_with_restoring_cell()
+    document = Document(tmp_path, font_path, [(elements, translations)])
+
+    (text,) = document.assemble()
+
+    assert document.fallback_pages() == []
+    (record,) = document.figure_tables()
+    assert record["trigger"] == groups.ELEMENT_RESTORE
+    assert record["group"] == groups.TABLE_REGION
+    assert record["element"] == 4 and record["elements"] == [2, 3, 4, 5]
+    assert "re-typeset" in record["reason"]
+    assert _render_stage_restores(document) == []
+    # Exact source ink, drawn once; nothing of the trial restore survives.
+    assert text.count("Asset-base") == 1
+    for source in ("Ticker", "GA AUM", "MET"):
+        assert source in text
+    assert ZH[:30] in _squash(text) and ZH[5:30] in _squash(text)
+    assert elements[4]["skip_translate_reason"] == SkipReason.RENDER_FIGURE_TABLE_SOURCE
+
+
+def test_element_restore_inside_a_caption_band_narrows_the_band(tmp_path, font_path):
+    figure = _figure(200)
+    figure[1] = _cell(72, 214, LONG_CELL, width=24.0, layout_class="scattered")
+    elements = [_body(100), *figure, _body(400)]
+    translations = {0: ZH[:30], 1: "图3：敞口", 2: ZH * 4, 3: "单元一", 6: "资料来源：公司。", 7: ZH[5:30]}
+    document = Document(tmp_path, font_path, [(elements, translations)])
+
+    (text,) = document.assemble()
+
+    assert document.fallback_pages() == []
+    (record,) = document.figure_tables()
+    assert record["trigger"] == groups.ELEMENT_RESTORE
+    assert record["group"] == groups.CAPTION_BAND
+    assert record["elements"] == [2, 3, 4, 5]
+    assert _render_stage_restores(document) == []
+    assert "Cell 1 AUM" in text and "单元一" not in text
+    assert "图3" in _squash(text) and "资料来源" in _squash(text)
+
+
+def test_element_restore_outside_any_group_is_unchanged(tmp_path, font_path):
+    # Small-type cells with no title and no detected region element: not
+    # bounded.  (The table hint keeps the cell's translation to its own box.)
+    elements = [
+        _body(100),
+        _cell(72, 214, LONG_CELL, width=24.0, table_hint=True),
+        _cell(192, 214, "Cell 1 AUM", table_hint=True),
+        _cell(312, 214, "Cell 2 AUM", table_hint=True),
+        _body(400),
+    ]
+    translations = {0: ZH[:30], 1: ZH * 4, 2: "单元一", 3: "单元二", 4: ZH[5:30]}
+    document = Document(tmp_path, font_path, [(elements, translations)])
+
+    (text,) = document.assemble()
+
+    assert document.figure_tables() == []
+    assert document.fallback_pages() == []
+    assert _render_stage_restores(document) == [1]
+    assert elements[1]["skip_translate_reason"] == SkipReason.RENDER_SOURCE_RESTORE
+    assert "单元一" in text and "单元二" in text
+
+
+def test_element_restore_without_narrowing_enabled_is_unchanged(tmp_path, font_path):
+    elements, translations = _table_with_restoring_cell()
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    document.context.fail_open_to_source_page = False
+
+    (text,) = document.assemble()
+
+    assert document.figure_tables() == []
+    assert _render_stage_restores(document) == [4]
+    assert "代码" in text and "大都会" in text
+
+
+def test_no_stale_element_restore_record_survives_for_a_narrowed_member(
+    tmp_path, font_path, monkeypatch
+):
+    elements, translations = _table_with_restoring_cell()
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    real_group = assembly._figure_table_group_for_error
+    calls = []
+
+    def first_call_unbounded(*args, **kwargs):
+        calls.append(1)
+        return None if len(calls) == 1 else real_group(*args, **kwargs)
+
+    # The first in-table restore is taken at element level (recorded), then a
+    # later cell fails the page and narrows the table it belongs to.
+    monkeypatch.setattr(assembly, "_figure_table_group_for_error", first_call_unbounded)
+    _inject_render_failures(monkeypatch, {(0, 5)})
+
+    document.assemble()
+
+    (record,) = document.figure_tables()
+    assert record["trigger"] == groups.PAGE_FAILURE and 4 in record["elements"]
+    assert _render_stage_restores(document) == []
+    assert sorted(
+        entry["element"] for entry in document.audit["element_source_fallbacks"]
+    ) == [2, 3, 4, 5]
 
 
 # ---------------------------------------------------------------------------
