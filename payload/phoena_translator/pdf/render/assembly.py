@@ -1905,6 +1905,9 @@ def _continue_assembly_with_source_pages(
 def assemble_document_pages(context: PDFAssemblyContext) -> None:
     """Render every translated page and retain the current output document."""
 
+    if getattr(context, "figure_table_cache", None) is not None:
+        # Values cached for one assembly only (a reused context starts clean).
+        context.figure_table_cache = {}
     for page_num in range(context.total_pages):
         try:
             _assemble_page_with_figure_table_fallbacks(context, page_num)

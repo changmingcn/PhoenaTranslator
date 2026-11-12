@@ -1191,6 +1191,43 @@ def test_dominant_type_size_is_computed_once_per_assembly(tmp_path, font_path, m
     assert cached == real(document.context.page_extractions)
 
 
+def test_dominant_type_size_cache_lives_for_one_assembly(tmp_path, font_path, monkeypatch):
+    # Codex round-2 F4: one context reused for two assemblies (20 then 10).
+    seen = []
+    real_find = assembly.find_figure_table_group
+
+    def recording(*args, **kwargs):
+        seen.append(kwargs["dominant_fontsize"])
+        return real_find(*args, **kwargs)
+
+    monkeypatch.setattr(assembly, "find_figure_table_group", recording)
+    reused = None
+    for run, size in enumerate((20.0, 10.0)):
+        elements = [
+            _body(100),
+            _region([60, 200, 560, 260]),
+            _cell(72, 210, "Ticker", table_hint=True),
+            _cell(192, 210, "Level", table_hint=True),
+            _body(400),
+        ]
+        elements[0]["fontsize"] = elements[4]["fontsize"] = size
+        translations = {0: ZH[:20], 2: "代码", 3: "水平", 4: ZH[5:25]}
+        directory = tmp_path / str(run)
+        directory.mkdir()
+        document = Document(directory, font_path, [(elements, translations)])
+        if reused is None:
+            reused = document.context
+        else:
+            for key, value in vars(document.context).items():
+                if key != "figure_table_cache":
+                    setattr(reused, key, value)
+            document.context = reused
+        with pytest.MonkeyPatch.context() as patch:
+            _inject_render_failures(patch, {(0, 2)})
+            document.assemble()
+    assert seen == [20.0, 10.0]
+
+
 def test_render_failures_narrow_but_a_translation_fallback_alone_does_not(
     tmp_path, font_path
 ):
