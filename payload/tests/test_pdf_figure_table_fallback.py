@@ -448,11 +448,12 @@ def test_a_kept_element_that_still_fails_ends_the_loop(tmp_path, font_path, monk
     document = Document(tmp_path, font_path, [(elements, {0: ZH[:20], 3: "单元一"})])
     attempts = []
 
-    def redact(context, plan):
-        attempts.append(plan.page_num)
-        raise PDFPageRenderError(1, 3, "injected redaction failure")
+    def overlap_redraw(page_num, elements, removal):
+        # Raised in every attempt, also once element 3 is kept.
+        attempts.append(page_num)
+        raise PDFPageRenderError(page_num + 1, 3, "injected redraw failure")
 
-    monkeypatch.setattr(assembly, "_redact_page", redact)
+    monkeypatch.setattr(assembly, "_overlap_redraw_indices", overlap_redraw)
 
     document.assemble()
 
@@ -622,7 +623,7 @@ def test_no_stale_element_restore_record_survives_for_a_narrowed_member(
 ):
     elements, translations = _table_with_restoring_cell()
     document = Document(tmp_path, font_path, [(elements, translations)])
-    real_group = assembly._figure_table_group_for_error
+    real_group = assembly._decide_figure_table_group
     calls = []
 
     def first_call_unbounded(*args, **kwargs):
@@ -631,7 +632,7 @@ def test_no_stale_element_restore_record_survives_for_a_narrowed_member(
 
     # The first in-table restore is taken at element level (recorded), then a
     # later cell fails the page and narrows the table it belongs to.
-    monkeypatch.setattr(assembly, "_figure_table_group_for_error", first_call_unbounded)
+    monkeypatch.setattr(assembly, "_decide_figure_table_group", first_call_unbounded)
     _inject_render_failures(monkeypatch, {(0, 5)})
 
     document.assemble()
@@ -1042,11 +1043,9 @@ def test_a_kept_element_still_redrawn_refuses_the_group(tmp_path, font_path, mon
     elements[2]["bbox"] = [72, 207, 112, 213]
     translations = {0: ZH[:20], 1: "图3：敞口", 3: "单元一", 7: ZH[3:20]}
     document = Document(tmp_path, font_path, [(elements, translations)])
-    monkeypatch.setattr(
-        assembly,
-        "_keep_redraw_culprits_in_source",
-        lambda context, layout, groups, *rest: set().union(*(g.members for g in groups)),
-    )
+    # The closure is skipped, so the title stays translated and its
+    # redaction would force member 2 to be redrawn.
+    monkeypatch.setattr(assembly, "_figure_table_closure", lambda *a, **k: (frozenset(), ""))
     _inject_render_failures(monkeypatch, {(0, 3)})
 
     document.assemble()
@@ -1267,6 +1266,75 @@ def test_render_failures_narrow_but_a_translation_fallback_alone_does_not(
     (text,) = other.assemble()
     assert other.figure_tables() == []
     assert "资产" in text and "Ticker" in text
+
+
+# ---------------------------------------------------------------------------
+# Review round 2, ruling R4: a refusal costs nothing
+# ---------------------------------------------------------------------------
+
+
+def _count_attempts(monkeypatch):
+    attempts = []
+    real = assembly._assemble_page
+
+    def counted(context, page_num, *args, **kwargs):
+        attempts.append(page_num)
+        return real(context, page_num, *args, **kwargs)
+
+    monkeypatch.setattr(assembly, "_assemble_page", counted)
+    return attempts
+
+
+def test_thirteen_refused_groups_finish_as_local_restores(tmp_path, font_path, monkeypatch):
+    # Codex round-2 F3 (REFUSAL_CAP): each region's group would have to keep
+    # the body paragraph clipping its second cell, so each is refused.
+    elements = [_body(65)]
+    translations = {0: ZH[:20]}
+    seeds = []
+    for n in range(13):
+        y = 115 + n * 43
+        elements.append(_region([60, y, 180, y + 24]))
+        seeds.append(len(elements))
+        translations[len(elements)] = ZH * 4
+        elements.append(_cell(72, y + 4, LONG_CELL, width=24, table_hint=True))
+        translations[len(elements)] = "单元乙"
+        elements.append(_cell(72, y + 16, "Cell B", table_hint=True))
+        translations[len(elements)] = ZH[5:25]
+        elements.append(_text([72, y + 20, 540, y + 41], BODY, fontsize=10, layout_class="body"))
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    attempts = _count_attempts(monkeypatch)
+
+    (text,) = document.assemble()
+
+    assert attempts == [0]
+    assert document.fallback_pages() == []
+    assert "figure_table_source_fallbacks" not in document.audit
+    assert [
+        (entry["element"], entry["stage"]) for entry in document.audit["element_source_fallbacks"]
+    ] == [(seed, "render") for seed in seeds]
+    assert _squash(text).count(ZH[5:25]) == 13
+
+
+def test_at_the_group_cap_an_element_restore_still_completes_locally(
+    tmp_path, font_path, monkeypatch
+):
+    first = _figure(150, title="Figure 3: Insurer exposure")
+    second = _figure(300, title="Figure 4: Hyperscaler holders")
+    second[1] = _cell(72, 314, LONG_CELL, width=24.0, layout_class="scattered")
+    elements = [_body(80), *first, *second, _body(450)]
+    translations = {0: ZH[:20], 3: "单元一", 8: ZH * 4, 13: ZH[5:20]}
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    monkeypatch.setattr(assembly, "FIGURE_TABLE_RULES", replace(groups.RULES, max_groups_per_page=1))
+    _inject_render_failures(monkeypatch, {(0, 3)})
+    attempts = _count_attempts(monkeypatch)
+
+    (text,) = document.assemble()
+
+    assert attempts == [0, 0]
+    assert document.fallback_pages() == []
+    assert [record["element"] for record in document.figure_tables()] == [3]
+    assert _render_stage_restores(document) == [8]
+    assert ZH[:20] in _squash(text) and ZH[5:20] in _squash(text)
 
 
 # ---------------------------------------------------------------------------

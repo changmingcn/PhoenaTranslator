@@ -128,6 +128,8 @@ class FigureTableGroup:
     members: frozenset[int]
     bbox: tuple[float, float, float, float]
     trigger: str = PAGE_FAILURE
+    # Outside elements kept in source too, so that no member is redrawn.
+    extra_members: frozenset[int] = frozenset()
 
 
 def _is_text(elem: dict) -> bool:
@@ -607,6 +609,9 @@ def find_figure_table_group(
     protected_indices: set[int] | frozenset[int] = frozenset(),
     kept_indices: set[int] | frozenset[int] = frozenset(),
     graphics=(),
+    trigger: str = PAGE_FAILURE,
+    extend=None,
+    refusals: list[str] | None = None,
 ) -> FigureTableGroup | None:
     """Return the figure or table holding ``element_index``, or ``None``.
 
@@ -615,7 +620,9 @@ def find_figure_table_group(
     earlier group on the same page already keeps; a failure among them cannot
     be narrowed further, which bounds the caller's loop.  ``graphics`` are
     the page's visible vector drawing rectangles, evidence of a figure's
-    extent beyond its title.
+    extent beyond its title.  ``extend(members)`` returns the outside
+    elements that must stay in source with them and a refusal reason (empty
+    when usable); a refusal is appended to ``refusals``.
     """
     elements = list(elements or [])
     try:
@@ -658,12 +665,21 @@ def find_figure_table_group(
         return None
     if members & set(protected_indices):
         return None
+    extras: frozenset[int] = frozenset()
+    if extend is not None:
+        extras, why = extend(frozenset(members))
+        if why:
+            if refusals is not None:
+                refusals.append(why)
+            return None
     return FigureTableGroup(
         kind=kind,
         trigger_element=seed,
         reason=str(reason or "")[:500],
         members=frozenset(members),
         bbox=_union([_get_pdf_elem_rect(elements[index]) for index in sorted(members)]),
+        trigger=trigger,
+        extra_members=frozenset(extras),
     )
 
 
