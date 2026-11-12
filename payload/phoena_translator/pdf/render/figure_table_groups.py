@@ -87,6 +87,9 @@ class FigureTableGroupRules:
     # Side-by-side titles count as one row when the vertical gap between
     # them is at most this share of the taller title.
     staggered_title_share: float = 1.0
+    # A drawing thinner than this in either direction is a rule (a line or a
+    # box a few points high): it bounds nothing and is no evidence of width.
+    min_graphic_thickness: float = 3.0
     # A source or note line continues onto the next line when it keeps its
     # type size and left edge and the gap is at most this share of the size.
     note_continuation_gap_share: float = 0.6
@@ -404,28 +407,44 @@ def _figure_extent(
     bottom: float,
     span: tuple[float, float],
     graphics: list[fitz.Rect],
+    cells: list[fitz.Rect] = (),
 ) -> tuple[float, float]:
-    """The figure's horizontal extent: its title and the element, grown by
-    every graphic inside the band that joins what is already covered."""
+    """The figure's horizontal extent.
+
+    Its title and the element, grown by every drawing inside the band that
+    joins what is already covered; thin rules (a line or a box a few points
+    high) bound nothing.  When no drawing gives the width, the
+    extractor-marked table cells in the band do.
+    """
     tolerance = RULES.edge_tolerance
+
+    def in_band(rect: fitz.Rect) -> bool:
+        return (
+            rect.y0 >= top - tolerance
+            and rect.y1 <= bottom + tolerance
+            and rect.x0 >= span[0] - tolerance
+            and rect.x1 <= span[1] + tolerance
+        )
+
     left, right = core
-    inside = [
+    evidence = [
         rect
         for rect in graphics
-        if rect.y0 >= top - tolerance
-        and rect.y1 <= bottom + tolerance
-        and rect.x0 >= span[0] - tolerance
-        and rect.x1 <= span[1] + tolerance
+        if min(rect.width, rect.height) >= RULES.min_graphic_thickness and in_band(rect)
     ]
     changed = True
     while changed:
         changed = False
-        for rect in inside:
+        for rect in evidence:
             if min(rect.x1, right) - max(rect.x0, left) > 0 and (
                 rect.x0 < left or rect.x1 > right
             ):
                 left, right = min(left, rect.x0), max(right, rect.x1)
                 changed = True
+    if (left, right) == tuple(core):
+        for rect in cells:
+            if in_band(rect):
+                left, right = min(left, rect.x0), max(right, rect.x1)
     return left, right
 
 
@@ -523,7 +542,18 @@ def _caption_band_members(
                 if new_limit is None:
                     return None  # nothing closes the band
                 top, bottom = edge, new_limit
-            new_extent = _figure_extent(core, top, bottom, span, graphics)
+            cells = [
+                rects[index]
+                for index in in_span
+                if index != title
+                and index not in ends
+                and (
+                    elements[index].get("table_hint")
+                    or elements[index].get("layout_class") == LayoutClass.TABLE
+                )
+                and top <= _center(rects[index]).y <= bottom
+            ]
+            new_extent = _figure_extent(core, top, bottom, span, graphics, cells)
             if new_limit == limit and new_extent == extent:
                 break
             limit, extent = new_limit, new_extent

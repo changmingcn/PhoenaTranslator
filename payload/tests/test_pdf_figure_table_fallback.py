@@ -1483,6 +1483,49 @@ def test_every_group_and_kept_outside_element_meets_the_guarantees():
 
 
 # ---------------------------------------------------------------------------
+# Review round 2, ruling R3: a rule across the band is not the figure's width
+# ---------------------------------------------------------------------------
+
+
+def _sidebar_figure():
+    return [
+        _text([72, 200, 380, 209], "Figure 1: Spreads", fontsize=9.0, layout_class="scattered"),
+        _cell(72, 214, "IG"),
+        _cell(192, 214, "HY"),
+        _cell(72, 230, "EM"),
+        _cell(192, 230, "Muni"),
+        _text([72, 270, 360, 277], "Source: Bloomberg.", fontsize=7.0),
+        _text([430, 215, 560, 222], "Key takeaways", fontsize=7.0, layout_class="scattered"),
+        _text([430, 230, 560, 237], "Spreads widened 20bp", fontsize=7.0, layout_class="scattered"),
+        _text([430, 245, 560, 252], "We stay underweight", fontsize=7.0, layout_class="scattered"),
+    ]
+
+
+def test_a_full_width_rule_does_not_carry_the_figure_into_a_sidebar():
+    # Refuter round-2 F3: round 1's Gc plus a full-width rule under the title.
+    rule = [fitz.Rect(36, 211, 576, 211.8)]
+    group = groups.find_figure_table_group(
+        _sidebar_figure(), 2, page_rect=PAGE, dominant_fontsize=10.0, graphics=rule
+    )
+    assert group is None
+
+
+def test_marked_table_cells_give_the_width_when_no_drawing_does():
+    # A table without drawings whose columns run past its short title.
+    elements = [
+        _text([72, 200, 160, 209], "Table 2: Spreads", fontsize=9.0, layout_class="scattered"),
+        _cell(72, 214, "Sector", table_hint=True),
+        _cell(150, 214, "Spread", table_hint=True),
+        _cell(228, 214, "Change", table_hint=True),
+        _cell(72, 226, "IG", table_hint=True),
+        _cell(150, 226, "112bp", table_hint=True),
+        _cell(228, 226, "+20bp", table_hint=True),
+        _text([72, 245, 300, 252], "Source: Bloomberg.", fontsize=7.0),
+    ]
+    assert _members(elements, 1) == [1, 2, 3, 4, 5, 6]
+
+
+# ---------------------------------------------------------------------------
 # Task record
 # ---------------------------------------------------------------------------
 
