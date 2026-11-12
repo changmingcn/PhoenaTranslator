@@ -1775,6 +1775,38 @@ def test_marked_table_cells_give_the_width_when_no_drawing_does():
 
 
 # ---------------------------------------------------------------------------
+# Review round 3, ruling S1: a page that never narrowed keeps its records
+# ---------------------------------------------------------------------------
+
+
+def test_page_failure_without_any_narrowing_keeps_the_baseline_records(
+    tmp_path, font_path, monkeypatch
+):
+    # Codex round-3 NO_GROUP_THEN_PAGE (refuter RX): an element restore with
+    # no group, then a body paragraph fails the page.  As at 7fb1aa1, the
+    # failed attempt's restore record, skip reason and placement event stay.
+    elements = [
+        _body(100),
+        _text([440, 300, 560, 306], "Analyst John Doe, CFA", fontsize=6, layout_class="scattered"),
+        _body(400),
+    ]
+    translations = {0: ZH[:30], 1: "译1", 2: ZH[:30]}
+    document = Document(tmp_path, font_path, [(elements, translations)])
+    _inject_element_restores(monkeypatch, {(0, 1)})
+    _inject_render_failures(monkeypatch, {(0, 2)})
+
+    document.assemble()
+
+    assert document.fallback_pages() == [1]
+    assert [
+        (entry["page"], entry["element"], entry["stage"])
+        for entry in document.audit["element_source_fallbacks"]
+    ] == [(1, 1, "render")]
+    assert elements[1]["skip_translate_reason"] == SkipReason.RENDER_SOURCE_RESTORE
+    assert [event["element"] for event in document.audit["htmlbox_placement_events"]] == [0]
+
+
+# ---------------------------------------------------------------------------
 # Task record
 # ---------------------------------------------------------------------------
 

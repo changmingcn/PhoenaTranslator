@@ -1799,6 +1799,7 @@ def _assemble_page_with_figure_table_fallbacks(
     snapshot = _PageAttemptSnapshot.capture(context, page_num)
     groups: list[FigureTableGroup] = []
     refused: set[int] = set()
+    discarded = False  # whether an attempt was thrown away (state to restore)
     max_attempts = 2 * FIGURE_TABLE_RULES.max_groups_per_page + 1
     for _attempt in range(max_attempts):
         try:
@@ -1822,7 +1823,7 @@ def _assemble_page_with_figure_table_fallbacks(
                     f"{len(group.members)} element(s) kept in exact source ink"
                 )
             else:
-                if groups or refused:
+                if discarded:
                     snapshot.restore(context, page_num)
                     context.logger.warning(
                         f"[{context.task_id}] Page {page_num + 1}: keeping "
@@ -1831,6 +1832,7 @@ def _assemble_page_with_figure_table_fallbacks(
                     )
                 raise
             _discard_page_attempt(context)
+            discarded = True
             snapshot.restore(context, page_num)
             context.logger.warning(f"[{context.task_id}] Page {page_num + 1} {message}")
     raise RuntimeError(
