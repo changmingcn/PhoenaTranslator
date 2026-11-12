@@ -512,6 +512,17 @@ def finalize_output(
             "table_preservation_rollbacks": completed_audit.get(
                 "table_preservation_rollbacks", []
             ),
+            # Present only when a figure or table was kept in source, so the
+            # records of tasks without one keep their exact shape.
+            **(
+                {
+                    "figure_table_source_fallbacks": completed_audit[
+                        "figure_table_source_fallbacks"
+                    ]
+                }
+                if completed_audit.get("figure_table_source_fallbacks")
+                else {}
+            ),
         },
     )
     # Publish completion metadata to shared in-memory state only after both

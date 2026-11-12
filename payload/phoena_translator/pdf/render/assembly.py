@@ -22,6 +22,11 @@ from phoena_translator.pdf.model import (
     SkipReason,
     DEFAULT_FONTSIZE,
 )
+from phoena_translator.pdf.render.figure_table_groups import (
+    RULES as FIGURE_TABLE_RULES,
+    FigureTableGroup,
+    find_figure_table_group,
+)
 from phoena_translator.pdf.render.page_styles import _derive_pdf_page_layout_styles
 from phoena_translator.pdf.render.paragraph_html import (
     PDF_HTMLBOX_SUPERSCRIPT_CSS,
@@ -48,6 +53,7 @@ from phoena_translator.pdf.render.source_fallbacks import (
     _record_pdf_element_source_fallback,
     _replace_pdf_pages_with_source,
 )
+from phoena_translator.pdf.semantics.cross_page import _cross_page_dominant_fontsize
 from phoena_translator.pdf.text_shape import _collapsed_plain_text, _plain_text
 from phoena_translator.pdf.translate.deterministic_labels import (
     _translate_pdf_fixed_short_label,
@@ -277,8 +283,13 @@ class _PageLayout:
 def _prepare_page(
     context: PDFAssemblyContext,
     page_num: int,
+    source_groups: tuple[FigureTableGroup, ...] = (),
 ) -> PDFPageAssemblyPlan | None:
-    """Resolve translations and validate formula-safe placement before redaction."""
+    """Resolve translations and validate formula-safe placement before redaction.
+
+    ``source_groups`` are figures/tables an earlier attempt at this page could
+    not typeset; their text keeps its exact source ink.
+    """
 
     out_page = context.out_doc[page_num]
     info = context.page_extractions.get(page_num, {})
@@ -316,6 +327,8 @@ def _prepare_page(
         and i in page_trans
         and page_trans[i] != elem.get("content", "")
     }
+    for group in source_groups:
+        _keep_figure_table_source_ink(context, layout, group, page_trans, translated_indices)
 
     # Validate formula-safe placement before redacting any source text.
     # Previously this check happened only during insertion, after the
@@ -475,6 +488,61 @@ def _keep_source_ink(
         f"[{context.task_id}] Page {page_number} elem {index}: no formula-safe "
         "rectangle; keeping the element's exact source ink and "
         "translating the rest of the page"
+    )
+
+
+def _keep_figure_table_source_ink(
+    context: PDFAssemblyContext,
+    layout: _PageLayout,
+    group: FigureTableGroup,
+    page_trans: dict[int, str],
+    translated_indices: set[int],
+) -> None:
+    """Leave a whole figure or table untouched in its source ink and record it."""
+    page_number = layout.page_num + 1
+    reason = (
+        f"kept with {group.kind} figure/table of elem {group.trigger_element}: "
+        f"{group.reason}"
+    )
+    narrowed = []
+    for index in sorted(group.members):
+        elem = layout.elements[index]
+        if index in translated_indices:
+            translated_indices.discard(index)
+            narrowed.append(index)
+        if index in page_trans:
+            page_trans[index] = elem.get("content", "")
+        if not elem.get("skip_translate_reason"):
+            elem["skip_translate_reason"] = SkipReason.RENDER_FIGURE_TABLE_SOURCE
+        _exclude_pdf_audit_expectations_for_element(
+            context.pdf_audit,
+            page_number,
+            index,
+        )
+    for index in narrowed:
+        _record_pdf_element_source_fallback(
+            context.pdf_audit,
+            page_number,
+            index,
+            "render-figure-table",
+            reason,
+            source_text=layout.elements[index].get("content", ""),
+        )
+    context.pdf_audit.setdefault("figure_table_source_fallbacks", []).append({
+        "page": page_number,
+        "element": group.trigger_element,
+        "stage": "render",
+        "reason": group.reason,
+        "group": group.kind,
+        "elements": sorted(group.members),
+        "narrowed_elements": narrowed,
+        "bbox": list(group.bbox),
+    })
+    context.logger.warning(
+        f"[{context.task_id}] Page {page_number} elem {group.trigger_element}: "
+        f"keeping the whole figure/table ({group.kind}, {len(group.members)} "
+        f"element(s), {len(narrowed)} translation(s) withdrawn) in its exact "
+        "source ink and translating the rest of the page"
     )
 
 
@@ -1224,14 +1292,18 @@ def _record_textbox_fallback(
     )
 
 
-def _assemble_page(context: PDFAssemblyContext, page_num: int) -> None:
+def _assemble_page(
+    context: PDFAssemblyContext,
+    page_num: int,
+    source_groups: tuple[FigureTableGroup, ...] = (),
+) -> None:
     """Assemble one output page and checkpoint HTML-box work when configured."""
 
     total_pages = context.total_pages
     pdf_password = context.pdf_password
     assembly_work_path = context.assembly_work_path
     out_doc = context.out_doc
-    plan = _prepare_page(context, page_num)
+    plan = _prepare_page(context, page_num, source_groups)
     if plan is None:
         return
     render_indices = plan.render_indices
@@ -1271,6 +1343,172 @@ def _assemble_page(context: PDFAssemblyContext, page_num: int) -> None:
                 raise
             out_doc = reopened_document
     context.out_doc = out_doc
+
+
+_MISSING = object()
+
+
+def _shallow_audit_copy(audit: PdfAudit) -> dict:
+    """Copy the audit's top-level lists and dicts; page attempts only append,
+    filter and count at that level."""
+    return {
+        key: (
+            list(value)
+            if isinstance(value, list)
+            else dict(value) if isinstance(value, dict) else value
+        )
+        for key, value in audit.items()
+    }
+
+
+@dataclass(frozen=True)
+class _PageAttemptSnapshot:
+    """Audit and element state before a page attempt, for a clean retry."""
+
+    audit: dict
+    skip_reasons: tuple
+
+    @classmethod
+    def capture(cls, context: PDFAssemblyContext, page_num: int) -> "_PageAttemptSnapshot":
+        elements = (context.page_extractions.get(page_num) or {}).get("elements") or []
+        return cls(
+            audit=_shallow_audit_copy(context.pdf_audit),
+            skip_reasons=tuple(
+                elem.get("skip_translate_reason", _MISSING) for elem in elements
+            ),
+        )
+
+    def restore(self, context: PDFAssemblyContext, page_num: int) -> None:
+        # The audit object is shared with the output stage: mutate in place.
+        context.pdf_audit.clear()
+        context.pdf_audit.update(_shallow_audit_copy(self.audit))
+        elements = (context.page_extractions.get(page_num) or {}).get("elements") or []
+        for elem, reason in zip(elements, self.skip_reasons):
+            if reason is _MISSING:
+                elem.pop("skip_translate_reason", None)
+            else:
+                elem["skip_translate_reason"] = reason
+
+
+def _figure_table_fallback_enabled(context: PDFAssemblyContext) -> bool:
+    """Narrowing needs the per-page checkpoint that lets a page be redone."""
+    return bool(
+        getattr(context, "fail_open_to_source_page", False)
+        and getattr(context, "use_htmlbox", False)
+        and getattr(context, "assembly_work_path", None)
+    )
+
+
+def _merge_endpoint_indices(context: PDFAssemblyContext, page_number: int) -> set[int]:
+    """Elements of this page that are endpoints of an accepted cross-page merge."""
+    endpoints = set()
+    for decision in context.pdf_audit.get("merge_decisions") or []:
+        if not isinstance(decision, dict) or decision.get("decision") != "accepted":
+            continue
+        for page_key, element_key in (
+            ("source_page", "source_element"),
+            ("destination_page", "destination_element"),
+        ):
+            try:
+                if int(decision.get(page_key, 0) or 0) == page_number:
+                    endpoints.add(int(decision.get(element_key, -1)))
+            except (TypeError, ValueError):
+                continue
+    return endpoints
+
+
+def _figure_table_group_for_error(
+    context: PDFAssemblyContext,
+    page_num: int,
+    error: PDFPageRenderError,
+    groups: list[FigureTableGroup],
+) -> FigureTableGroup | None:
+    """The figure or table to keep as source for this failure, if one is bounded."""
+    page_number = page_num + 1
+    if int(getattr(error, "page", 0) or 0) != page_number:
+        return None
+    if list(getattr(error, "fallback_pages", []) or []) != [page_number]:
+        return None  # an accepted cross-page merge closure spans pages
+    if len(groups) >= FIGURE_TABLE_RULES.max_groups_per_page:
+        return None
+    elements = (context.page_extractions.get(page_num) or {}).get("elements") or []
+    page_rect = (
+        _pdf_page_extraction_rect(context.out_doc[page_num])
+        if context.out_doc is not None
+        else None
+    )
+    return find_figure_table_group(
+        elements,
+        int(getattr(error, "element", -1)),
+        page_rect=page_rect,
+        dominant_fontsize=_cross_page_dominant_fontsize(context.page_extractions),
+        reason=str(error),
+        protected_indices=_merge_endpoint_indices(context, page_number),
+        kept_indices=frozenset().union(*(group.members for group in groups)),
+    )
+
+
+def _discard_page_attempt(context: PDFAssemblyContext) -> None:
+    """Drop the current page's uncommitted ink by reopening the last checkpoint."""
+    document = context.out_doc
+    context.out_doc = None
+    if document is not None:
+        document.close()
+    reopened_document = fitz.open(context.assembly_work_path)
+    try:
+        if reopened_document.is_encrypted and not reopened_document.authenticate(
+            context.pdf_password
+        ):
+            raise RuntimeError("PDF密码错误或未提供密码，无法重新组装当前页")
+    except BaseException:
+        reopened_document.close()
+        raise
+    context.out_doc = reopened_document
+
+
+def _assemble_page_with_figure_table_fallbacks(
+    context: PDFAssemblyContext,
+    page_num: int,
+) -> None:
+    """Assemble one page; a failing figure or table falls back alone.
+
+    When an element of a figure or table cannot be typeset, the page's
+    uncommitted ink is discarded (the page was checkpointed before this
+    attempt), its audit and element state are restored, and the page is
+    assembled again with that whole figure or table kept in its exact source
+    ink.  Every retry keeps at least one more element than the last, so the
+    loop ends; a failure that cannot be narrowed is raised for the page-level
+    fallback, with the page's state as before the first attempt.
+    """
+    if not _figure_table_fallback_enabled(context):
+        _assemble_page(context, page_num)
+        return
+    snapshot = _PageAttemptSnapshot.capture(context, page_num)
+    groups: list[FigureTableGroup] = []
+    while True:
+        try:
+            _assemble_page(context, page_num, tuple(groups))
+            return
+        except PDFPageRenderError as error:
+            group = _figure_table_group_for_error(context, page_num, error, groups)
+            if group is None:
+                if groups:
+                    snapshot.restore(context, page_num)
+                    context.logger.warning(
+                        f"[{context.task_id}] Page {page_num + 1}: keeping "
+                        f"{len(groups)} figure/table group(s) in source did not "
+                        "make the page renderable; the page-level fallback applies"
+                    )
+                raise
+            _discard_page_attempt(context)
+            snapshot.restore(context, page_num)
+            groups.append(group)
+            context.logger.warning(
+                f"[{context.task_id}] Page {page_num + 1} elem "
+                f"{group.trigger_element}: render failure inside a figure/table "
+                f"({group.kind}); reassembling the page with its "
+                f"{len(group.members)} element(s) kept in exact source ink"
+            )
 
 
 def _continue_assembly_with_source_pages(
@@ -1379,7 +1617,7 @@ def assemble_document_pages(context: PDFAssemblyContext) -> None:
 
     for page_num in range(context.total_pages):
         try:
-            _assemble_page(context, page_num)
+            _assemble_page_with_figure_table_fallbacks(context, page_num)
         except PDFPageRenderError as error:
             if _continue_assembly_with_source_pages(
                 context,

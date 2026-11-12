@@ -43,6 +43,9 @@ class SkipReason(StrEnum):
     TRANSLATION_INTEGRITY_FALLBACK = "translation_integrity_fallback"
     RENDER_SOURCE_RESTORE = "render_source_restore"
     RENDER_NO_SAFE_RECT_FALLBACK = "render_no_safe_rect_fallback"
+    # A whole figure or table kept in source ink after one of its elements
+    # could not be typeset.
+    RENDER_FIGURE_TABLE_SOURCE = "render_figure_table_source"
 
 
 Rect = list[float]  # [x0, y0, x1, y1] in page points
@@ -200,6 +203,7 @@ class PdfAudit(TypedDict, total=False):
     # Translation and assembly.
     source_page_fallbacks: list[dict[str, Any]]
     element_source_fallbacks: list[dict[str, Any]]
+    figure_table_source_fallbacks: list[dict[str, Any]]
     inline_render_source_page_fallbacks: list[dict[str, Any]]
     untranslated_english_leaks: list[dict[str, Any]]
     untranslated_delivered_pages: list[int]
