@@ -265,6 +265,9 @@ def test_reassembled_page_has_no_duplicate_ink_or_audit_events(
     assert document.fallback_pages() == []
     assert _squash(text).count(ZH[:30]) == 1
     assert "Below we show" not in text
+    # Cell 2 was redacted and drawn translated before cell 4 failed; the
+    # retry starts from the checkpoint, so its source ink is back.
+    assert "Cell 0 AUM" in text and "单元零" not in text
     placements = [event["element"] for event in document.audit["htmlbox_placement_events"]]
     assert placements.count(0) == 1 and placements.count(7) == 1
     assert not {2, 3, 4, 5} & set(placements)
@@ -499,7 +502,12 @@ def test_without_a_page_checkpoint_the_page_fallback_is_unchanged(font_path, mon
 
     monkeypatch.setattr(assembly, "_assemble_page", fake_assemble_page)
     assembly.assemble_document_pages(
-        SimpleNamespace(total_pages=2, fail_open_to_source_page=True, use_htmlbox=False)
+        SimpleNamespace(
+            total_pages=2,
+            fail_open_to_source_page=True,
+            use_htmlbox=False,
+            assembly_work_path="work.pdf",
+        )
     )
     assert attempted == [0, 1]
 
