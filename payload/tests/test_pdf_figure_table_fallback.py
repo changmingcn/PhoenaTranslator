@@ -1447,6 +1447,8 @@ def _first_broken_guarantee(elements, members, extras, trigger, endpoints):
             wrapped = (y1 - y0) > max(size * 1.2, 8.0) * 1.6
             if count >= 12 or (count >= 8 and wrapped):
                 return f"G2: elem {index} reads as running prose"
+            if elem.get("layout_class") in ("body", "heading"):
+                return f"G2: elem {index} is classed {elem.get('layout_class')} text"
     return ""
 _OWN_SOURCE = re.compile(r"^\s*(sources?|notes?)\s*:", re.IGNORECASE)
 
@@ -1902,6 +1904,52 @@ def test_exhausting_the_attempts_delivers_the_source_page(tmp_path, font_path, m
     assert document.fallback_pages() == [1]
     assert "Below we show" in text and "Cell 1 AUM" in text
     assert "figure_table_source_fallbacks" not in document.audit
+
+
+# ---------------------------------------------------------------------------
+# Review round 3, ruling S4: body and heading text never taken on a restore
+# ---------------------------------------------------------------------------
+
+
+def test_short_body_text_kept_outside_refuses_the_group(tmp_path, font_path):
+    # Codex round-3 SHORT_BODY_EXTRA: a seven-word 7 pt body sentence clips
+    # the second cell; the group would have to keep it.
+    elements = [
+        _body(100),
+        _region([60, 200, 310, 260]),
+        _cell(72, 210, LONG_CELL, width=24, table_hint=True),
+        _cell(285, 230, "Level", table_hint=True),
+        _text([320, 232, 540, 241], "We expect credit spreads to widen further.", fontsize=7, layout_class="body"),
+        _body(430),
+    ]
+    translations = {0: ZH[:20], 2: ZH * 4, 3: "水平", 4: "信用利差走阔", 5: ZH[5:25]}
+    document = Document(tmp_path, font_path, [(elements, translations)])
+
+    (text,) = document.assemble()
+
+    assert document.figure_tables() == []
+    assert "信用利差走阔" in _squash(text)
+    assert _render_stage_restores(document) == [2]
+
+
+def test_heading_inside_a_region_refuses_the_group(tmp_path, font_path):
+    # Codex round-3 HEADING_MEMBER.
+    elements = [
+        _body(100),
+        _region([60, 200, 560, 300]),
+        _cell(72, 210, LONG_CELL, width=24, table_hint=True),
+        _cell(192, 210, "Level", table_hint=True),
+        _text([72, 270, 350, 278], "Credit market outlook", fontsize=8, layout_class="heading", single_line_heading=True),
+        _body(430),
+    ]
+    translations = {0: ZH[:20], 2: ZH * 4, 3: "水平", 4: "信用利差走阔", 5: ZH[5:25]}
+    document = Document(tmp_path, font_path, [(elements, translations)])
+
+    (text,) = document.assemble()
+
+    assert document.figure_tables() == []
+    assert "信用利差走阔" in _squash(text)
+    assert _render_stage_restores(document) == [2]
 
 
 # ---------------------------------------------------------------------------

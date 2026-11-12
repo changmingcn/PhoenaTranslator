@@ -660,8 +660,9 @@ def validate_figure_table_group(
         body type size; an outside element that is a numbered figure/table
         title may be any size.
     G2  under the element-restore trigger, no element reads as running prose
-        unless the extractor marked it as table text (``table_hint`` or class
-        ``table``): there, the alternative is one re-typeset cell.
+        or is classed ``body`` or ``heading``, unless the extractor marked it
+        as table text (``table_hint`` or class ``table``): there, the
+        alternative is one re-typeset cell.
     G3  no element is a title, caption, source or note line, footnote,
         running header or footer, cross-page merge endpoint or merged-away
         text (the G1 title exception aside).
@@ -697,6 +698,12 @@ def validate_figure_table_group(
             and not (elem.get("table_hint") or elem.get("layout_class") == LayoutClass.TABLE)
         ):
             return f"G2: elem {index} reads as running prose"
+        if (
+            trigger == ELEMENT_RESTORE
+            and elem.get("layout_class") in {LayoutClass.BODY, LayoutClass.HEADING}
+            and not (elem.get("table_hint") or elem.get("layout_class") == LayoutClass.TABLE)
+        ):
+            return f"G2: elem {index} is classed {elem.get('layout_class')} text"
     return ""
 
 
