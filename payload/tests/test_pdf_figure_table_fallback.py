@@ -1373,7 +1373,7 @@ def _random_page(rng):
         elif kind < 0.45:
             text = words(rng.randint(8, 40))
             width, height = rng.uniform(150, 470), size * rng.choice([1.0, 2.4, 4.8])
-            extra["layout_class"] = rng.choice(["body", "body", "scattered", "table", None])
+            extra["layout_class"] = rng.choice(["body", "body", "scattered", "table", "heading", None])
         else:
             text = rng.choice([words(rng.randint(1, 4)), f"{rng.randint(1, 999)}.{rng.randint(0, 9)}%"])
             width, height = rng.uniform(10, 90), size * rng.choice([1.0, 1.0, 2.2])
@@ -1382,6 +1382,8 @@ def _random_page(rng):
             extra["table_hint"] = True
         if rng.random() < 0.05:
             extra["footnote_hint"] = True
+        if rng.random() < 0.04:
+            extra["reference_entry_hint"] = True
         if rng.random() < 0.04:
             extra["skip_translate_reason"] = SkipReason.WATERMARK
         if extra.get("layout_class") is None:
@@ -1405,6 +1407,47 @@ def _random_page(rng):
 
 
 _OWN_TITLE = re.compile(r"^\s*(figure|fig\.?|exhibit|chart|table|graph)\s*[A-Z]?\d", re.IGNORECASE)
+_OWN_NUMBERED_TITLE = re.compile(
+    r"^\s*(?:figure|fig\.?|exhibit|chart|table|graph)\s*[A-Z]?\d+[A-Za-z]?(?:[.\-]\d+)*\s*(?:[:.|\-\u2013\u2014]|$)",
+    re.IGNORECASE,
+)
+
+
+def _first_broken_guarantee(elements, members, extras, trigger, endpoints):
+    """G1-G3 restated independently, in the validator's order, returning the
+    first broken guarantee in the validator's words ("" when none)."""
+    for index in sorted(set(members) | set(extras)):
+        elem = elements[index]
+        if elem.get("type") == ElementType.MERGED_AWAY:
+            return f"G3: elem {index} is merged-away text"
+        if index in endpoints:
+            return f"G3: elem {index} is a cross-page merge endpoint"
+        if elem.get("type") != ElementType.TEXT or elem.get("skip_translate_reason") == SkipReason.WATERMARK:
+            return f"G3: elem {index} is not translatable text"
+        plain = " ".join(str(elem.get("content", "")).split())
+        body_prose = layout_classifier._pdf_element_is_body_prose(elem, 10.0)
+        title_extra = index not in members and _OWN_NUMBERED_TITLE.match(plain) and not body_prose
+        x0, y0, x1, y1 = elem["bbox"]
+        if not title_extra:
+            if body_prose:
+                return f"G1: elem {index} is body prose"
+            if float(elem.get("fontsize") or 0.0) >= 9.2:
+                return f"G1: elem {index} is set at body type size"
+            if _OWN_NUMBERED_TITLE.match(plain) or _OWN_SOURCE.match(plain):
+                return f"G3: elem {index} is a title, caption, source or note line"
+            if elem.get("footnote_hint") or elem.get("reference_entry_hint"):
+                return f"G3: elem {index} is a footnote or reference entry"
+            centre = (y0 + y1) / 2.0 / 792.0
+            if centre <= 0.08 or centre >= 0.92:
+                return f"G3: elem {index} is a running header or footer"
+        marked = elem.get("table_hint") or elem.get("layout_class") == "table"
+        if trigger == groups.ELEMENT_RESTORE and not marked:
+            count = len(re.findall(r"[A-Za-z][A-Za-z'’-]*", plain))
+            size = float(elem.get("fontsize") or 0.0) or 11.0
+            wrapped = (y1 - y0) > max(size * 1.2, 8.0) * 1.6
+            if count >= 12 or (count >= 8 and wrapped):
+                return f"G2: elem {index} reads as running prose"
+    return ""
 _OWN_SOURCE = re.compile(r"^\s*(sources?|notes?)\s*:", re.IGNORECASE)
 
 
@@ -1444,7 +1487,7 @@ def _breaks_a_guarantee(elements, group, trigger, endpoints):
 
 def test_every_group_and_kept_outside_element_meets_the_guarantees():
     rng = random.Random(20261112)
-    produced = 0
+    produced = validated = refused = 0
     for _case in range(300):
         elements, graphics = _random_page(rng)
         texts = [
@@ -1479,7 +1522,27 @@ def test_every_group_and_kept_outside_element_meets_the_guarantees():
                 assert not _breaks_a_guarantee(elements, group, trigger, endpoints), (
                     _case, seed, trigger, _breaks_a_guarantee(elements, group, trigger, endpoints)
                 )
+        # The validator itself, on member and outside-element sets drawn from
+        # the page, forbidden elements included: it must name exactly the
+        # first guarantee the independent restatement finds broken.
+        for _draw in range(12):
+            members = set(rng.sample(range(len(elements)), k=rng.randint(1, min(5, len(elements)))))
+            rest = [i for i in range(len(elements)) if i not in members]
+            extras = set(rng.sample(rest, k=min(len(rest), rng.randint(0, 3))))
+            protected = set(rng.sample(texts, k=min(len(texts), rng.randint(0, 2))))
+            trigger = rng.choice([groups.PAGE_FAILURE, groups.ELEMENT_RESTORE])
+            expected = _first_broken_guarantee(elements, members, extras, trigger, protected)
+            actual = groups.validate_figure_table_group(
+                elements, members, extras, trigger=trigger, dominant_fontsize=10.0,
+                page_rect=PAGE, protected_indices=protected,
+            )
+            assert actual.startswith(expected) and bool(actual) == bool(expected), (
+                _case, sorted(members), sorted(extras), trigger, expected, actual
+            )
+            validated += 1
+            refused += bool(expected)
     assert produced >= 40
+    assert validated >= 3000 and refused >= 500
 
 
 def test_the_validator_names_each_broken_guarantee():
