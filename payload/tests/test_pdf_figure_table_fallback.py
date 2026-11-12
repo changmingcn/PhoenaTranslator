@@ -850,6 +850,17 @@ def test_region_leaves_out_note_continuation_lines():
     assert sorted(_group(elements, 1).members) == [1, 2]
 
 
+def test_a_band_that_nothing_closes_gives_no_group():
+    # Title and cells, then nothing down to the page foot: undecidable.
+    elements = [
+        _body(100),
+        _text([72, 200, 400, 209], "Figure 1: Rates outlook", fontsize=9.0, layout_class="scattered"),
+        _cell(72, 214, "2025"),
+        _cell(192, 214, "2026"),
+    ]
+    assert _group(elements, 2) is None
+
+
 def test_running_header_closes_a_caption_below_band():
     # Codex RUNNING_HEADER_BAND: a figure at the top of the page, caption below.
     elements = [
@@ -987,7 +998,9 @@ def test_codex_overlap_input_keeps_group_ink_identical_to_source(tmp_path, font_
         assert before.samples == after.samples
 
 
-def test_watermark_overlapping_a_member_refuses_the_group(tmp_path, font_path, monkeypatch):
+def test_watermark_overlapping_a_member_refuses_the_group(
+    tmp_path, font_path, monkeypatch, caplog
+):
     elements = [_body(100), *_figure(200)]
     elements.append(
         _text([300, 210, 360, 230], "DRAFT", fontsize=9.0, skip_translate_reason=SkipReason.WATERMARK)
@@ -1000,6 +1013,7 @@ def test_watermark_overlapping_a_member_refuses_the_group(tmp_path, font_path, m
     assert document.figure_tables() == []
     assert document.fallback_pages() == [1]
     assert "figure/table group refused" not in document.audit["source_page_fallbacks"][0]["reason"]
+    assert "group refused" in caplog.text and "watermark elem 7" in caplog.text
 
 
 def test_prose_overlapping_a_member_refuses_the_group_and_restores_as_today(
