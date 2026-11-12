@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
 import fitz
@@ -93,6 +93,8 @@ class PDFAssemblyContext:
     logger: logging.Logger
     filter_formula_safe_rects: Callable[..., list[Any]]
     trim_process_memory: Callable[[], None]
+    # Per-assembly values the figure/table narrowing computes once.
+    figure_table_cache: dict[str, Any] = field(default_factory=dict, repr=False)
 
 
 @dataclass(frozen=True)
@@ -1492,6 +1494,44 @@ def _merge_endpoint_indices(context: PDFAssemblyContext, page_number: int) -> se
     return endpoints
 
 
+def _page_graphic_rects(context: PDFAssemblyContext, page_num: int) -> list[fitz.Rect]:
+    """Visible vector drawings of the source page: evidence of a figure's extent.
+
+    Read from the untouched source PDF (the output page may already carry
+    this attempt's whiteouts) and cached per page for the assembly.
+    """
+    cache = getattr(context, "figure_table_cache", None)
+    if cache is None:
+        return []
+    by_page = cache.setdefault("graphics", {})
+    if page_num in by_page:
+        return by_page[page_num]
+    rects: list[fitz.Rect] = []
+    src_path = getattr(context, "src_path", "") or ""
+    if src_path:
+        try:
+            with fitz.open(src_path) as source:
+                if source.is_encrypted and not source.authenticate(context.pdf_password):
+                    raise RuntimeError("source PDF could not be authenticated")
+                for drawing in source[page_num].get_drawings():
+                    fill, stroke = drawing.get("fill"), drawing.get("color")
+                    visible = any(
+                        colour is not None and tuple(colour) != (1.0, 1.0, 1.0)
+                        for colour in (fill, stroke)
+                    )
+                    rect = fitz.Rect(drawing.get("rect"))
+                    if visible and not rect.is_infinite:
+                        rects.append(rect)
+        except Exception as exc:
+            context.logger.warning(
+                f"[{context.task_id}] Page {page_num + 1}: figure/table graphics "
+                f"unavailable ({type(exc).__name__}); extents use text only"
+            )
+            rects = []
+    by_page[page_num] = rects
+    return rects
+
+
 def _figure_table_group_for_error(
     context: PDFAssemblyContext,
     page_num: int,
@@ -1523,6 +1563,7 @@ def _figure_table_group_for_error(
         reason=str(error),
         protected_indices=_merge_endpoint_indices(context, page_number),
         kept_indices=frozenset().union(*(group.members for group in groups)),
+        graphics=_page_graphic_rects(context, page_num),
     )
 
 

@@ -727,6 +727,186 @@ def test_merged_away_text_inside_a_band_is_not_narrowed():
 
 
 # ---------------------------------------------------------------------------
+# Review round P2f, ruling I1: groups hold only the figure's own text
+# ---------------------------------------------------------------------------
+
+DISCLAIMER = (
+    "This material is for information only and does not constitute an offer "
+    "to buy or sell any security. Past performance is not a guide to future returns."
+)
+
+
+def _members(elements, seed):
+    group = _group(elements, seed)
+    return None if group is None else sorted(group.members)
+
+
+def test_small_type_disclaimer_closes_a_band_without_source_line():
+    # Refuter Ga: no source line, then a 26-word 7 pt disclaimer.
+    elements = [
+        _body(100),
+        _text([72, 200, 400, 209], "Figure 1: Rates outlook", fontsize=9.0, layout_class="scattered"),
+        _cell(72, 214, "2025"),
+        _cell(192, 214, "2026"),
+        _cell(312, 214, "2027"),
+        _cell(72, 224, "UST 10y"),
+        _cell(192, 224, "4.1%"),
+        _text([72, 300, 540, 330], DISCLAIMER, fontsize=7.0, layout_class="body"),
+        _body(420),
+    ]
+    assert _members(elements, 3) == [2, 3, 4, 5, 6]
+
+
+def test_staggered_side_by_side_titles_split_the_width():
+    # Refuter Gb: titles 3 pt apart vertically.
+    elements = [
+        _text([72, 100, 290, 109], "Figure 1: Left chart", fontsize=9.0, layout_class="scattered"),
+        _cell(72, 125, "L-a"),
+        _cell(150, 125, "L-b"),
+        _cell(72, 140, "L-c"),
+        _text([320, 112, 540, 121], "Figure 2: Right chart", fontsize=9.0, layout_class="scattered"),
+        _cell(320, 130, "R-a"),
+        _cell(400, 130, "R-b"),
+        _cell(320, 145, "R-c"),
+        _text([72, 170, 280, 177], "Source: A.", fontsize=7.0),
+        _text([320, 170, 540, 177], "Source: B.", fontsize=7.0),
+    ]
+    assert _members(elements, 5) == [5, 6, 7]
+    assert _members(elements, 1) == [1, 2, 3]
+
+
+def test_staggered_side_by_side_figures_with_level_cells_stay_apart():
+    # Codex staggered-side-by-side: cells of both figures on the same lines.
+    elements = [
+        _text([72, 200, 290, 209], "Figure 1: Insurers", fontsize=9.0, layout_class="scattered"),
+        _text([320, 212, 540, 221], "Figure 2: Holders", fontsize=9.0, layout_class="scattered"),
+        _cell(72, 228, "Left one"),
+        _cell(150, 228, "Left two"),
+        _cell(320, 228, "Right one"),
+        _cell(400, 228, "Right two"),
+        _body(300),
+    ]
+    assert _members(elements, 4) == [4, 5]
+    assert _members(elements, 2) == [2, 3]
+
+
+def test_sidebar_beside_a_figure_makes_the_extent_undecidable():
+    # Refuter Gc: a 7 pt sidebar on the figure's lines, right of its title.
+    elements = [
+        _text([72, 200, 380, 209], "Figure 1: Spreads", fontsize=9.0, layout_class="scattered"),
+        _cell(72, 214, "IG"),
+        _cell(192, 214, "HY"),
+        _cell(72, 230, "EM"),
+        _cell(192, 230, "Muni"),
+        _text([72, 270, 360, 277], "Source: Bloomberg.", fontsize=7.0),
+        _text([430, 215, 560, 222], "Key takeaways", fontsize=7.0, layout_class="scattered"),
+        _text([430, 230, 560, 237], "Spreads widened 20bp", fontsize=7.0, layout_class="scattered"),
+        _text([430, 245, 560, 252], "We stay underweight", fontsize=7.0, layout_class="scattered"),
+    ]
+    assert _group(elements, 2) is None
+
+
+def test_small_body_paragraph_in_the_next_column_is_not_taken():
+    # Codex two-column-small-body.
+    elements = [
+        _text([72, 200, 290, 209], "Figure 1: Left column chart", fontsize=9.0, layout_class="scattered"),
+        _cell(72, 214, "Cell 0 AUM"),
+        _cell(150, 214, "Cell 1 AUM"),
+        _cell(72, 226, "Cell 2 AUM"),
+        _text([320, 205, 540, 260], DISCLAIMER, fontsize=7.0, layout_class="body"),
+        _text([72, 240, 290, 247], "Source: Company reports.", fontsize=7.0),
+    ]
+    assert _members(elements, 2) == [1, 2, 3]
+
+
+def test_region_leaves_out_title_source_and_footnote():
+    # Codex table-caption-source-footnote.
+    elements = [
+        _region([60, 190, 560, 282]),
+        _text([72, 192, 300, 201], "Table 1: Spreads", fontsize=9.0, layout_class="table", table_hint=True),
+        _cell(72, 214, "IG", table_hint=True),
+        _cell(192, 214, "HY", table_hint=True),
+        _cell(72, 230, "EM", table_hint=True),
+        _text([72, 262, 300, 269], "Source: Bloomberg.", fontsize=7.0, table_hint=True),
+        _text([72, 272, 300, 278], "1 Data as of June.", fontsize=6.0, table_hint=True, footnote_hint=True),
+        _body(400),
+    ]
+    assert _members(elements, 2) == [2, 3, 4]
+    region = groups._table_region_members(
+        elements, 2, fitz.Rect(elements[2]["bbox"]), PAGE, 10.0
+    )
+    assert sorted(region) == [2, 3, 4]
+
+
+def test_region_leaves_out_note_continuation_lines():
+    # Case 1 page 8: "Note: ..." and its second line sit inside the region.
+    elements = [
+        _region([60, 200, 560, 262]),
+        _cell(72, 210, "Ticker", table_hint=True),
+        _cell(200, 210, "Level", table_hint=True),
+        _text([72, 245, 540, 252], "Note: As of 11/6/2026. Products are placed in buckets.", fontsize=7.0, table_hint=True),
+        _text([72, 253, 300, 260], "Jumbo Prime began in November.", fontsize=7.0, table_hint=True),
+    ]
+    assert sorted(_group(elements, 1).members) == [1, 2]
+
+
+def test_running_header_closes_a_caption_below_band():
+    # Codex RUNNING_HEADER_BAND: a figure at the top of the page, caption below.
+    elements = [
+        _text([72, 20, 200, 31], "J.P. Morgan", fontsize=11.0, layout_class="scattered"),
+        _text([72, 34, 300, 41], "North America Credit Research", fontsize=7.0, layout_class="scattered"),
+        _cell(72, 76, "Cell 0 AUM"),
+        _cell(192, 76, "Cell 1 AUM"),
+        _cell(72, 88, "Cell 2 AUM"),
+        _text([72, 105, 300, 114], "Figure 1: Spreads by sector", fontsize=9.0, layout_class="scattered"),
+        _body(130),
+    ]
+    assert _members(elements, 2) == [2, 3, 4]
+
+
+def test_long_cell_in_a_row_of_cells_is_table_text():
+    # Case 1 page 3: a one-line, many-word cell offset half a line from its
+    # neighbours (row centring) is a member, not prose.
+    long_cell = "Q3 call: our hyperscaler exposure totals 1.6 billion and our data center exposure totals 2.5 billion"
+    elements = [
+        _text([45, 120, 431, 129], "Figure 3: A detailed snapshot of AI exposures", fontsize=9.0, layout_class="scattered"),
+        _cell(60, 140, "MET", width=10),
+        _cell(125, 140, "431", width=8),
+        _text([380, 143, 566, 149], long_cell, fontsize=5.0, layout_class="body"),
+        _text([45, 170, 182, 177], "Source: Company reports.", fontsize=7.0),
+    ]
+    # The table's row shading reaches past its title: that is the evidence of
+    # its width.  Without it the long cell straddles the extent: no group.
+    shading = [fitz.Rect(45, 136, 566, 152)]
+    group = groups.find_figure_table_group(
+        elements, 1, page_rect=PAGE, dominant_fontsize=10.0, graphics=shading
+    )
+    assert sorted(group.members) == [1, 2, 3]
+    assert _group(elements, 1) is None
+
+
+def test_small_body_paragraph_keeps_its_translation(tmp_path, font_path):
+    # Codex SMALL_BODY_COMPARE: production delivers element 6 translated.
+    figure = _figure(200)[:-1]  # no source line
+    figure[1] = _cell(72, 214, LONG_CELL, width=24, layout_class="scattered")
+    small = _body(280)
+    small["fontsize"] = 8.5
+    elements = [_body(100), *figure, small, _body(400)]
+    translations = {
+        0: ZH[:30], 1: ZH[:10], 2: ZH * 4, 3: ZH[:5], 4: ZH[:6], 5: ZH[:7],
+        6: ZH[10:35], 7: ZH[:25],
+    }
+    document = Document(tmp_path, font_path, [(elements, translations)])
+
+    (text,) = document.assemble()
+
+    assert ZH[10:35] in _squash(text)
+    assert "skip_translate_reason" not in small
+    for record in document.figure_tables():
+        assert 6 not in record["elements"]
+
+
+# ---------------------------------------------------------------------------
 # Task record
 # ---------------------------------------------------------------------------
 
