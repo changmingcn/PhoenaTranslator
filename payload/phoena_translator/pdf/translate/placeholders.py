@@ -9,11 +9,53 @@ from __future__ import annotations
 
 import hashlib
 import re
+import unicodedata
 from typing import Iterable
 
 from phoena_translator.pdf.patterns import _PRESERVED_IDENTIFIER_RE
+from phoena_translator.pdf.render.paragraph_html import pdf_drawn_text_forms
 from phoena_translator.pdf.translate.inline_markup import _normalize_pdf_translation
 
+# Every internal token, of every kind, is ``PDF_PLACEHOLDER_PREFIX`` + kind
+# + ``_`` + four-digit index + ``_`` + digest (``pdf_placeholder_token``; the
+# batch codec mints its segment ids with the same function).
+PDF_PLACEHOLDER_PREFIX = "PHOENA_"
+# The generator's own kinds; ``pdf_placeholder_token`` mints no other.
+PDF_PLACEHOLDER_KINDS = ("IMATH", "SEG", "SUP", "ID")
+# Up to three separator characters (space, punctuation, ``_``) a model may put
+# between any two letters or groups of a token.
+_TOKEN_GAP = r"[\W_]{0,3}"
+# A Latin letter: only such a letter right after a kind makes it a word
+# (``IDE``); Chinese text or punctuation after a kind leaves a cut-off token.
+_LATIN_LETTER = "[A-Za-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u024f\u1e00-\u1eff]"
+
+
+def _letter_tolerant(word: str) -> str:
+    return _TOKEN_GAP.join(re.escape(char) for char in word)
+
+
+# Any internal token left in the visible text of a translation, also after a
+# model spaced, hyphenated, re-cased or cut it: the prefix and a kind from the
+# generator's set, letter by letter, then whatever index and digest remain.
+# A kind followed by another Latin letter (``Phoena IDE``) is a word, not a
+# token; followed by Chinese text (``PHOENA_ID其余``) it is a cut-off token.
+PDF_INTERNAL_PLACEHOLDER_RE = re.compile(
+    _letter_tolerant(PDF_PLACEHOLDER_PREFIX.rstrip("_"))
+    + _TOKEN_GAP
+    + "(?:" + "|".join(_letter_tolerant(kind) for kind in PDF_PLACEHOLDER_KINDS) + ")"
+    + f"(?!{_LATIN_LETTER})"
+    + r"(?:" + _TOKEN_GAP + r"\d{1,4})?"
+    + r"(?:" + _TOKEN_GAP + r"[0-9A-F]{1,16}(?![0-9A-Z]))?",
+    re.IGNORECASE,
+)
+# A complete token exactly as ``pdf_placeholder_token`` writes it (an index of
+# four or more digits, a 16-character digest): the only form a source can own.
+_PDF_COMPLETE_TOKEN_RE = re.compile(
+    PDF_PLACEHOLDER_PREFIX
+    + "(?:" + "|".join(PDF_PLACEHOLDER_KINDS) + ")"
+    + r"_\d{4,}_[0-9A-F]{16}(?![0-9A-Za-z])"
+)
+PDF_PLACEHOLDER_LEAK_REASON = "internal-placeholder-token"
 PDF_BATCH_SEGMENT_RE = re.compile(r"PHOENA_SEG_\d{4}_[A-F0-9]{16}")
 PDF_SUPERSCRIPT_PLACEHOLDER_RE = re.compile(
     r"PHOENA_SUP_\d{4}_[0-9A-F]{16}"
@@ -30,6 +72,65 @@ def _digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest().upper()[:16]
 
 
+def pdf_placeholder_token(kind: str, index: int, digest: str) -> str:
+    """The one format of every internal token (see ``PDF_INTERNAL_PLACEHOLDER_RE``)."""
+    if kind not in PDF_PLACEHOLDER_KINDS:
+        raise ValueError(f"placeholder kind {kind!r} is not in PDF_PLACEHOLDER_KINDS")
+    return f"{PDF_PLACEHOLDER_PREFIX}{kind}_{index:04d}_{digest}"
+
+
+def _pdf_visible_text_forms(text: str) -> list[str]:
+    """The text as a reader sees it drawn, on every drawing path.
+
+    The renderer's own conversion (``pdf_drawn_text_forms``) gives what each
+    path draws; NFKC then folds full-width letters as a reader reads them,
+    and format characters such as zero-width spaces, which draw nothing, are
+    dropped.
+    """
+    visible = []
+    for form in pdf_drawn_text_forms(text):
+        folded = unicodedata.normalize("NFKC", form)
+        folded = "".join(char for char in folded if unicodedata.category(char) != "Cf")
+        if folded not in visible:
+            visible.append(folded)
+    return visible
+
+
+def _pdf_token_identity(token: str) -> str:
+    return re.sub(r"[\W_]", "", token).upper()
+
+
+def pdf_internal_placeholder_leaks(source_text: str, translated_text: str) -> list[str]:
+    """Internal tokens visible in a translation that its source does not own.
+
+    A token can survive restoration when a model drops or mangles one of an
+    element's tokens, or when a batch answer moves a neighbour's tokens into
+    this element's segment (this element has no records, so nothing is
+    restored).  Either way the reader would see the raw token.  A token the
+    source itself shows is exempt only when it lies inside a complete token
+    (``_PDF_COMPLETE_TOKEN_RE``) of the translation that occurs, identical
+    and complete, in the source: a cut-off, re-spelt or partly read token
+    never borrows the source's ownership.
+    """
+    owned = {
+        match.group(0)
+        for form in _pdf_visible_text_forms(source_text)
+        for match in _PDF_COMPLETE_TOKEN_RE.finditer(form)
+    }
+    leaks: dict[str, str] = {}
+    for form in _pdf_visible_text_forms(translated_text):
+        exempt = [
+            match.span()
+            for match in _PDF_COMPLETE_TOKEN_RE.finditer(form)
+            if match.group(0) in owned
+        ]
+        for match in PDF_INTERNAL_PLACEHOLDER_RE.finditer(form):
+            if any(start <= match.start() and match.end() <= end for start, end in exempt):
+                continue
+            leaks.setdefault(_pdf_token_identity(match.group(0)), match.group(0))
+    return list(leaks.values())
+
+
 def mint_placeholder_token(
     kind: str,
     index: int,
@@ -40,10 +141,10 @@ def mint_placeholder_token(
 ) -> str:
     """Return a token for ``original`` at ``start:end`` that is absent from ``text``."""
     digest = _digest(f"{index}:{start}:{end}:".encode("ascii") + original.encode("utf-8"))
-    token = f"PHOENA_{kind}_{index:04d}_{digest}"
+    token = pdf_placeholder_token(kind, index, digest)
     while token in text:
         digest = _digest((digest + original).encode("utf-8"))
-        token = f"PHOENA_{kind}_{index:04d}_{digest}"
+        token = pdf_placeholder_token(kind, index, digest)
     return token
 
 
@@ -137,7 +238,13 @@ def restore_anchored_tokens(
 
 
 __all__ = [
+    "PDF_INTERNAL_PLACEHOLDER_RE",
+    "PDF_PLACEHOLDER_KINDS",
+    "PDF_PLACEHOLDER_LEAK_REASON",
+    "PDF_PLACEHOLDER_PREFIX",
     "mint_placeholder_token",
+    "pdf_internal_placeholder_leaks",
+    "pdf_placeholder_token",
     "placeholder_record",
     "protect_anchored_matches",
     "record_original_intact",

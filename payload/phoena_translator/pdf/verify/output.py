@@ -51,13 +51,60 @@ def _pdf_vector_ocr_page_text(page) -> str:
     return _run_pdf_tesseract(png_bytes, "txt")
 
 
-def _pdf_formula_raster_difference_summary(source_pix, observed_pix) -> dict:
+# Largest absolute grey-level difference (0-255, on the audit's 2x grey clip)
+# that counts as renderer drift rather than a change to a protected region.
+# PyMuPDF's ``apply_redactions`` rewrites the whole page content stream
+# (sanitize), and on some pages that moves the antialiasing of untouched glyphs
+# by one or two grey levels across a quarter of a region's pixels.  Measured
+# over the protected regions of ten production-shaped documents whose vector
+# fingerprints all matched, drift never exceeded 2 levels and the smallest
+# non-drift difference was 57; an overlay, whiteout or removed glyph differs by
+# tens to hundreds of levels.  The bound keeps one level of margin above the
+# measured drift (3/255, about 1.2%, below perceptibility) and must stay <= 4.
+# Limit: ink whose contrast against its background is at most this bound can be
+# painted over without failing the audit; such ink is not visible.
+PDF_FORMULA_RASTER_DRIFT_MAX_DELTA = 3
+
+# Final structure warnings that name one formula region, superscript marker or
+# vector-OCR element of a page whose body text was translated and validated.
+# A page whose confirmed warnings are all of these types is delivered as
+# translated and the warnings are recorded (render/stage.py).  Every other
+# type -- font-glyph-substitution, vector-ocr-audit-error, the page-less types
+# and any type added later -- still restores the exact source page or fails
+# the task.  The set is explicit on purpose: a new warning type must be added
+# here deliberately to stop restoring its page.
+PDF_LOCAL_STRUCTURE_WARNING_TYPES = frozenset({
+    "formula-integrity-mismatch",
+    "superscript-size-mismatch",
+    "flattened-superscript",
+    "missing-superscript",
+    "superscript-scale-unverifiable",
+    "vector-ocr-source-text-remains",
+    "formula-signature-error",
+    "formula-raster-clip-degenerate",
+    "source-formula-signature-missing",
+})
+
+
+def _pdf_formula_raster_difference_summary(
+    source_pix,
+    observed_pix,
+    *,
+    vector_fingerprints_match: bool = False,
+    span_count: int = 0,
+) -> dict:
     """Classify raster-only differences after vector identity is confirmed.
 
     Exact raster hashes catch overlays and whiteouts, but they also change when
     translated neighboring text used to overlap a protected box by a few
     antialiased edge pixels. Accept only a tiny global delta or a bounded delta
     confined to an outer edge; material changes in the formula core still fail.
+
+    A third, independent rule accepts low-amplitude drift anywhere in the clip:
+    every vector fingerprint of the region matched (``vector_fingerprints_match``),
+    the region holds at least one text span (so the vector match is evidence,
+    not vacuous), and no pixel differs by more than
+    ``PDF_FORMULA_RASTER_DRIFT_MAX_DELTA`` grey levels.
     """
     same_shape = (
         source_pix.width == observed_pix.width
@@ -71,17 +118,22 @@ def _pdf_formula_raster_difference_summary(source_pix, observed_pix) -> dict:
             "diff_pixels": None,
             "diff_ratio": None,
             "boundary_only": False,
+            "max_delta": None,
+            "tolerance": None,
         }
 
     width = int(source_pix.width)
     height = int(source_pix.height)
-    different = [
-        index
-        for index, (source_value, observed_value) in enumerate(
-            zip(source_pix.samples, observed_pix.samples)
-        )
-        if source_value != observed_value
-    ]
+    different = []
+    max_delta = 0
+    for index, (source_value, observed_value) in enumerate(
+        zip(source_pix.samples, observed_pix.samples)
+    ):
+        if source_value != observed_value:
+            different.append(index)
+            delta = abs(int(source_value) - int(observed_value))
+            if delta > max_delta:
+                max_delta = delta
     total = max(width * height, 1)
     diff_count = len(different)
     diff_ratio = diff_count / total
@@ -91,6 +143,8 @@ def _pdf_formula_raster_difference_summary(source_pix, observed_pix) -> dict:
             "diff_pixels": 0,
             "diff_ratio": 0.0,
             "boundary_only": True,
+            "max_delta": 0,
+            "tolerance": "identical",
         }
 
     vertical_band = max(1, min(10, math.ceil(height * 0.30)))
@@ -102,12 +156,25 @@ def _pdf_formula_raster_difference_summary(source_pix, observed_pix) -> dict:
         or (index % width) >= width - horizontal_band
         for index in different
     )
-    tolerable = diff_ratio <= 0.002 or (boundary_only and diff_ratio <= 0.10)
+    if diff_ratio <= 0.002:
+        tolerance = "sparse"
+    elif boundary_only and diff_ratio <= 0.10:
+        tolerance = "boundary"
+    elif (
+        vector_fingerprints_match
+        and int(span_count or 0) >= 1
+        and max_delta <= PDF_FORMULA_RASTER_DRIFT_MAX_DELTA
+    ):
+        tolerance = "low-amplitude-drift"
+    else:
+        tolerance = None
     return {
-        "tolerable": tolerable,
+        "tolerable": tolerance is not None,
         "diff_pixels": diff_count,
         "diff_ratio": round(diff_ratio, 6),
         "boundary_only": boundary_only,
+        "max_delta": max_delta,
+        "tolerance": tolerance,
     }
 
 
@@ -510,6 +577,7 @@ def _audit_pdf_formula_regions(
             if expected_signature.get(field)
             != observed_signature.get(field)
         ]
+        raster_summary = None
         if mismatches == ["raster_sha256"] and source_doc is not None:
             rect = fitz.Rect(
                 expectation.get("bbox", (0, 0, 0, 0))
@@ -539,9 +607,14 @@ def _audit_pdf_formula_regions(
                 alpha=False,
                 clip=observed_clip,
             )
+            # Only this branch reaches the raster comparison: text, font,
+            # geometry, span count and raster size all matched above, so the
+            # vector identity of the region is confirmed for the drift rule.
             raster_summary = _pdf_formula_raster_difference_summary(
                 source_pix,
                 observed_pix,
+                vector_fingerprints_match=True,
+                span_count=int(observed_signature.get("span_count") or 0),
             )
             if raster_summary.get("tolerable"):
                 tolerated_raster_differences.append({
@@ -552,12 +625,16 @@ def _audit_pdf_formula_regions(
                 verified_total += 1
                 continue
         if mismatches:
-            warnings.append({
+            warning = {
                 "type": "formula-integrity-mismatch",
                 "page": page_number,
                 "element": element_number,
                 "mismatches": mismatches,
-            })
+            }
+            if raster_summary is not None:
+                warning["max_delta"] = raster_summary.get("max_delta")
+                warning["diff_ratio"] = raster_summary.get("diff_ratio")
+            warnings.append(warning)
             continue
         verified_total += 1
     return verified_total, tolerated_raster_differences

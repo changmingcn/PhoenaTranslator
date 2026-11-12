@@ -1,17 +1,22 @@
 # PhoenaTranslator 干净重装包
 
-版本：`2026.11.12-figure-table-fallback`
+版本：`2026.11.12b-local-flaw-delivery`
 
 这是当前已修正翻译程序的恢复安装版。它只包含运行所需的程序与依赖文件以及安装元数据（测试保留在源码仓库，不进安装包），不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
 
 ## 相对上一版的变化
 
-PDF 排版退回规则只在图和表的范围内放弃翻译：图或表里有一处文字排不下时，只把这个图或表保留为原文，页面其余部分照常译成中文；不再把整页换回英文原页，也不再因跨页合并连带前后页。
+PDF 译文里的局部小毛病不再让整页换回英文原页：正文已经译好并通过校验时，这一页照常交付中文，只有出问题的那一处保留原文墨迹，或者记一条警告。
 
-- 触发：单元格的译文放不下而原文也放不回原处（以前整页退回原页），或者原文要在原处重新排版（以前那一格换成重排的英文、常与相邻文字重叠）。图表编号标题（Figure/Table/Exhibit N）之下到来源行、正文或下一个标题之间的文字，或表格检测区域内的文字，作为一个整体保留原文墨迹，不重排、不重绘。
-- 只在能确定范围时才这样做：正文段落、正文字号的文字、标题与图注、来源与注释行、脚注、页眉页脚、跨页合并的句子一律不并入；任一条件不满足就按原来的方式处理（单格原文重排或整页退回）。单元格原文重排时，若那组文字里有未标为表格的正文或标题类文字，也按原来的方式处理。
-- 记录：任务与审计记录新增 `figure_table_source_fallbacks`（页、触发元素、原因、保留的元素与撤回的译文）；撤回的每段译文同时记入 `element_source_fallbacks`（stage `render-figure-table`）。页面后来整页退回原页时，这些记录随之删除。只有元素级退回的任务完成状态仍是 `completed`。
-- 没有新增运行时依赖；配置项、提示词、提取与页面缓存格式未改，上一版未完成的任务可直接续跑。
+- 终检公式比对：受保护公式区域的栅格比对容许肉眼看不出的渲染漂移（矢量指纹一致、灰度差不超过 3 级），不再因此判整页不合格。覆盖、涂白或删掉字形的改动相差几十到几百级，照旧拦下。
+- 局部警告照常交付：终检里只指向某个公式区、上标或矢量 OCR 元素的警告（`formula-integrity-mismatch`、`superscript-size-mismatch`、`flattened-superscript`、`missing-superscript`、`superscript-scale-unverifiable`、`vector-ocr-source-text-remains`、`formula-signature-error`、`formula-raster-clip-degenerate`、`source-formula-signature-missing`）不再让整页退回，逐条写进任务记录。清单之外的类型（缺字、审计自身出错、以后新增的类型）仍按原规则整页退回。
+- 单个元素排版失败：只让这一个元素保留原文墨迹，页面其余部分照常译成中文（以前整页退回）。恢复原文时不再在受保护的公式区域里重排文字。一页的译文全部被撤回时，这一页按原页交付，并记为整页退回。
+- 页角的分发追踪码（研报门户给每份拷贝印在页边的一串大小写字母与数字交替的随机码，与正文无关）在提取时去掉，不送翻译，也不出现在成品页面上。识别条件取保守：拿不准的不删，页眉页脚、代码表这类可见内容不会被当作追踪码。
+- 内部占位符不外漏：译文按渲染器实际画出的文字检查，若残留程序内部的占位符记号，这段译文不采用（先重译，仍不对就保留原文），成品文字层里不会出现这类记号。
+- 表格数字行：以数字为主的一行，译文必须按顺序保留原文的全部数字（含正负号、括号负数、年份与日期），否则先重译，仍不对就这一行保留原文。原文没有数字的标签，译文里多出三个以上数字时同样保留原文。叙述文字不算数字行，正文里的单位换算（如 `$67bn` 译成 `670亿美元`）不受影响；数字行里换了单位或把数字写成汉字的译文会被拒，这一行留英文，数字不丢。
+- 记录：任务与审计记录新增 `delivered_local_warnings`（照常交付的页上的局部警告：页、类型、元素或标记，公式区另记不一致的指纹）和 `removed_watermarks`（去掉的追踪码：页、元素、位置、文字、类型。该页最后按原页交付时不记）。单个元素保留原文时记入 `element_source_fallbacks`（stage `render`）。数字行与占位符的拒收原因分别记为 `numeric-row-numbers-changed`、`label-acquired-numbers` 和 `internal-placeholder-token`。
+- 没有新增运行时依赖；配置项、提示词与页面缓存格式未改，上一版未完成的任务可直接续跑。
+
 ## 支持范围
 
 - 已在当前生产基线确认：Debian 13、x86_64、Python 3.13。
@@ -25,9 +30,9 @@ PDF 排版退回规则只在图和表的范围内放弃翻译：图或表里有�
 先在下载目录校验压缩包（校验文件与压缩包应在同一目录）：
 
 ```bash
-sha256sum -c PhoenaTranslator-20261112-figure-table-fallback-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20261112-figure-table-fallback-reinstall.tar.gz
-cd PhoenaTranslator-20261112-figure-table-fallback-reinstall
+sha256sum -c PhoenaTranslator-20261112b-local-flaw-delivery-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261112b-local-flaw-delivery-reinstall.tar.gz
+cd PhoenaTranslator-20261112b-local-flaw-delivery-reinstall
 # 可选的完整预检（需要系统已装 python3）
 ./install.sh --verify-only
 sudo ./install.sh

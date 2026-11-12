@@ -134,8 +134,10 @@ def _drop_pdf_figure_table_audit_records(
     """Forget figure/table narrowing on pages now delivered as source pages.
 
     Only the narrowing's own records go: its ``figure_table_source_fallbacks``
-    entries and its ``render-figure-table`` element entries.  Other element
-    entries for those pages are left as they are.
+    entries, its ``render-figure-table`` element entries, and the entries of
+    single elements kept in source ink after a render failure
+    (``source_ink_kept``).  Other element entries for those pages are left as
+    they are.
     """
     pages = {int(page) for page in page_numbers if int(page) > 0}
     if not pages:
@@ -157,7 +159,10 @@ def _drop_pdf_figure_table_audit_records(
             for entry in audit.get("element_source_fallbacks") or []
             if not (
                 int(entry.get("page", 0) or 0) in pages
-                and entry.get("stage") == "render-figure-table"
+                and (
+                    entry.get("stage") == "render-figure-table"
+                    or entry.get("source_ink_kept")
+                )
             )
         ]
 
@@ -166,10 +171,14 @@ def _clear_pdf_figure_table_skip_reasons(
     page_extractions: dict[int, PageExtraction],
     page_numbers: set[int] | list[int],
 ) -> None:
-    """Drop the narrowing's skip reason from elements of pages now source."""
+    """Drop the narrowing's skip reasons from elements of pages now source."""
+    narrowing_reasons = {
+        SkipReason.RENDER_FIGURE_TABLE_SOURCE,
+        SkipReason.RENDER_ELEMENT_SOURCE,
+    }
     for page in {int(page) for page in page_numbers if int(page) > 0}:
         for elem in (page_extractions.get(page - 1) or {}).get("elements") or []:
-            if elem.get("skip_translate_reason") == SkipReason.RENDER_FIGURE_TABLE_SOURCE:
+            if elem.get("skip_translate_reason") in narrowing_reasons:
                 elem.pop("skip_translate_reason", None)
 
 

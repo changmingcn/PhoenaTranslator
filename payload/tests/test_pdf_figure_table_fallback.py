@@ -305,9 +305,12 @@ def test_two_failing_figures_on_one_page_are_each_narrowed(tmp_path, font_path, 
         assert f"译文{index}" in text
 
 
-def test_failing_body_element_still_falls_back_to_the_merged_source_pages(
+def test_failing_body_element_is_kept_alone_and_the_merge_stays_translated(
     tmp_path, font_path, monkeypatch
 ):
+    # P1c: a body element outside any figure or table that fails the page is
+    # kept alone in source ink (it used to restore pages 1 and 2 through the
+    # accepted merge of element 7); both halves of the merge stay translated.
     page_one = [_body(100), *_figure(200), _body(600)]
     page_two = [_body(100), _body(200)]
     merge = {
@@ -330,10 +333,51 @@ def test_failing_body_element_still_falls_back_to_the_merged_source_pages(
 
     first, second = document.assemble()
 
+    assert document.fallback_pages() == []
+    assert document.figure_tables() == []
+    assert first.count("Below we show") == 1  # element 0 only, once
+    assert ZH[:20] not in _squash(first)
+    assert ZH[3:20] in _squash(first) and ZH[6:20] in _squash(second)
+    (entry,) = document.audit["element_source_fallbacks"]
+    assert (entry["page"], entry["element"], entry["stage"]) == (1, 0, "render")
+    assert entry["source_ink_kept"] is True and "injected no-fit" in entry["reason"]
+    assert page_one[0]["skip_translate_reason"] == SkipReason.RENDER_ELEMENT_SOURCE
+
+
+def test_failing_merge_endpoint_still_falls_back_to_the_merged_source_pages(
+    tmp_path, font_path, monkeypatch
+):
+    # P1c guard: an accepted cross-page merge endpoint is never kept alone
+    # (half a sentence in each language); the merge closure applies.
+    page_one = [_body(100), *_figure(200), _body(600)]
+    page_two = [_body(100), _body(200)]
+    merge = {
+        "decision": "accepted",
+        "source_page": 1,
+        "source_element": 7,
+        "destination_page": 2,
+        "destination_element": 0,
+    }
+    document = Document(
+        tmp_path,
+        font_path,
+        [
+            (page_one, {0: ZH[:20], 7: ZH[3:20]}),
+            (page_two, {0: ZH[6:20], 1: ZH[9:20]}),
+        ],
+        merge_decisions=[merge],
+    )
+    _inject_render_failures(monkeypatch, {(0, 7)})
+
+    first, second = document.assemble()
+
     assert document.fallback_pages() == [1, 2]
     assert document.figure_tables() == []
     assert "Below we show" in first and "Below we show" in second
     assert ZH[6:20] not in _squash(second)
+    assert not any(
+        entry.get("source_ink_kept") for entry in document.audit.get("element_source_fallbacks", [])
+    )
 
 
 def test_narrowed_figure_no_longer_expands_across_accepted_merges(
@@ -368,9 +412,11 @@ def test_narrowed_figure_no_longer_expands_across_accepted_merges(
     assert "inline_render_source_page_fallbacks" not in document.audit
 
 
-def test_figure_holding_a_merge_endpoint_keeps_the_page_fallback(
+def test_figure_holding_a_merge_endpoint_is_not_narrowed_and_keeps_only_the_cell(
     tmp_path, font_path, monkeypatch
 ):
+    # The group is refused as before (it holds endpoint 4); since P1c the
+    # failing cell 3, not an endpoint, is kept alone instead of the page.
     elements = [_body(100), *_figure(200)]
     merge = {
         "decision": "accepted",
@@ -386,8 +432,10 @@ def test_figure_holding_a_merge_endpoint_keeps_the_page_fallback(
 
     document.assemble()
 
-    assert document.fallback_pages() == [1]
+    assert document.fallback_pages() == []
     assert document.figure_tables() == []
+    assert [entry["element"] for entry in document.audit["element_source_fallbacks"]] == [3]
+    assert "skip_translate_reason" not in elements[4]
 
 
 def test_cross_page_closure_failure_is_never_narrowed(tmp_path, font_path, monkeypatch):
@@ -419,7 +467,16 @@ def test_failure_that_survives_narrowing_restores_the_page_state_and_falls_back(
 ):
     elements = [_body(100), *_figure(200), _body(400)]
     translations = {0: ZH[:20], 3: "单元一", 7: ZH[3:20]}
-    document = Document(tmp_path, font_path, [(elements, translations)])
+    # P1c: element 7 is an accepted merge endpoint, so its failure cannot be
+    # kept alone and still ends in the page fallback.
+    merge = {
+        "decision": "accepted",
+        "source_page": 1,
+        "source_element": 7,
+        "destination_page": 1,
+        "destination_element": 0,
+    }
+    document = Document(tmp_path, font_path, [(elements, translations)], merge_decisions=[merge])
     attempts = []
     real = assembly._render_element
 
@@ -469,14 +526,24 @@ def test_groups_per_page_are_capped(tmp_path, font_path, monkeypatch):
     first = _figure(150, title="Figure 3: Insurer exposure")
     second = _figure(300, title="Figure 4: Hyperscaler holders")
     elements = [_body(80), *first, *second]
-    translations = {3: "单元一", 10: "单元二"}
+    # The body is translated too: a page with every translation withdrawn is
+    # a source page (review round 1, R4), which is not what this pins.
+    translations = {0: ZH[:20], 3: "单元一", 10: "单元二"}
     document = Document(tmp_path, font_path, [(elements, translations)])
     monkeypatch.setattr(assembly, "FIGURE_TABLE_RULES", replace(groups.RULES, max_groups_per_page=1))
     _inject_render_failures(monkeypatch, {(0, 3), (0, 10)})
 
     document.assemble()
 
-    assert document.fallback_pages() == [1]
+    # One group at most; since P1c the failure beyond the cap is kept alone.
+    assert [record["element"] for record in document.figure_tables()] == [3]
+    assert document.fallback_pages() == []
+    kept_alone = [
+        entry["element"]
+        for entry in document.audit["element_source_fallbacks"]
+        if entry.get("source_ink_kept")
+    ]
+    assert kept_alone == [10]
 
 
 def test_narrowed_figure_is_excluded_from_leaks_and_expectations(
@@ -1015,8 +1082,9 @@ def test_watermark_overlapping_a_member_refuses_the_group(
     document.assemble()
 
     assert document.figure_tables() == []
-    assert document.fallback_pages() == [1]
-    assert "figure/table group refused" not in document.audit["source_page_fallbacks"][0]["reason"]
+    # Since P1c the failing cell (clear of the watermark) is kept alone.
+    assert document.fallback_pages() == []
+    assert [entry["element"] for entry in document.audit["element_source_fallbacks"]] == [3]
     assert "group refused" in caplog.text and "watermark elem 7" in caplog.text
 
 
@@ -1054,7 +1122,14 @@ def test_a_kept_element_still_redrawn_refuses_the_group(tmp_path, font_path, mon
     document.assemble()
 
     assert document.figure_tables() == []
-    assert document.fallback_pages() == [1]
+    # Since P1c the dropped group's seed is kept alone instead of the page
+    # (the title's own element restore is today's path).
+    assert document.fallback_pages() == []
+    assert [
+        entry["element"]
+        for entry in document.audit["element_source_fallbacks"]
+        if entry.get("source_ink_kept")
+    ] == [3]
 
 
 # ---------------------------------------------------------------------------
@@ -1094,7 +1169,8 @@ def test_narrowed_page_pulled_back_by_a_later_page_keeps_no_record(
     page_one = [_body(100), *figure, _body(400)]
     pages, merges = _merged_pages(page_one, {0: ZH[:20], 2: ZH * 4, 3: "单元一", 7: ZH[3:20]})
     document = Document(tmp_path, font_path, pages, merge_decisions=merges)
-    _inject_render_failures(monkeypatch, {(1, 1)})
+    # P1c: page 2 fails on its merge endpoint (a body element is kept alone).
+    _inject_render_failures(monkeypatch, {(1, 0)})
 
     first, _second = document.assemble()
 
@@ -1112,7 +1188,8 @@ def test_later_page_failure_record_and_task_record_have_no_stale_group(
     page_one = [_body(100), *_figure(200), _body(600)]
     pages, merges = _merged_pages(page_one, {0: ZH[:20], 3: ZH[:5], 7: ZH[3:20]})
     document = Document(tmp_path, font_path, pages, merge_decisions=merges)
-    _inject_render_failures(monkeypatch, {(0, 3), (1, 1)})
+    # P1c: page 2 fails on its merge endpoint (a body element is kept alone).
+    _inject_render_failures(monkeypatch, {(0, 3), (1, 0)})
 
     document.assemble()
 
@@ -1856,7 +1933,16 @@ def test_page_failure_without_any_narrowing_keeps_the_baseline_records(
         _body(400),
     ]
     translations = {0: ZH[:30], 1: "译1", 2: ZH[:30]}
-    document = Document(tmp_path, font_path, [(elements, translations)])
+    # P1c: element 2 is an accepted merge endpoint, so its failure is not
+    # kept alone and the page fails without any retry, as at 7fb1aa1.
+    merge = {
+        "decision": "accepted",
+        "source_page": 1,
+        "source_element": 2,
+        "destination_page": 1,
+        "destination_element": 0,
+    }
+    document = Document(tmp_path, font_path, [(elements, translations)], merge_decisions=[merge])
     _inject_element_restores(monkeypatch, {(0, 1)})
     _inject_render_failures(monkeypatch, {(0, 2)})
 

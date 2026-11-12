@@ -27,7 +27,10 @@ from phoena_translator.pdf.translate.inline_markup import (
     _pdf_inline_math_fragments_preserved,
     _restore_pdf_superscript_markup,
 )
+from phoena_translator.pdf.translate.numeric_guard import pdf_numeric_guard_failure
 from phoena_translator.pdf.translate.placeholders import (
+    PDF_PLACEHOLDER_LEAK_REASON,
+    pdf_internal_placeholder_leaks,
     _protect_pdf_identifier_fragments,
     _protect_pdf_inline_math_fragments,
     _protect_pdf_superscript_fragments,
@@ -101,6 +104,8 @@ def _translation_integrity_failures(
     """Return deterministic reasons why a restored translation is unsafe."""
 
     failures = list(restoration_failures)
+    if pdf_internal_placeholder_leaks(source_text, candidate):
+        failures.append(PDF_PLACEHOLDER_LEAK_REASON)
     if not _pdf_inline_markup_preserved(source_text, candidate):
         failures.append("superscript-integrity")
     if not _pdf_inline_math_fragments_preserved(element, candidate):
@@ -431,7 +436,13 @@ def _restore_batch_part(
     translated = _translate_pdf_deterministic_labels(translated)
     translated = _restore_pdf_superscript_markup(source_text, translated)
     if (
-        _pdf_element_translation_needs_retry(element, source_text, translated)
+        # A neighbour's tokens moved into this segment survive a restore
+        # with no records of this element's own.
+        pdf_internal_placeholder_leaks(source_text, translated)
+        # A comment in place of a numeric row, or a neighbour's row moved
+        # into this segment.
+        or pdf_numeric_guard_failure(source_text, translated)
+        or _pdf_element_translation_needs_retry(element, source_text, translated)
         or not _pdf_inline_markup_preserved(source_text, translated)
         or not _pdf_inline_math_fragments_preserved(element, translated)
     ):

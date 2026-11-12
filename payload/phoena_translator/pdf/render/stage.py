@@ -15,6 +15,10 @@ from typing import Any, Callable
 import fitz
 
 from phoena_translator.pdf.cache import _load_pdf_layout_cache, _save_pdf_layout_cache
+from phoena_translator.pdf.extract.distribution_codes import (
+    reconcile_removed_watermarks,
+    removed_watermarks_task_fields,
+)
 from phoena_translator.pdf.model import PageExtraction, PdfAudit
 from phoena_translator.pdf.render.assembly import (
     PDFAssemblyContext,
@@ -38,8 +42,29 @@ from phoena_translator.pdf.verify.merges import (
     _expand_pdf_fallback_pages_for_accepted_merges,
 )
 from phoena_translator.pdf.verify.output import (
+    PDF_LOCAL_STRUCTURE_WARNING_TYPES,
     _require_clean_pdf_structure_check,
     _save_and_validate_pdf_audit,
+)
+
+# Fields of a structure warning copied into the task record's
+# ``delivered_local_warnings``: where it is, what it is, and for a formula
+# region which fingerprints differed.  Vector-OCR phrases stay in the audit.
+_DELIVERED_WARNING_RECORD_FIELDS = (
+    "page",
+    "type",
+    "element",
+    "marker",
+    "mismatches",
+    "max_delta",
+    "diff_ratio",
+    "expected_scale",
+    "rendered_scale",
+    "expected",
+    "rendered_superscript",
+    "plain_occurrences",
+    "measured",
+    "error_type",
 )
 
 
@@ -384,32 +409,127 @@ def _run_structure_check(context: PDFOutputStageContext) -> dict:
         }
 
 
+def _structure_warnings_by_page(
+    warnings: list,
+) -> tuple[dict[int, list[dict]], bool]:
+    """Group warnings by page; report whether any warning names no page."""
+    by_page: dict[int, list[dict]] = {}
+    has_unscoped_warning = False
+    for warning in warnings:
+        if not isinstance(warning, dict):
+            has_unscoped_warning = True
+            continue
+        try:
+            warning_page = int(warning.get("page", 0) or 0)
+        except (TypeError, ValueError):
+            warning_page = 0
+        if warning_page < 1:
+            has_unscoped_warning = True
+        else:
+            by_page.setdefault(warning_page, []).append(warning)
+    return by_page, has_unscoped_warning
+
+
+def _structure_warnings_are_local(page_warnings: list[dict]) -> bool:
+    """Whether every warning of a page is on the explicit local allowlist."""
+    return all(
+        str(warning.get("type", "unknown")) in PDF_LOCAL_STRUCTURE_WARNING_TYPES
+        for warning in page_warnings
+    )
+
+
+def _structure_check_is_plain_warning(check: dict) -> bool:
+    """A finished audit that reported warnings, with a consistent count.
+
+    Anything else (a checker failure, a malformed record) never delivers a
+    page with warnings: its pages are restored or the task fails as before.
+    """
+    warnings = check.get("warnings") or []
+    if str(check.get("status", "error")) != "warning":
+        return False
+    try:
+        return int(check.get("warning_count", len(warnings))) == len(warnings)
+    except (TypeError, ValueError):
+        return False
+
+
+def _delivered_local_warning_record(warning: dict) -> dict:
+    return {
+        field: copy.deepcopy(warning[field])
+        for field in _DELIVERED_WARNING_RECORD_FIELDS
+        if field in warning
+    }
+
+
+def _deliver_local_structure_warnings(context: PDFOutputStageContext) -> None:
+    """Deliver translated pages whose confirmed warnings are all local.
+
+    Runs after every page that needs it has been restored.  The warnings are
+    moved, not dropped: the structure check keeps each one verbatim under
+    ``delivered_local_warnings`` and the audit gets one record per warning.
+    Anything else left in the check -- a page-less warning, a non-local type,
+    a warning on a restored page, an inconsistent count -- leaves the check
+    as it is, so the task fails exactly as before.
+    """
+    check = context.pdf_audit["structure_check"]
+    warnings = list(check.get("warnings") or [])
+    if not warnings or not _structure_check_is_plain_warning(check):
+        return
+    by_page, has_unscoped_warning = _structure_warnings_by_page(warnings)
+    if has_unscoped_warning:
+        return
+    restored_pages = {
+        int(entry.get("page", 0) or 0)
+        for entry in context.pdf_audit["source_page_fallbacks"]
+    }
+    for page_number, page_warnings in by_page.items():
+        if page_number in restored_pages or not _structure_warnings_are_local(
+            page_warnings
+        ):
+            return
+    delivered_check = dict(check)
+    delivered_check["status"] = "ok"
+    delivered_check["warning_count"] = 0
+    delivered_check["warnings"] = []
+    delivered_check["delivered_local_warnings"] = copy.deepcopy(warnings)
+    context.pdf_audit["structure_check"] = delivered_check
+    context.pdf_audit["delivered_local_warnings"] = [
+        _delivered_local_warning_record(warning) for warning in warnings
+    ]
+    context.logger.warning(
+        f"[{context.task_id}] Delivered translated page(s) "
+        f"{sorted(by_page)} with {len(warnings)} local structure warning(s): "
+        + ", ".join(
+            sorted({str(warning.get("type")) for warning in warnings})
+        )
+    )
+
+
 def _apply_structure_fallbacks(context: PDFOutputStageContext) -> None:
     while context.pdf_audit["structure_check"].get("status") != "ok" or (
         int(context.pdf_audit["structure_check"].get("warning_count", 0) or 0)
         or context.pdf_audit["structure_check"].get("warnings")
     ):
         warnings = list(context.pdf_audit["structure_check"].get("warnings") or [])
-        warning_pages = set()
-        has_unscoped_warning = False
-        for warning in warnings:
-            if not isinstance(warning, dict):
-                has_unscoped_warning = True
-                continue
-            try:
-                warning_page = int(warning.get("page", 0) or 0)
-            except (TypeError, ValueError):
-                warning_page = 0
-            if warning_page < 1:
-                has_unscoped_warning = True
-            else:
-                warning_pages.add(warning_page)
+        warnings_by_page, has_unscoped_warning = _structure_warnings_by_page(
+            warnings
+        )
         if not warnings or has_unscoped_warning:
             break
-        direct_warning_pages = set(warning_pages)
+        # Only a page with a warning outside the local allowlist is restored,
+        # and only such a page expands through accepted cross-page merges.  A
+        # page that is delivered with local warnings drags no partner back.
+        can_deliver = _structure_check_is_plain_warning(
+            context.pdf_audit["structure_check"]
+        )
+        direct_warning_pages = {
+            page_number
+            for page_number, page_warnings in warnings_by_page.items()
+            if not (can_deliver and _structure_warnings_are_local(page_warnings))
+        }
         warning_pages = set(
             _expand_pdf_fallback_pages_for_accepted_merges(
-                warning_pages,
+                direct_warning_pages,
                 context.pdf_audit["merge_decisions"],
             )
         )
@@ -468,6 +588,7 @@ def _apply_structure_fallbacks(context: PDFOutputStageContext) -> None:
         context.pdf_audit.update(candidate_audit)
         _clear_pdf_figure_table_skip_reasons(context.page_extractions, new_pages)
         context.pdf_audit["structure_check"] = _run_structure_check(context)
+    _deliver_local_structure_warnings(context)
 
 
 def finalize_output(
@@ -477,10 +598,13 @@ def finalize_output(
 ) -> None:
     """Validate output, persist audit, and mark the task complete."""
 
+    # Only this attempt's final audit may claim delivered warnings.
+    context.pdf_audit.pop("delivered_local_warnings", None)
     context.pdf_audit["structure_check"] = _run_structure_check(context)
     if fail_open_to_source_page:
         _apply_structure_fallbacks(context)
     _require_clean_pdf_structure_check(context.pdf_audit["structure_check"])
+    reconcile_removed_watermarks(context.pdf_audit, context.page_extractions)
     context.trim_process_memory()
     completed_audit = copy.deepcopy(context.pdf_audit)
     completed_audit["completed_at"] = time.time()
@@ -527,6 +651,20 @@ def finalize_output(
                 if completed_audit.get("figure_table_source_fallbacks")
                 else {}
             ),
+            # Distribution watermark codes removed from delivered pages (only
+            # when there is one, so other records keep their exact shape).
+            **removed_watermarks_task_fields(completed_audit),
+            # Local structure warnings on pages delivered as translated (only
+            # when there is one, so other records keep their exact shape).
+            **(
+                {
+                    "delivered_local_warnings": completed_audit[
+                        "delivered_local_warnings"
+                    ]
+                }
+                if completed_audit.get("delivered_local_warnings")
+                else {}
+            ),
         },
     )
     # Publish completion metadata to shared in-memory state only after both
@@ -544,7 +682,9 @@ def finalize_output(
             f"({len(context.pdf_audit['source_page_fallbacks'])} source-page "
             "fallback(s), "
             f"{len(context.pdf_audit.get('element_source_fallbacks') or [])} "
-            "element-level source fallback(s))!"
+            "element-level source fallback(s), "
+            f"{len(context.pdf_audit.get('delivered_local_warnings') or [])} "
+            "delivered local structure warning(s))!"
         )
     except Exception:
         pass

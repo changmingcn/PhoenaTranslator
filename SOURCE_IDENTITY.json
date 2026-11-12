@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "package_name": "PhoenaTranslator-20261112-figure-table-fallback-reinstall",
-  "version": "2026.11.12-figure-table-fallback",
-  "built_at_utc": "2026-11-12T05:36:51.817742+00:00",
-  "source_policy": "release 2026.11.12-figure-table-fallback: when text inside a figure or table cannot be typeset, only that figure or table keeps its exact source ink and the rest of the page is translated (no source-page fallback, no cross-page expansion from this cause); groups are proposed from layout and accepted only if every element passes an attribute-only validator; prompts, extraction and caches unchanged",
-  "active_release": "/opt/phoena-translator/releases/release-2026.11.12-figure-table-fallback",
-  "payload_file_count": 87,
-  "payload_total_bytes": 1107932,
-  "payload_manifest_sha256": "01122b9da7c0e42639270822ab48b11433c4b70151c1af761262906e329da7b7",
-  "prior_deployment_content_aggregate_sha256": "d53242bf00dda071165b1528d338d5374865acaf8844b4ffc161ec7d515359f9",
-  "supersedes": "PhoenaTranslator-20261029-modular-runtime-reinstall (2026.10.29-modular-runtime)",
+  "package_name": "PhoenaTranslator-20261112b-local-flaw-delivery-reinstall",
+  "version": "2026.11.12b-local-flaw-delivery",
+  "built_at_utc": "2026-11-12T15:23:59.181199+00:00",
+  "source_policy": "release 2026.11.12b-local-flaw-delivery: local flaws no longer restore a whole PDF page to its source (imperceptible raster drift tolerated in the final formula audit; allowlisted local structure warnings are delivered and recorded; an element that fails rendering alone keeps its exact source ink); distribution watermark codes are removed at extraction by a narrow detector; translations that would leak an internal placeholder token, or that change a numeric row's numbers, are not drawn; prompts, configuration and caches unchanged",
+  "active_release": "/opt/phoena-translator/releases/release-2026.11.12b-local-flaw-delivery",
+  "payload_file_count": 89,
+  "payload_total_bytes": 1180795,
+  "payload_manifest_sha256": "1486d4896e8d1b03b090fdce6d1d171b5f3caba145a386ba32c230fa00ef1c6c",
+  "prior_deployment_content_aggregate_sha256": "01122b9da7c0e42639270822ab48b11433c4b70151c1af761262906e329da7b7",
+  "supersedes": "PhoenaTranslator-20261112-figure-table-fallback-reinstall (2026.11.12-figure-table-fallback)",
   "excluded_classes": [
     "credentials and environment files",
     "TLS certificates and private keys",
@@ -18,5 +18,5 @@
     "fonts, audit evidence, backups and Git metadata",
     "tests, test requirements and release tooling (kept in the source repository)"
   ],
-  "validation": "Local regression suite: 559 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including 67 figure/table fallback tests with a seeded property test of the group guarantees; an offline, keyless reassembly of a real 9-page production job on the production host turned its four source-page fallbacks into four narrowed figures/tables with every other page unchanged; three review rounds by two independent reviewers."
+  "validation": "Local regression suite: 955 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including tests for the formula drift tolerance, local structure warnings, element-level render fallback, distribution watermarks, placeholder token leaks and the numeric row guard, each condition checked by mutation; an offline, keyless reassembly of six real production jobs on the production host: four complete with no source page, one keeps only the two pages of a cross-page sentence in source, one unchanged; three review rounds by two independent reviewers."
 }

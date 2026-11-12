@@ -22,6 +22,7 @@ phoena_translator/pdf/context.py
 phoena_translator/pdf/errors.py
 phoena_translator/pdf/extract/__init__.py
 phoena_translator/pdf/extract/baselines.py
+phoena_translator/pdf/extract/distribution_codes.py
 phoena_translator/pdf/extract/filters.py
 phoena_translator/pdf/extract/math_detection.py
 phoena_translator/pdf/extract/page.py
@@ -66,6 +67,7 @@ phoena_translator/pdf/translate/__init__.py
 phoena_translator/pdf/translate/batch_codec.py
 phoena_translator/pdf/translate/deterministic_labels.py
 phoena_translator/pdf/translate/inline_markup.py
+phoena_translator/pdf/translate/numeric_guard.py
 phoena_translator/pdf/translate/page.py
 phoena_translator/pdf/translate/placeholders.py
 phoena_translator/pdf/translate/stage.py

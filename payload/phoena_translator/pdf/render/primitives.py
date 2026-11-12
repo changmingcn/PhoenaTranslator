@@ -22,8 +22,9 @@ from phoena_translator.pdf.geometry import (
     _subtract_pdf_protected_rects,
 )
 from phoena_translator.pdf.model import DEFAULT_FONTSIZE, ElementType
+from phoena_translator.pdf.render.paragraph_html import _pdf_plain_drawn_text
 from phoena_translator.pdf.settings import PDF_MIN_ACCEPTABLE_HTMLBOX_SCALE
-from phoena_translator.pdf.text_shape import _collapsed_plain_text, _plain_text
+from phoena_translator.pdf.text_shape import _plain_text
 from phoena_translator.pdf.translate.inline_markup import _normalize_pdf_translation
 
 PDF_TEXT_NEIGHBOR_GUARD_PADDING = 0.6
@@ -480,6 +481,14 @@ def _restore_pdf_source_text_element(
     )
     if base_rect is None:
         return False, f"{fit_msg}; invalid source rect"
+    # The walk re-sets the whole text in another font and size, so inside a
+    # protected formula region (whose ink was never redacted) it would write
+    # over that ink.  Refuse instead: the render-failure path then keeps this
+    # element alone in its exact source ink, or its figure or table.
+    if _pdf_rect_intersects_protected(base_rect, protected_rects or []):
+        return False, (
+            f"{fit_msg}; source restore would cross a protected formula region"
+        )
     fontname = _pdf_fallback_font_name(fontfile)
     try:
         page.insert_font(fontname=fontname, fontfile=fontfile)
@@ -591,7 +600,7 @@ def _insert_pdf_rotated_textbox_with_fit(
     protected_rects: list | None = None,
 ) -> tuple[bool, str]:
     """Draw one translated non-horizontal label in its native direction."""
-    fallback_text = _collapsed_plain_text(_normalize_pdf_translation(text or ""))
+    fallback_text = re.sub(r"\s+", " ", _pdf_plain_drawn_text(text)).strip()
     if not fallback_text:
         return False, "empty rotated text"
     rotation = int(rotation or 0) % 360

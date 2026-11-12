@@ -9,6 +9,7 @@ import fitz
 import pytest
 from golden_support import build_test_font
 
+from phoena_translator.pdf.render import primitives
 from phoena_translator.pdf.render.primitives import (
     _insert_pdf_textbox_with_fit,
     _restore_pdf_source_text_element,
@@ -202,35 +203,64 @@ def test_restore_uses_the_formula_safe_textbox_first(page, font_path):
     assert "Source words" in page.get_text()
 
 
+def _refuse_fitted_textbox(monkeypatch):
+    monkeypatch.setattr(
+        primitives,
+        "_insert_pdf_textbox_with_fit",
+        lambda *_a, **_k: (False, "no formula-safe text rect", None),
+    )
+
+
 def test_restore_writes_directly_into_the_original_region_as_a_last_resort(
-    page, font_path
+    page, font_path, monkeypatch
 ):
-    # The source occupied this box originally, so the direct walk may ignore
-    # the formula guard that rejected every fitted candidate.
+    # The source occupied this box originally, so when every fitted candidate
+    # is refused the direct walk may re-set it there, away from formulas.
+    _refuse_fitted_textbox(monkeypatch)
     ok, message = _restore(
         page,
         (72, 100, 300, 130),
         "Source words",
         font_path,
-        protected_rects=[fitz.Rect(0, 0, 612, 792)],
+        protected_rects=[fitz.Rect(72, 400, 300, 430)],
     )
     assert ok and message == "source text restored directly at fontsize 10.0"
+    assert "Source words" in page.get_text()
 
 
-def test_restore_reports_why_nothing_was_written(page, font_path, tmp_path):
+def test_restore_never_writes_into_a_protected_formula_region(
+    page, font_path, monkeypatch
+):
+    # A protected formula region keeps its unredacted source ink; the direct
+    # walk re-sets text in another font and size and would write over it.
+    _refuse_fitted_textbox(monkeypatch)
+    formula = fitz.Rect(150, 100, 200, 130)
+    page.insert_text((152, 120), "x+1", fontsize=10)
+    before = page.get_pixmap(clip=formula).samples
+    ok, message = _restore(
+        page,
+        (72, 100, 300, 130),
+        "Source words",
+        font_path,
+        protected_rects=[formula],
+    )
+    assert not ok
+    assert message == (
+        "no formula-safe text rect; source restore would cross a protected formula region"
+    )
+    assert "Source words" not in page.get_text()
+    assert page.get_pixmap(clip=formula).samples == before
+
+
+def test_restore_reports_why_nothing_was_written(page, font_path, tmp_path, monkeypatch):
     ok, message = _restore(page, (float("nan"), 100, 300, 130), "Source", font_path)
     assert not ok and message == "invalid text rect; invalid source rect"
 
     ok, message = _restore(page, (72, 100, 300, 130), "Source", str(tmp_path / "x.ttf"))
     assert not ok and "source restore font registration failed" in message
 
-    ok, message = _restore(
-        page,
-        (72, 100, 80, 104),
-        "Source words " * 20,
-        font_path,
-        protected_rects=[fitz.Rect(0, 0, 612, 792)],
-    )
+    _refuse_fitted_textbox(monkeypatch)
+    ok, message = _restore(page, (72, 100, 80, 104), "Source words " * 20, font_path)
     assert not ok
     assert message.startswith("no formula-safe text rect; source restore no-fit (textbox deficit")
 

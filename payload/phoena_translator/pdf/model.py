@@ -46,6 +46,11 @@ class SkipReason(StrEnum):
     # A whole figure or table kept in source ink after one of its elements
     # could not be typeset.
     RENDER_FIGURE_TABLE_SOURCE = "render_figure_table_source"
+    # --- render element confinement (seat Y, 2026-11-12) ---
+    # One element kept in source ink after it failed the page's rendering;
+    # the rest of the page is translated.
+    RENDER_ELEMENT_SOURCE = "render_element_source"
+    # --- end render element confinement ---
 
 
 Rect = list[float]  # [x0, y0, x1, y1] in page points
@@ -199,6 +204,9 @@ class PdfAudit(TypedDict, total=False):
     formula_mid_sentence_preserved_elements: list[dict[str, Any]]
     table_preserved_elements: list[dict[str, Any]]
     table_preservation_rollbacks: list[dict[str, Any]]
+    # Distribution watermark codes removed at extraction (page, element, bbox,
+    # text, kind); present only when one was found.
+    removed_watermarks: list[dict[str, Any]]
     phase1_checkpointed_at: float
     # Translation and assembly.
     source_page_fallbacks: list[dict[str, Any]]
@@ -220,6 +228,10 @@ class PdfAudit(TypedDict, total=False):
     failed_at: float
     # Completion.
     structure_check: dict[str, Any]
+    # Confirmed local structure warnings on pages delivered as translated
+    # (page, type, element or marker, differing fingerprints); present only
+    # when there is one.  The verbatim warnings stay in ``structure_check``.
+    delivered_local_warnings: list[dict[str, Any]]
     quality_status: str
     completed_at: float
 

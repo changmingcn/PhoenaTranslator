@@ -209,10 +209,11 @@ def test_semantic_superscript_that_cannot_render_restores_source(font_path):
 
 def test_preflight_keeps_source_ink_when_no_formula_safe_rect_exists(font_path):
     elem = _text([72, 100, 300, 114])
+    other = _text([72, 400, 300, 414])
     formula = {"type": ElementType.FORMULA_IMAGE, "bbox": [40, 60, 580, 300]}
-    page = Page(font_path, [elem, formula], {0: ZH[:8]})
+    page = Page(font_path, [elem, formula, other], {0: ZH[:8], 2: ZH[:6]})
     plan = assembly._prepare_page(page.context, 0)
-    assert plan is None
+    assert plan.translated_indices == {2}
     assert elem["skip_translate_reason"] == SkipReason.RENDER_NO_SAFE_RECT_FALLBACK
     (fallback,) = page.audit["element_source_fallbacks"]
     assert fallback["stage"] == "render-preflight"
@@ -248,8 +249,9 @@ def test_preflight_rejects_an_unplaceable_cross_page_merge_endpoint(font_path):
 def test_rotated_text_that_cannot_be_placed_keeps_source(font_path):
     elem = _text([300, 100, 314, 300], non_horizontal=True, rotation=90)
     formula = {"type": ElementType.FORMULA_IMAGE, "bbox": [280, 80, 340, 320]}
-    page = Page(font_path, [elem, formula], {0: ZH[:6]})
-    assert assembly._prepare_page(page.context, 0) is None
+    other = _text([72, 400, 300, 414])
+    page = Page(font_path, [elem, formula, other], {0: ZH[:6], 2: ZH[:6]})
+    assert assembly._prepare_page(page.context, 0).translated_indices == {2}
     assert elem["skip_translate_reason"] == SkipReason.RENDER_NO_SAFE_RECT_FALLBACK
 
 

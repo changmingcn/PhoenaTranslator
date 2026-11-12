@@ -5,7 +5,10 @@ from __future__ import annotations
 
 import hashlib
 
-from phoena_translator.pdf.translate.placeholders import PDF_BATCH_SEGMENT_RE
+from phoena_translator.pdf.translate.placeholders import (
+    PDF_BATCH_SEGMENT_RE,
+    pdf_placeholder_token,
+)
 
 PDF_BATCH_SEPARATOR = "≡≡≡SPLIT≡≡≡"
 
@@ -18,7 +21,7 @@ def _build_pdf_batch_segment_envelope(
     parts = []
     for ordinal, (element_index, source) in enumerate(targets):
         digest = hashlib.sha256(source.encode("utf-8")).hexdigest().upper()
-        token = f"PHOENA_SEG_{ordinal:04d}_{digest[:16]}"
+        token = pdf_placeholder_token("SEG", ordinal, digest[:16])
         records.append({
             "token": token,
             "element_index": int(element_index),

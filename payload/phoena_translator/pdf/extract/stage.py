@@ -25,6 +25,7 @@ from phoena_translator.pdf.errors import (
     PDFPageExtractionError,
     PDFTranslationIntegrityError,
 )
+from phoena_translator.pdf.extract.distribution_codes import mark_distribution_codes
 from phoena_translator.pdf.extract.filters import _is_skip_page
 from phoena_translator.pdf.geometry import _pdf_page_extraction_rect
 from phoena_translator.pdf.model import (
@@ -360,6 +361,12 @@ def _bind_and_reconcile_caches(
                 info["elements"],
                 reconciled,
                 allow_missing=bool(missing),
+                # An older cache may hold a leaked placeholder token; assembly
+                # keeps that element in source ink, the page keeps the rest.
+                reject_placeholder_leaks=False,
+                # Likewise a cached translation that lost a numeric row's
+                # numbers: assembly keeps that element in its source ink.
+                reject_numeric_flaws=False,
             )
         except PDFTranslationIntegrityError as error:
             context.logger.warning(
@@ -418,6 +425,25 @@ def reconcile_extraction(
                 info["elements"],
                 result.page_rects[page_num],
             )
+    # Per-copy distribution codes (a random token at the page edge) are not
+    # content: mark them as watermarks before any merge, preservation or cache
+    # binding so they are never queued, and their ink is removed at assembly.
+    removed_watermarks = mark_distribution_codes(
+        result.page_extractions,
+        result.page_rects,
+        source_path=context.src_path,
+        password=context.pdf_password,
+    )
+    if removed_watermarks:
+        context.pdf_audit["removed_watermarks"] = removed_watermarks
+        context.logger.info(
+            f"[{context.task_id}] Removing {len(removed_watermarks)} distribution "
+            "watermark code(s): "
+            + ", ".join(
+                f"page {record['page']} elem {record['element']}"
+                for record in removed_watermarks
+            )
+        )
     # Preservation must be decided BEFORE cross-page merging, not after.
     # ``_is_cross_page_body_elem`` already refuses any element carrying a
     # ``skip_translate_reason`` as a merge endpoint, but running the stampers

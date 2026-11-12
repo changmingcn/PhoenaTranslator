@@ -17,8 +17,29 @@ PDF_HTMLBOX_SUPERSCRIPT_CSS = (
 )
 
 
+def _pdf_plain_drawn_text(text: str) -> str:
+    """The text the plain drawing paths show: supported markup removed, the
+    rest literal (entities, comments and unknown tags appear as written)."""
+    return _plain_text(_normalize_pdf_translation(text or ""))
+
+
+def pdf_drawn_text_forms(text: str) -> tuple[str, str]:
+    """The text a reader sees drawn for ``text``, on the rich path
+    (``_pdf_text_to_html``) and on the plain paths (``_pdf_plain_drawn_text``).
+
+    The rich form is the data ``_PDFInlineHTMLParser`` keeps while it builds
+    the HTML: entities decoded once; comments, processing instructions and
+    declarations dropped; unknown tags shown as written.
+    """
+    parser = _PDFInlineHTMLParser(0.60)
+    parser.feed(_normalize_pdf_translation(text or ""))
+    parser.close()
+    parser.finish()
+    return "".join(parser.shown), _pdf_plain_drawn_text(text)
+
+
 def _pdf_plain_text_to_html(text: str) -> str:
-    normalized = _plain_text(_normalize_pdf_translation(text))
+    normalized = _pdf_plain_drawn_text(text)
     normalized = re.sub(r'\s*\n\s*', ' ', normalized)
     escaped = html.escape(normalized)
     return _wrap_pdf_latin_runs(escaped)
@@ -170,6 +191,8 @@ class _PDFInlineHTMLParser(HTMLParser):
     def __init__(self, superscript_scale: float):
         super().__init__(convert_charrefs=True)
         self.parts = []
+        # What a reader sees drawn from ``parts`` (``pdf_drawn_text_forms``).
+        self.shown = []
         self.stack = []
         self.superscript_scale = max(0.45, min(float(superscript_scale), 0.80))
 
@@ -180,13 +203,12 @@ class _PDFInlineHTMLParser(HTMLParser):
             # Preserve it visibly and escape it before insert_htmlbox; this
             # covers domain notation such as ``<JPY short position>`` without
             # allowing an arbitrary provider-emitted tag into the HTML.
-            self.parts.append(html.escape(
-                self.get_starttag_text() or f"<{tag}>"
-            ))
+            self._show_literal(self.get_starttag_text() or f"<{tag}>")
             return
         if tag == "b":
             self.parts.append("<b>")
         else:
+            self.shown.append("\u2060")
             percent = self.superscript_scale * 100.0
             self.parts.append(
                 '&#8288;'
@@ -197,7 +219,7 @@ class _PDFInlineHTMLParser(HTMLParser):
     def handle_endtag(self, tag):
         tag = tag.lower()
         if tag not in {"b", "sup"}:
-            self.parts.append(html.escape(f"</{tag}>"))
+            self._show_literal(f"</{tag}>")
             return
         if tag not in self.stack:
             return
@@ -210,16 +232,19 @@ class _PDFInlineHTMLParser(HTMLParser):
     def handle_startendtag(self, tag, attrs):
         tag = tag.lower()
         if tag not in {"b", "sup"}:
-            self.parts.append(html.escape(
-                self.get_starttag_text() or f"<{tag}/>"
-            ))
+            self._show_literal(self.get_starttag_text() or f"<{tag}/>")
             return
         self.handle_starttag(tag, attrs)
         self.handle_endtag(tag)
 
+    def _show_literal(self, text):
+        self.parts.append(html.escape(text))
+        self.shown.append(text)
+
     def handle_data(self, data):
-        escaped = html.escape(re.sub(r'\s*\n\s*', ' ', data))
-        self.parts.append(_wrap_pdf_latin_runs(escaped))
+        shown = re.sub(r'\s*\n\s*', ' ', data)
+        self.shown.append(shown)
+        self.parts.append(_wrap_pdf_latin_runs(html.escape(shown)))
 
     def finish(self) -> str:
         while self.stack:

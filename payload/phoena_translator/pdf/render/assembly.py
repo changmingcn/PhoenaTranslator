@@ -29,10 +29,12 @@ from phoena_translator.pdf.render.figure_table_groups import (
     FigureTableGroup,
     find_figure_table_group,
 )
+from phoena_translator.pdf.patterns import PDF_FORMULA_GUARD_PADDING
 from phoena_translator.pdf.render.page_styles import _derive_pdf_page_layout_styles
 from phoena_translator.pdf.render.paragraph_html import (
     PDF_HTMLBOX_SUPERSCRIPT_CSS,
     _build_paragraph_html,
+    _pdf_plain_drawn_text,
     _split_pdf_translated_paragraphs,
 )
 from phoena_translator.pdf.render.primitives import (
@@ -61,6 +63,15 @@ from phoena_translator.pdf.semantics.cross_page import _cross_page_dominant_font
 from phoena_translator.pdf.text_shape import _collapsed_plain_text, _plain_text
 from phoena_translator.pdf.translate.deterministic_labels import (
     _translate_pdf_fixed_short_label,
+)
+from phoena_translator.pdf.translate.numeric_guard import (
+    PDF_LABEL_NUMBERS_REASON,
+    PDF_NUMERIC_ROW_REASON,
+    pdf_numeric_guard_failure,
+)
+from phoena_translator.pdf.translate.placeholders import (
+    PDF_PLACEHOLDER_LEAK_REASON,
+    pdf_internal_placeholder_leaks,
 )
 from phoena_translator.pdf.translate.inline_markup import (
     _normalize_pdf_translation,
@@ -117,6 +128,10 @@ class PDFPageAssemblyPlan:
     # whose group was refused (see ``_assemble_page_with_figure_table_fallbacks``).
     source_groups: tuple[FigureTableGroup, ...] = ()
     refused_seeds: set[int] = field(default_factory=set)
+    # Single elements an earlier attempt could not render and no figure or
+    # table took: kept in exact source ink, their ink protected from the
+    # neighbours' redaction (``_keep_failed_element_source_ink``).
+    source_elements: frozenset[int] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -295,17 +310,24 @@ def _prepare_page(
     page_num: int,
     source_groups: tuple[FigureTableGroup, ...] = (),
     refused_seeds: set[int] | None = None,
+    source_elements: dict[int, str] | None = None,
 ) -> PDFPageAssemblyPlan | None:
     """Resolve translations and validate formula-safe placement before redaction.
 
     ``source_groups`` are figures/tables an earlier attempt at this page could
     not typeset; their text keeps its exact source ink.  ``refused_seeds`` is
     the page's set of failing elements whose group was refused; decisions
-    made in this attempt add to it.
+    made in this attempt add to it.  ``source_elements`` maps each single
+    element an earlier attempt could not render (and no group took) to the
+    failure: it keeps its exact source ink, and its ink is protected like a
+    formula region so that no neighbour's redaction, re-typeset or drawn
+    translation touches it.
     """
 
     if refused_seeds is None:
         refused_seeds = set()
+    if source_elements is None:
+        source_elements = {}
     out_page = context.out_doc[page_num]
     info = context.page_extractions.get(page_num, {})
     page_trans = _page_translations(info)
@@ -315,6 +337,34 @@ def _prepare_page(
     merged_away_indices = {
         i for i, elem in enumerate(elements) if elem.get("type") == ElementType.MERGED_AWAY
     }
+    leaked = _placeholder_leak_indices(elements, page_trans, source_elements, source_groups)
+    if leaked:
+        # Safety net for a translation that reached assembly with a raw
+        # internal token (a page cache written before translation validation
+        # rejected it): never draw it, keep the element's exact source ink.
+        source_elements = dict(source_elements)
+        for index in leaked:
+            merge_fallback_error = _cross_page_merge_fallback_error(
+                context, page_num, index, PDF_PLACEHOLDER_LEAK_RENDER_FAILURE
+            )
+            if merge_fallback_error is not None:
+                raise merge_fallback_error
+            source_elements[index] = PDF_PLACEHOLDER_LEAK_RENDER_FAILURE
+    numeric_flaws = _numeric_flaw_indices(elements, page_trans, source_elements, source_groups)
+    if numeric_flaws:
+        # Safety net for a cached translation that lost or moved a numeric
+        # row's numbers, or put numbers into a digit-free label: never draw
+        # it, keep the element's exact source ink.
+        source_elements = dict(source_elements)
+        merge_endpoints = _assembly_accepted_merge_endpoints(context)
+        for index, failure in numeric_flaws.items():
+            if (page_num + 1, index) in merge_endpoints:
+                merge_fallback_error = _cross_page_merge_fallback_error(
+                    context, page_num, index, failure
+                )
+                if merge_fallback_error is not None:
+                    raise merge_fallback_error
+            source_elements[index] = failure
 
     layout = _PageLayout(
         page_num=page_num,
@@ -332,6 +382,12 @@ def _prepare_page(
             _get_pdf_elem_rect(elem)
             for elem in elements
             if elem.get("type") == ElementType.FORMULA_IMAGE
+        ]
+        + [
+            rect
+            for index in sorted(source_elements)
+            if 0 <= index < len(elements)
+            for rect in _kept_source_ink_rects(elements[index])
         ],
     )
     translated_indices = {
@@ -342,8 +398,13 @@ def _prepare_page(
         and i in page_trans
         and page_trans[i] != elem.get("content", "")
     }
+    candidates = set(translated_indices)  # before any retention
     for group in source_groups:
         _keep_figure_table_source_ink(context, layout, group, page_trans, translated_indices)
+    for index in sorted(source_elements):
+        _keep_failed_element_source_ink(
+            context, layout, index, source_elements[index], page_trans, translated_indices
+        )
     kept_in_source = set().union(
         *(group.members | group.extra_members for group in source_groups)
     )
@@ -354,7 +415,25 @@ def _prepare_page(
     # result could therefore create a silent blank. Nothing has been
     # redacted yet, so an unplaceable element can simply keep its
     # original source ink while the rest of the page still translates.
-    for i in sorted(_unplaceable_indices(context, layout, page_trans, translated_indices)):
+    unplaceable = sorted(_unplaceable_indices(context, layout, page_trans, translated_indices))
+    if candidates and not translated_indices.difference(unplaceable):
+        # Every translation candidate of the page is withdrawn, whatever
+        # withdrew it (a retained figure/table group, single elements kept in
+        # source, no formula-safe place, or several together): the page is its
+        # source page, delivered and recorded as such, not a "translated"
+        # page.  An unplaceable merge endpoint keeps its merge closure.  No
+        # preflight record is written; the group and element records of this
+        # attempt go with the source-page cleanup.
+        for i in unplaceable:
+            merge_fallback_error = _cross_page_merge_fallback_error(
+                context, page_num, i, "no formula-safe rectangle for translated merge endpoint"
+            )
+            if merge_fallback_error is not None:
+                raise merge_fallback_error
+        raise _element_source_refusal(
+            page_num, min(candidates), "every translation on the page was withdrawn"
+        )
+    for i in unplaceable:
         _keep_source_ink(context, layout, i, page_trans, translated_indices)
     _audit_untranslated_english(context, page_num, elements, page_trans)
 
@@ -364,7 +443,7 @@ def _prepare_page(
     try:
         redraw_source_indices = _overlap_redraw_indices(
             page_num,
-            elements,
+            _without_kept_source_elements(elements, source_elements),
             set(translated_indices) | set(layout.watermark_indices) | merged_away_indices,
         )
     except PDFPageRenderError as error:
@@ -389,6 +468,18 @@ def _prepare_page(
             source_groups[-1],
             "a kept element would still be redrawn",
         )
+    touched = set(source_elements) & (
+        redraw_source_indices
+        | translated_indices
+        | set(layout.watermark_indices)
+        | merged_away_indices
+    )
+    if touched:
+        # Invariant: an element kept in source after a render failure is
+        # never redacted, redrawn or re-typeset.  Safety net only.
+        raise _element_source_refusal(
+            page_num, min(touched), "a kept element would still be redacted or redrawn"
+        )
     if redraw_source_indices:
         context.logger.info(
             f"[{context.task_id}] Page {page_num + 1}: redrawing {len(redraw_source_indices)} "
@@ -407,7 +498,121 @@ def _prepare_page(
         render_indices=set(translated_indices) | redraw_source_indices,
         source_groups=tuple(source_groups),
         refused_seeds=refused_seeds,
+        source_elements=frozenset(source_elements),
     )
+
+
+PDF_PLACEHOLDER_LEAK_RENDER_FAILURE = (
+    f"{PDF_PLACEHOLDER_LEAK_REASON}: translation still holds a raw internal "
+    "placeholder token"
+)
+
+
+def _assembly_net_candidates(
+    elements: list[dict],
+    page_trans: dict[int, str],
+    source_elements: dict[int, str],
+    source_groups: tuple[FigureTableGroup, ...] = (),
+) -> list[int]:
+    """The elements whose translation would be drawn: the only candidates of
+    either assembly net (internal tokens, numeric rows).
+
+    An element that will not be drawn is a candidate of neither: one kept in
+    source (singly, or as a member or extra member of a retained figure/table
+    group), a watermark, merged-away or other non-text element, or one whose
+    translation is its source text (not translated, or kept as source at
+    translation).  Its existing record and protection stand, so no element
+    is recorded twice.
+    """
+    kept_in_groups = set().union(
+        *(group.members | group.extra_members for group in source_groups)
+    )
+    candidates = []
+    for index in sorted(page_trans):
+        if index in source_elements or index in kept_in_groups:
+            continue
+        if not 0 <= index < len(elements):
+            continue
+        elem = elements[index]
+        if elem.get("type") != ElementType.TEXT:
+            continue
+        if elem.get("skip_translate_reason") == SkipReason.WATERMARK:
+            continue
+        translation = page_trans[index]
+        if not isinstance(translation, str) or translation == elem.get("content", ""):
+            continue
+        candidates.append(index)
+    return candidates
+
+
+def _placeholder_leak_indices(
+    elements: list[dict],
+    page_trans: dict[int, str],
+    source_elements: dict[int, str],
+    source_groups: tuple[FigureTableGroup, ...] = (),
+) -> list[int]:
+    """Candidates (``_assembly_net_candidates``) whose translation holds an
+    internal token."""
+    leaked = []
+    for index in _assembly_net_candidates(elements, page_trans, source_elements, source_groups):
+        elem = elements[index]
+        source = elem.get("rich_content") or elem.get("content", "")
+        if pdf_internal_placeholder_leaks(source, page_trans[index]):
+            leaked.append(index)
+    return leaked
+
+
+# --- numeric row guard: assembly net (begin) ---
+def _numeric_flaw_indices(
+    elements: list[dict],
+    page_trans: dict[int, str],
+    source_elements: dict[int, str],
+    source_groups: tuple[FigureTableGroup, ...] = (),
+) -> dict[int, str]:
+    """Candidates (``_assembly_net_candidates``) whose translation fails
+    condition N or M.  The guard itself also treats a translation whose plain
+    text is the plain source text as the element kept in source."""
+    flawed = {}
+    for index in _assembly_net_candidates(elements, page_trans, source_elements, source_groups):
+        elem = elements[index]
+        source = elem.get("rich_content") or elem.get("content", "")
+        failure = pdf_numeric_guard_failure(source, page_trans[index])
+        if failure:
+            flawed[index] = f"{failure}: {PDF_NUMERIC_FLAW_RENDER_FAILURES[failure]}"
+    return flawed
+
+
+PDF_NUMERIC_FLAW_RENDER_FAILURES = {
+    PDF_NUMERIC_ROW_REASON: "translation does not hold the numeric row's numbers in order",
+    PDF_LABEL_NUMBERS_REASON: "translation puts numbers into a label without any digit",
+}
+
+
+def _assembly_accepted_merge_endpoints(context: PDFAssemblyContext) -> frozenset:
+    """(page number, element index) of every accepted merge endpoint, computed
+    once per assembly; only these need the merge-closure lookup."""
+    cache = getattr(context, "figure_table_cache", None)
+    if cache is not None and "accepted_merge_endpoints" in cache:
+        return cache["accepted_merge_endpoints"]
+    endpoints = set()
+    for decision in context.pdf_audit.get("merge_decisions") or []:
+        if not isinstance(decision, dict) or decision.get("decision") != "accepted":
+            continue
+        for page_key, element_key in (
+            ("source_page", "source_element"),
+            ("destination_page", "destination_element"),
+        ):
+            try:
+                endpoints.add(
+                    (int(decision.get(page_key, 0) or 0), int(decision.get(element_key, -1)))
+                )
+            except (TypeError, ValueError):
+                continue
+    endpoints = frozenset(endpoints)
+    if cache is not None:
+        cache["accepted_merge_endpoints"] = endpoints
+    return endpoints
+# --- numeric row guard: assembly net (end) ---
 
 
 def _page_translations(info: PageExtraction) -> dict[int, str] | None:
@@ -600,6 +805,164 @@ def _keep_figure_table_source_ink(
         "source ink and translating the rest of the page"
     )
     return entry
+
+
+def _kept_source_ink_rects(elem: dict) -> list[fitz.Rect]:
+    """The source glyph rectangles of an element kept in source ink."""
+    try:
+        rects = [rect for rect in _get_pdf_source_ink_rects(elem) if not rect.is_empty]
+    except Exception:
+        rects = []
+    if not rects:
+        rect = _get_pdf_elem_rect(elem)
+        rects = [] if rect.is_empty or rect.is_infinite else [rect]
+    return rects
+
+
+def _without_kept_source_elements(
+    elements: list[dict],
+    source_elements: dict[int, str],
+) -> list[dict]:
+    """The page's elements as the overlap-redraw search must see them.
+
+    An element kept in source after a render failure has its ink protected
+    from every redaction rectangle, so a neighbour's redaction cannot erase
+    it: it is never a redraw candidate, and no redraw chains through it.
+    """
+    if not source_elements:
+        return elements
+    return [
+        dict(elem, type="kept_source") if index in source_elements else elem
+        for index, elem in enumerate(elements)
+    ]
+
+
+def _keep_failed_element_source_ink(
+    context: PDFAssemblyContext,
+    layout: _PageLayout,
+    index: int,
+    failure: str,
+    page_trans: dict[int, str],
+    translated_indices: set[int],
+) -> dict:
+    """Keep one element that failed the page in its exact source ink; record why."""
+    elem = layout.elements[index]
+    page_number = layout.page_num + 1
+    withdrawn = index in translated_indices
+    translated_indices.discard(index)
+    if withdrawn and index in page_trans:
+        page_trans[index] = elem.get("content", "")
+    if not elem.get("skip_translate_reason"):
+        elem["skip_translate_reason"] = SkipReason.RENDER_ELEMENT_SOURCE
+    detail = (
+        "translation withdrawn; exact source ink kept in place"
+        if withdrawn
+        else "exact source ink protected from neighbouring redaction"
+    )
+    entry = _record_pdf_element_source_fallback(
+        context.pdf_audit,
+        page_number,
+        index,
+        "render",
+        f"{failure}; {detail}",
+        source_text=elem.get("content", ""),
+    )
+    # Marks the records of this confinement, which are dropped if the page is
+    # later delivered as its source page.
+    entry["source_ink_kept"] = True
+    _exclude_pdf_audit_expectations_for_element(context.pdf_audit, page_number, index)
+    context.logger.warning(
+        f"[{context.task_id}] Page {page_number} elem {index}: {detail} after a "
+        "render failure; translating the rest of the page"
+    )
+    return entry
+
+
+def _element_source_refusal(page_num: int, index: int, why: str) -> PDFPageRenderError:
+    """A failure that keeping single elements in source cannot cure."""
+    error = PDFPageRenderError(page_num + 1, index, f"element kept in source refused: {why}")
+    error.element_source_refused = True
+    error.figure_table_decided = True
+    return error
+
+
+def _check_kept_source_neighbours(context: PDFAssemblyContext, plan: PDFPageAssemblyPlan) -> None:
+    """After redaction: no neighbour of a kept element left a source glyph.
+
+    The kept element's ink (padded like a formula guard) is cut out of the
+    neighbours' redaction rectangles.  A neighbour glyph lying wholly inside
+    that cut-out would survive under the neighbour's translation (double
+    ink), so the page is not confined when:
+
+    - a neighbour's line overlaps a kept line by half a line or more (its
+      glyphs could sit inside the kept ink and be mistaken for it), or
+    - after redaction a glyph is still centred in a neighbour's ink, outside
+      the kept ink and outside the formula regions (whose glyphs every
+      redaction keeps by design).
+    """
+    padding = PDF_FORMULA_GUARD_PADDING
+
+    def padded(rect: fitz.Rect) -> fitz.Rect:
+        return fitz.Rect(rect.x0 - padding, rect.y0 - padding, rect.x1 + padding, rect.y1 + padding)
+
+    kept_rects = [
+        rect
+        for index in sorted(plan.source_elements)
+        for rect in _kept_source_ink_rects(plan.elements[index])
+    ]
+    guards = [padded(rect) for rect in kept_rects]
+    kept = min(plan.source_elements)
+    touching: dict[int, list[fitz.Rect]] = {}
+    for index, elem in enumerate(plan.elements):
+        removed = (
+            elem.get("type") == ElementType.MERGED_AWAY
+            or index in plan.watermark_indices
+            or (elem.get("type") == ElementType.TEXT and index in plan.render_indices)
+        )
+        if not removed or index in plan.source_elements:
+            continue
+        rects = _kept_source_ink_rects(elem)
+        if not any(rect.intersects(guard) for rect in rects for guard in guards):
+            continue
+        for rect in rects:
+            for kept_rect in kept_rects:
+                overlap = rect & kept_rect
+                if not overlap.is_empty and overlap.height >= 0.5 * min(
+                    rect.height, kept_rect.height
+                ):
+                    raise _element_source_refusal(
+                        plan.page_num,
+                        kept,
+                        f"neighbour elem {index} shares a line with the kept ink",
+                    )
+        touching[index] = rects
+    if not touching:
+        return
+    formula_guards = [
+        padded(_get_pdf_elem_rect(elem))
+        for elem in plan.elements
+        if elem.get("type") == ElementType.FORMULA_IMAGE
+    ]
+    for block in plan.out_page.get_text("rawdict").get("blocks", []):
+        for line in block.get("lines", []):
+            for span in line.get("spans", []):
+                for char in span.get("chars", []):
+                    if not str(char.get("c", "")).strip():
+                        continue
+                    box = fitz.Rect(char["bbox"])
+                    centre = fitz.Point((box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2)
+                    if any(centre in rect for rect in kept_rects) or any(
+                        centre in guard for guard in formula_guards
+                    ):
+                        continue
+                    for index, rects in touching.items():
+                        if any(centre in rect for rect in rects):
+                            raise _element_source_refusal(
+                                plan.page_num,
+                                kept,
+                                f"source glyph of neighbour elem {index} would survive "
+                                "beside the kept ink",
+                            )
 
 
 def _figure_table_refusal(
@@ -835,8 +1198,15 @@ def _redact_page(context: PDFAssemblyContext, plan: PDFPageAssemblyPlan) -> str:
     """Remove source ink safely and return the page HTML-box stylesheet."""
 
     removal_rects = _source_removal_rects(plan)
-    if removal_rects:
-        _remove_source_ink(context, plan, removal_rects)
+    if removal_rects and not _remove_source_ink(context, plan, removal_rects):
+        if plan.source_elements:
+            # Whiteout paints whole ink boxes, graphics under them included;
+            # an attempt that needed it is not eligible for confinement.
+            raise _element_source_refusal(
+                plan.page_num,
+                min(plan.source_elements),
+                "text redaction failed and the whiteout path was taken",
+            )
 
     # Text converted to vector outlines is invisible to PDF text
     # redaction.  Paint only the detected glyph area (or the interior
@@ -879,8 +1249,9 @@ def _remove_source_ink(
     context: PDFAssemblyContext,
     plan: PDFPageAssemblyPlan,
     removal_rects: list[fitz.Rect],
-) -> None:
-    """Redact the text under ``removal_rects``, or white it out if redaction fails."""
+) -> bool:
+    """Redact the text under ``removal_rects``, or white it out if redaction
+    fails; ``True`` when the redaction succeeded."""
     out_page = plan.out_page
     try:
         for rect in removal_rects:
@@ -890,7 +1261,7 @@ def _remove_source_ink(
             graphics=fitz.PDF_REDACT_LINE_ART_NONE,
             text=fitz.PDF_REDACT_TEXT_REMOVE,
         )
-        return
+        return True
     except Exception as exc:
         context.logger.warning(
             f"[{context.task_id}] Page {plan.page_num + 1}: text redaction failed ({exc}); falling back to whiteout"
@@ -915,6 +1286,7 @@ def _remove_source_ink(
             shape.draw_rect(safe_rect)
             shape.finish(fill=(1, 1, 1), color=(1, 1, 1))
             shape.commit()
+    return False
 
 
 def _page_htmlbox_css(font_basename: str) -> str:
@@ -1455,7 +1827,7 @@ def _render_textbox_fallback(
     i = element_plan.index
     align_name = element_plan.source_paragraphs[0].get("text_align", "left")
     align_code = {"left": 0, "center": 1, "right": 2, "justify": 3}.get(align_name, 0)
-    fallback_text = _plain_text(_normalize_pdf_translation(element_plan.text)).strip()
+    fallback_text = _pdf_plain_drawn_text(element_plan.text).strip()
     if not fallback_text:
         # The ink is already redacted; restore source instead of leaving a
         # silent blank when the source itself had visible text.
@@ -1562,6 +1934,7 @@ def _assemble_page(
     page_num: int,
     source_groups: tuple[FigureTableGroup, ...] = (),
     refused_seeds: set[int] | None = None,
+    source_elements: dict[int, str] | None = None,
 ) -> None:
     """Assemble one output page and checkpoint HTML-box work when configured."""
 
@@ -1569,7 +1942,7 @@ def _assemble_page(
     pdf_password = context.pdf_password
     assembly_work_path = context.assembly_work_path
     out_doc = context.out_doc
-    plan = _prepare_page(context, page_num, source_groups, refused_seeds)
+    plan = _prepare_page(context, page_num, source_groups, refused_seeds, source_elements)
     if plan is None:
         return
     render_indices = plan.render_indices
@@ -1580,6 +1953,8 @@ def _assemble_page(
     # covered, and copy/search on the output no longer hits the hidden
     # source-language layer. Whiteout remains as the fallback.
     css = _redact_page(context, plan)
+    if plan.source_elements:
+        _check_kept_source_neighbours(context, plan)
 
     for i in sorted(render_indices):
         try:
@@ -1771,27 +2146,86 @@ def _discard_page_attempt(context: PDFAssemblyContext) -> None:
     context.out_doc = reopened_document
 
 
+# Hard ceiling on single elements kept in source ink on one page.
+ELEMENT_SOURCE_MAX_PER_PAGE = 8
+
+
+def _confinable_element(
+    context: PDFAssemblyContext,
+    page_num: int,
+    error: PDFPageRenderError,
+    groups: list[FigureTableGroup],
+    confined: dict[int, str],
+) -> int | None:
+    """The element a page failure can be confined to, or ``None``.
+
+    Only a failure of this page alone, attributed to one text element that is
+    not yet kept (by a group or alone), is confined.  An accepted cross-page
+    merge endpoint never is: its sentence would be half in each language, so
+    the merge closure fallback stays.  Watermarks and merged-away text are
+    always removed, so they cannot be kept.
+    """
+    if getattr(error, "element_source_refused", False):
+        return None
+    if getattr(error, "figure_table_refused", None) is not None:
+        return None
+    page_number = page_num + 1
+    if int(getattr(error, "page", 0) or 0) != page_number:
+        return None
+    if list(getattr(error, "fallback_pages", []) or []) != [page_number]:
+        return None
+    try:
+        index = int(getattr(error, "element", -1))
+    except (TypeError, ValueError):
+        return None
+    elements = (context.page_extractions.get(page_num) or {}).get("elements") or []
+    if not 0 <= index < len(elements):
+        return None
+    elem = elements[index]
+    if elem.get("type") != ElementType.TEXT:
+        return None
+    if elem.get("skip_translate_reason") == SkipReason.WATERMARK:
+        return None
+    kept = set().union(*(group.members | group.extra_members for group in groups))
+    if index in confined or index in kept:
+        return None
+    if index in _merge_endpoint_indices(context, page_number):
+        return None
+    if len(confined) >= ELEMENT_SOURCE_MAX_PER_PAGE:
+        context.logger.warning(
+            f"[{context.task_id}] Page {page_number} elem {index}: "
+            f"{ELEMENT_SOURCE_MAX_PER_PAGE} element(s) already kept in source; "
+            "the page-level fallback applies"
+        )
+        return None
+    return index
+
+
 def _assemble_page_with_figure_table_fallbacks(
     context: PDFAssemblyContext,
     page_num: int,
 ) -> None:
-    """Assemble one page; a failing figure or table falls back alone.
+    """Assemble one page; a failing figure, table or element falls back alone.
 
     Whether a failure narrows a figure or table is decided inside the
     attempt (``_decide_figure_table_group``).  A refused group costs nothing:
-    the failure takes today's path in the same attempt.  Only an accepted
-    group discards the attempt: the page's uncommitted ink is dropped (the
-    page was checkpointed before it), its audit and element state are
-    restored, and the page is assembled again with the group kept in its
-    exact source ink.
+    the failure takes today's path in the same attempt.  An accepted group
+    discards the attempt: the page's uncommitted ink is dropped (the page was
+    checkpointed before it), its audit and element state are restored, and
+    the page is assembled again with the group kept in its exact source ink.
+    A page failure no group takes, attributed to one element
+    (``_confinable_element``), is handled the same way with that element
+    alone kept in its exact source ink and protected from its neighbours.
 
-    Bound: the loop makes at most ``2 * max_groups_per_page + 1`` attempts.
-    An attempt is repeated only for an accepted group (each with a seed
-    never grouped before on the page; at most ``max_groups_per_page`` held
-    at once) or for the safety net that drops a group whose invariant
-    failed (its seed is then barred).  On exhaustion, and for any failure
-    that is not narrowed, the page's state is restored to before the first
-    attempt and the page error is raised, so the page-level fallback
+    Bound: group attempts are limited as before (``2 * max_groups_per_page``
+    retries: each accepted group has a seed never grouped before on the
+    page, at most ``max_groups_per_page`` held at once, and a group dropped
+    by the safety net bars its seed), and each element retry keeps one more
+    element, at most ``ELEMENT_SOURCE_MAX_PER_PAGE``; so at most
+    ``2 * max_groups_per_page + ELEMENT_SOURCE_MAX_PER_PAGE + 1`` attempts.
+    On exhaustion, and for any failure that is not narrowed, the page's
+    state is restored to before the first attempt (when an attempt was
+    discarded) and the page error is raised, so the page-level fallback
     applies.
     """
     if not _figure_table_fallback_enabled(context):
@@ -1800,18 +2234,28 @@ def _assemble_page_with_figure_table_fallbacks(
     snapshot = _PageAttemptSnapshot.capture(context, page_num)
     groups: list[FigureTableGroup] = []
     refused: set[int] = set()
+    confined: dict[int, str] = {}
     discarded = False  # whether an attempt was thrown away (state to restore)
-    max_attempts = 2 * FIGURE_TABLE_RULES.max_groups_per_page + 1
+    max_group_retries = 2 * FIGURE_TABLE_RULES.max_groups_per_page
+    group_retries = 0
     last_error: PDFPageRenderError | None = None
-    for _attempt in range(max_attempts):
+    # Defence in depth: every retry above grows a bounded set, so this hard
+    # ceiling is never reached by a correct page.
+    for _attempt in range(max_group_retries + ELEMENT_SOURCE_MAX_PER_PAGE + 1):
         try:
-            _assemble_page(context, page_num, tuple(groups), refused)
+            if confined:
+                _assemble_page(context, page_num, tuple(groups), refused, dict(confined))
+            else:
+                _assemble_page(context, page_num, tuple(groups), refused)
             return
         except PDFPageRenderError as error:
             last_error = error
             dropped = getattr(error, "figure_table_refused", None)
             group = getattr(error, "figure_table_group", None)
             if dropped is not None and dropped in groups:
+                if group_retries >= max_group_retries:
+                    break
+                group_retries += 1
                 groups.remove(dropped)
                 refused.add(dropped.trigger_element)
                 message = (
@@ -1819,6 +2263,9 @@ def _assemble_page_with_figure_table_fallbacks(
                     f"({error}); reassembling the page without it"
                 )
             elif group is not None:
+                if group_retries >= max_group_retries:
+                    break
+                group_retries += 1
                 groups.append(group)
                 message = (
                     f"elem {group.trigger_element}: {group.trigger} inside a "
@@ -1826,22 +2273,31 @@ def _assemble_page_with_figure_table_fallbacks(
                     f"{len(group.members)} element(s) kept in exact source ink"
                 )
             else:
-                if discarded:
-                    snapshot.restore(context, page_num)
-                    context.logger.warning(
-                        f"[{context.task_id}] Page {page_num + 1}: keeping "
-                        f"{len(groups)} figure/table group(s) in source did not "
-                        "make the page renderable; the page-level fallback applies"
-                    )
-                raise
+                index = _confinable_element(context, page_num, error, groups, confined)
+                if index is None:
+                    if discarded:
+                        snapshot.restore(context, page_num)
+                        context.logger.warning(
+                            f"[{context.task_id}] Page {page_num + 1}: keeping "
+                            f"{len(groups)} figure/table group(s) and "
+                            f"{len(confined)} element(s) in source did not make "
+                            "the page renderable; the page-level fallback applies"
+                        )
+                    raise
+                confined[index] = str(error)
+                message = (
+                    f"elem {index}: render failure outside any figure/table "
+                    f"({error}); reassembling the page with that element alone "
+                    "kept in exact source ink"
+                )
             _discard_page_attempt(context)
             discarded = True
             snapshot.restore(context, page_num)
             context.logger.warning(f"[{context.task_id}] Page {page_num + 1} {message}")
     snapshot.restore(context, page_num)
     context.logger.warning(
-        f"[{context.task_id}] Page {page_num + 1}: figure/table narrowing used "
-        f"all {max_attempts} attempts; the page-level fallback applies"
+        f"[{context.task_id}] Page {page_num + 1}: figure/table and element "
+        "narrowing used all their attempts; the page-level fallback applies"
     )
     raise last_error
 

@@ -28,6 +28,11 @@ from phoena_translator.pdf.translate.inline_markup import (
     _pdf_inline_markup_preserved,
     _pdf_inline_math_fragments_preserved,
 )
+from phoena_translator.pdf.translate.numeric_guard import pdf_numeric_guard_failure
+from phoena_translator.pdf.translate.placeholders import (
+    PDF_PLACEHOLDER_LEAK_REASON,
+    pdf_internal_placeholder_leaks,
+)
 from phoena_translator.pdf.translate.targets import (
     _looks_like_pdf_contact_line,
     _looks_like_pdf_structured_identifier_row,
@@ -621,6 +626,8 @@ def _validate_pdf_page_translations(
     translations: dict,
     *,
     allow_missing: bool = False,
+    reject_placeholder_leaks: bool = True,
+    reject_numeric_flaws: bool = True,
 ) -> None:
     """Fail closed unless each present API result is safe.
 
@@ -628,6 +635,18 @@ def _validate_pdf_page_translations(
     lets the caller retain already verified element translations and request
     the newly exposed elements incrementally; malformed translations still
     fail closed and invalidate the page seed.
+
+    A translation still holding an internal placeholder token is unsafe for
+    its element (``PDF_PLACEHOLDER_LEAK_REASON``): the page takes the clean
+    retry and then the element-level source fallback.  Only the cache rebind
+    passes ``reject_placeholder_leaks=False``: a page cache written before
+    this check keeps its other paid translations, and assembly keeps such an
+    element in its source ink instead of drawing the token.
+
+    The same holds for a translation that loses or moves the numbers of a
+    numeric row, or puts numbers into a digit-free label
+    (``pdf_numeric_guard_failure``, reason named by the condition); the cache
+    rebind passes ``reject_numeric_flaws=False`` for the same reason.
     """
     normalized = {str(key): value for key, value in (translations or {}).items()}
     issues = []
@@ -640,6 +659,15 @@ def _validate_pdf_page_translations(
             if allow_missing:
                 continue
             issues.append({"element": elem_index + 1, "reason": "missing-translation"})
+            continue
+        if reject_placeholder_leaks and pdf_internal_placeholder_leaks(source, candidate):
+            issues.append({"element": elem_index + 1, "reason": PDF_PLACEHOLDER_LEAK_REASON})
+            continue
+        numeric_flaw = (
+            pdf_numeric_guard_failure(source, candidate) if reject_numeric_flaws else None
+        )
+        if numeric_flaw:
+            issues.append({"element": elem_index + 1, "reason": numeric_flaw})
             continue
         if _pdf_element_translation_needs_retry(elem, source, candidate):
             issues.append({"element": elem_index + 1, "reason": "untranslated-or-incomplete"})
