@@ -23,9 +23,9 @@
 ## 安装与校验
 
 ```bash
-sha256sum -c PhoenaTranslator-20261113-confined-fallbacks-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20261113-confined-fallbacks-reinstall.tar.gz
-cd PhoenaTranslator-20261113-confined-fallbacks-reinstall
+sha256sum -c PhoenaTranslator-20261113b-confined-fallbacks-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261113b-confined-fallbacks-reinstall.tar.gz
+cd PhoenaTranslator-20261113b-confined-fallbacks-reinstall
 ./install.sh --verify-only
 sudo ./install.sh
 ```

@@ -8,11 +8,12 @@ numeral right before it, or one within ``PDF_SIGN_FIGURE_DISTANCE``
 characters after it with no punctuation mark and no line break between.
 Nothing else is compared.  Numeric-dominant rows stay
 with condition N; an accepted cross-page merge endpoint is never checked.
-Translation validation retries and then keeps the element as exact source
-text; the batch restore re-translates the part; assembly keeps the element's
-source ink.  Where the inline-math restore consumes the digits after a
-damaged placeholder of a sign (a dropped digest followed by the amount), the
-sign is left without a figure and the check rejects the result.
+The check runs at the assembly net only, which keeps the element's source
+ink; the translation stage commits such a translation as the previous
+release does (ruling R-20).  Where the inline-math restore consumes the
+digits after a damaged placeholder of a sign (a dropped digest followed by
+the amount), the sign is left without a figure and the check rejects the
+result.
 
 Synthetic fixtures only.  Run from ``payload``: ``python -m pytest tests -q``.
 """
@@ -36,7 +37,6 @@ from test_pdf_figure_table_fallback import (
 from test_pdf_render_element_fallback import _assert_kept_alone, _kept_records
 
 from phoena_translator.pdf.context import PDFPageTranslationContext
-from phoena_translator.pdf.errors import PDFTranslationIntegrityError
 from phoena_translator.pdf.model import SkipReason
 from phoena_translator.pdf.pipeline import _new_pdf_audit
 from phoena_translator.pdf.translate import page as translate_page
@@ -238,8 +238,6 @@ def test_the_second_readers_numerals_count(numeral):
     # 貮 叄 卌, and the compatibility forms of 兩 參 陸.
     translated = f"本季度订单增加+{numeral}亿美元，而整个区域的需求保持稳定，企业经营情况依然平稳。"
     assert not _fails(NUMERIC_SOURCE, translated, "+")
-    element = _elem(NUMERIC_SOURCE, "+")
-    _validate_pdf_page_translations(1, [element], {0: translated}, set())
 
 
 @pytest.mark.parametrize("figure", ["٣", "३", "௩", "Ⅲ", "ⅷ", "③", "〇", "弌", "陆", "拾", "皕", "５"])
@@ -365,7 +363,7 @@ def test_everyday_numerals_keep_each_other_company(figure):
     assert not _fails(PLUS_AFTER, f"电网升级五年内需要{figure[:2]}+美元的电缆。", "+")
 
 
-def test_the_second_readers_compound_amount_passes_page_validation():
+def test_the_second_readers_compound_amount_passes():
     # The second reader's pair, with its prose tails.
     source = (
         "The measured cost increased +$50 this quarter while demand stayed firm across the region."
@@ -379,7 +377,6 @@ def test_the_second_readers_compound_amount_passes_page_validation():
         "报告介绍各地区的基础活动以及观察到的变化。"
     )
     assert not _fails(source, translated, "+")
-    _validate_pdf_page_translations(1, [_elem(source, "+")], {0: translated}, set())
 
 
 def test_ordinary_words_of_two_everyday_numerals_count_too():
@@ -439,7 +436,7 @@ def test_half_counts_before_any_measure_word_or_unit(quantity):
     assert not _fails("Yields rose ~0.5pp in May.", f"五月收益率上升~{quantity}。", "~")
 
 
-def test_the_reviewers_half_pairs_pass_page_validation():
+def test_the_reviewers_half_pairs_pass():
     pairs = [
         ("Policy rates were cut +0.5pp in the quarter, as the central bank responded to weaker "
          "demand across the region.", "本季度政策利率下调+半厘，央行回应了全区需求走弱。"),
@@ -448,7 +445,6 @@ def test_the_reviewers_half_pairs_pass_page_validation():
     ]
     for source, translated in pairs:
         assert not _fails(source, translated, "+")
-        _validate_pdf_page_translations(1, [_elem(source, "+")], {0: translated}, set())
 
 
 @pytest.mark.parametrize(
@@ -586,14 +582,10 @@ def test_the_element_kept_in_source_is_no_candidate():
 def test_the_general_rules_false_rejections_pass(source, translated):
     element = _elem(source)
     assert pdf_sign_amount_failure(element, source, translated) is None
-    try:
-        _validate_pdf_page_translations(1, [element], {0: translated}, set())
-    except PDFTranslationIntegrityError as error:  # a live check may still apply
-        assert PDF_PROSE_NUMBERS_REASON not in {issue["reason"] for issue in error.issues}
 
 
 # ---------------------------------------------------------------------------
-# Translation validation and the batch restore
+# The translation stage does not check (R-20); the batch restore
 # ---------------------------------------------------------------------------
 
 PROSE = (
@@ -689,34 +681,24 @@ MERGE_1_2 = {
 }
 
 
-def test_validation_names_the_condition_and_skips_merge_endpoints():
+def test_translation_validation_never_reports_the_condition():
     elements = [_title(), _prose()]
-    with pytest.raises(PDFTranslationIntegrityError) as raised:
-        _validate_pdf_page_translations(1, elements, {0: ZH_TITLE, 1: LOSSY}, set())
-    assert raised.value.issues == [{"element": 2, "reason": PDF_PROSE_NUMBERS_REASON}]
-    _validate_pdf_page_translations(1, elements, {0: ZH_TITLE, 1: FAITHFUL}, set())
-    # A merge endpoint is never checked; the cache rebind defers the check;
-    # the page translator leaves it to the stage (no endpoints known).
-    _validate_pdf_page_translations(1, elements, {0: ZH_TITLE, 1: LOSSY}, {1})
-    _validate_pdf_page_translations(
-        1, elements, {0: ZH_TITLE, 1: LOSSY}, set(), reject_numeric_flaws=False
-    )
+    assert pdf_sign_amount_failure(elements[1], PROSE, LOSSY) == PDF_PROSE_NUMBERS_REASON
     _validate_pdf_page_translations(1, elements, {0: ZH_TITLE, 1: LOSSY})
+    _validate_pdf_page_translations(1, elements, {0: ZH_TITLE, 1: FAITHFUL})
 
 
-def test_a_paragraph_that_keeps_losing_its_amounts_is_kept_as_exact_source(monkeypatch):
+def test_a_paragraph_that_keeps_losing_its_amounts_is_committed_as_before(monkeypatch):
     context, elements, saved, calls = _run_translation(monkeypatch, _provider(LOSSY_FORM))
 
-    assert saved[0] == {0: ZH_TITLE, 1: PROSE}
-    assert elements[1]["skip_translate_reason"] == SkipReason.TRANSLATION_INTEGRITY_FALLBACK
-    (entry,) = context.pdf_audit["element_source_fallbacks"]
-    assert (entry["page"], entry["element"], entry["stage"]) == (1, 1, "translation")
-    assert entry["reason"] == PDF_PROSE_NUMBERS_REASON
+    # The previous release: the batch only, the translation committed; the
+    # assembly net decides (below).
+    assert saved[0] == {0: ZH_TITLE, 1: LOSSY}
+    assert "skip_translate_reason" not in elements[1]
+    assert context.pdf_audit.get("element_source_fallbacks", []) == []
     assert context.pdf_audit["source_page_fallbacks"] == []
     assert "delivered_element_warnings" not in context.pdf_audit
-    # The batch, then one clean page retry: the batch restore does not run
-    # the sign check, so no part is re-translated individually (R-19b).
-    assert len(calls) == 2
+    assert len(calls) == 1
 
 
 def test_a_faithful_paragraph_is_committed_on_the_first_pass(monkeypatch):
@@ -792,19 +774,18 @@ def test_f4_an_exempt_merge_end_whose_individual_retry_would_fail_ends_as_live(m
     assert context.pdf_audit.get("element_source_fallbacks", []) == []
 
 
-def test_f4_an_ordinary_paragraph_whose_individual_retry_would_fail_keeps_only_itself(monkeypatch):
+def test_f4_an_ordinary_paragraph_whose_individual_retry_would_fail_ends_as_live(monkeypatch):
     context, elements, saved, calls = _run_translation(
         monkeypatch, _individual_call_fails(LOSSY_FORM)
     )
 
-    # No individual call: the element alone is kept in source, the page is
-    # delivered with its other translation.
-    assert not any(not SEG_RE.search(call) for call in calls)
-    assert saved[0] == {0: ZH_TITLE, 1: PROSE}
-    assert elements[1]["skip_translate_reason"] == SkipReason.TRANSLATION_INTEGRITY_FALLBACK
+    # The live release: one batch call, no individual call, the translation
+    # committed.
+    assert len(calls) == 1 and SEG_RE.search(calls[0])
+    assert saved[0] == {0: ZH_TITLE, 1: LOSSY}
+    assert "skip_translate_reason" not in elements[1]
     assert context.pdf_audit["source_page_fallbacks"] == []
-    (entry,) = context.pdf_audit["element_source_fallbacks"]
-    assert (entry["element"], entry["reason"]) == (1, PDF_PROSE_NUMBERS_REASON)
+    assert context.pdf_audit.get("element_source_fallbacks", []) == []
 
 
 # ---------------------------------------------------------------------------
@@ -930,22 +911,21 @@ def _dropped_digest_provider():
     return build
 
 
-def test_page_validation_rejects_an_answer_whose_digits_the_restore_consumed(monkeypatch):
+def test_the_stage_commits_an_answer_whose_digits_the_restore_consumed_as_before(monkeypatch):
     answer, records = _dropped_digest(FAITHFUL_FORM, PROSE, "+", "+")
     restored = _restore_pdf_inline_math_fragments(answer, records)
     assert restored == "本季度新机床订单增加了+亿美元，行业协会认为下季度还有+亿美元的空间。" + ZH_REST
-    with pytest.raises(PDFTranslationIntegrityError) as raised:
-        _validate_pdf_page_translations(1, [_title(), _prose()], {0: ZH_TITLE, 1: restored}, set())
-    assert raised.value.issues == [{"element": 2, "reason": PDF_PROSE_NUMBERS_REASON}]
+    assert _fails(PROSE, restored, "+", "+")
 
     context, elements, saved, calls = _run_translation(monkeypatch, _dropped_digest_provider())
 
-    assert saved[0] == {0: ZH_TITLE, 1: PROSE}
-    assert elements[1]["skip_translate_reason"] == SkipReason.TRANSLATION_INTEGRITY_FALLBACK
-    (entry,) = context.pdf_audit["element_source_fallbacks"]
-    assert (entry["page"], entry["element"], entry["reason"]) == (1, 1, PDF_PROSE_NUMBERS_REASON)
+    # The previous release: committed after the batch; the assembly net
+    # keeps the element's source ink (next test).
+    assert saved[0] == {0: ZH_TITLE, 1: restored}
+    assert "skip_translate_reason" not in elements[1]
+    assert context.pdf_audit.get("element_source_fallbacks", []) == []
     assert context.pdf_audit["source_page_fallbacks"] == []
-    assert len(calls) == 2  # the batch, then one page retry
+    assert len(calls) == 1
 
 
 def test_the_assembly_net_keeps_the_source_of_a_cached_answer_whose_digits_were_consumed(

@@ -23,7 +23,6 @@ from phoena_translator.pdf.render.source_fallbacks import (
     _pdf_source_page_fallback_entry,
     _record_pdf_element_source_fallback,
 )
-from phoena_translator.pdf.translate.numeric_guard import PDF_PROSE_NUMBERS_REASON
 from phoena_translator.pdf.translate.page import translate_page
 from phoena_translator.pdf.translate.validation import _validate_pdf_page_translations
 from phoena_translator.pdf.verify.merges import (
@@ -48,38 +47,16 @@ class PDFTranslationStageContext:
     save_translation_progress: Callable[..., None]
 
 
-def _page_merge_endpoints(context: PDFTranslationStageContext, page_num: int) -> set[int]:
-    """Elements of the page that are accepted cross-page merge endpoints: the
-    sign check never checks them (``_validate_pdf_page_translations``)."""
-    decisions = (getattr(context, "pdf_audit", None) or {}).get("merge_decisions")
-    if not decisions:
-        return set()
-    return {
-        element_index
-        for element_index in range(len(context.page_extractions[page_num]["elements"]))
-        if _is_accepted_merge_endpoint(decisions, page_num + 1, element_index)
-    }
-
-
 def _commit_translated_page(
     context: PDFTranslationStageContext,
     page_num: int,
     translations: dict,
     progress_lock: threading.Lock,
-    sign_kept=(),
 ) -> None:
-    """Validate and persist one translated page without repeating provider work.
-
-    ``sign_kept`` are elements whose translation fails the sign check and is
-    kept all the same (``_commit_page_with_element_fallbacks``)."""
+    """Validate and persist one translated page without repeating provider work."""
 
     elements = context.page_extractions[page_num]["elements"]
-    _validate_pdf_page_translations(
-        page_num + 1,
-        elements,
-        translations,
-        _page_merge_endpoints(context, page_num) | set(sign_kept),
-    )
+    _validate_pdf_page_translations(page_num + 1, elements, translations)
     for commit_attempt in range(2):
         try:
             _save_pdf_page_translation_cache(
@@ -115,41 +92,13 @@ def _commit_translated_page(
             )
 
 
-def _sign_failures_kept(
-    elements: list[dict], translations: dict, element_entries: list[tuple[int, str]]
-) -> set[int]:
-    """The sign-check failures whose translation the page keeps: all of them
-    when keeping every failing element in source would leave the page with
-    nothing translated, else none."""
-    failing = {index for index, reason in element_entries if reason == PDF_PROSE_NUMBERS_REASON}
-    if not failing:
-        return set()
-    withdrawn = {index for index, _reason in element_entries}
-    for index, element in enumerate(elements):
-        candidate = translations.get(index, translations.get(str(index)))
-        if (
-            index not in withdrawn
-            and isinstance(candidate, str)
-            and candidate.strip()
-            and candidate != element.get("content", "")
-        ):
-            return set()
-    return failing
-
-
 def _commit_page_with_element_fallbacks(
     context: PDFTranslationStageContext,
     page_num: int,
     integrity_error: PDFTranslationIntegrityError,
     progress_lock: threading.Lock,
 ) -> bool:
-    """Keep only unsafe elements as source text after both translation tries.
-
-    An element failing the sign check (``PDF_PROSE_NUMBERS_REASON``) keeps
-    its source like any other, unless keeping every failing element would
-    leave the page with nothing translated: then its translation is kept, as
-    the live release keeps it (assembly decides and records the rest).  The
-    sign check never fails an accepted merge endpoint."""
+    """Keep only unsafe elements as source text after both translation tries."""
 
     if not integrity_error.issues:
         return False
@@ -164,8 +113,6 @@ def _commit_page_with_element_fallbacks(
         if not 0 <= element_index < len(elements):
             return False
         element_entries.append((element_index, str(issue.get("reason", "integrity"))))
-    sign_kept = _sign_failures_kept(elements, translations, element_entries)
-    element_entries = [entry for entry in element_entries if entry[0] not in sign_kept]
     merge_endpoints = [
         element_index
         for element_index, _reason in element_entries
@@ -190,15 +137,7 @@ def _commit_page_with_element_fallbacks(
         element = elements[element_index]
         element["skip_translate_reason"] = SkipReason.TRANSLATION_INTEGRITY_FALLBACK
         translations[element_index] = element.get("content", "")
-    _commit_translated_page(context, page_num, translations, progress_lock, sign_kept=sign_kept)
-    for element_index in sorted(sign_kept):
-        context.logger.warning(
-            f"[{context.task_id}] Page {page_num + 1} elem {element_index}: "
-            "translation has a protected sign with no figure near it (proximity "
-            "check); keeping the "
-            "source would leave the page with nothing translated, so the "
-            "translation is kept"
-        )
+    _commit_translated_page(context, page_num, translations, progress_lock)
     for element_index, reason in element_entries:
         element = elements[element_index]
         _record_pdf_element_source_fallback(
@@ -253,7 +192,6 @@ def _run_first_pass(
                     page_num + 1,
                     context.page_extractions[page_num]["elements"],
                     translations,
-                    _page_merge_endpoints(context, page_num),
                 )
             except Exception as error:
                 errors[scheduled_page_num] = error
@@ -415,7 +353,6 @@ def translate_pages(
                     retry_page_num + 1,
                     context.page_extractions[retry_page_num]["elements"],
                     retry_translations,
-                    _page_merge_endpoints(context, retry_page_num),
                 )
             except Exception as retry_error:
                 if isinstance(retry_error, PDFTranslationIntegrityError) and (

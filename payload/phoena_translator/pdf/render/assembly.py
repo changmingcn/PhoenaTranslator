@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -458,7 +459,7 @@ def _prepare_page(
     unplaceable = sorted(_unplaceable_indices(context, layout, page_trans, translated_indices))
     if stacked_keeps:
         conflicts = _stacked_table_cell_placement_conflicts(
-            elements, stacked_keeps, unplaceable, candidates, translated_indices
+            elements, stacked_keeps, unplaceable, candidates, translated_indices, page_trans
         )
         if conflicts:
             return _retry_without_stacked(conflicts)
@@ -795,11 +796,30 @@ def _stacked_table_cell_placement_conflicts(
     unplaceable: list[int],
     candidates: set[int],
     translated_indices: set[int],
+    page_trans: dict[int, str],
 ) -> dict[int, str]:
     """Stacked cells whose keeping would cost more than themselves at
     placement: a neighbour left without a formula-safe place over their ink,
-    or no translation left to draw on the page."""
-    if candidates and not translated_indices.difference(unplaceable):
+    or no translation left to draw on the page.
+
+    Another element counts as a translation left to draw only when its
+    translation differs from its source as plain text (markup, entities and
+    white space aside): an echo of the source that carries markup is not one.
+    """
+    left = [
+        index
+        for index in sorted(translated_indices.difference(unplaceable))
+        if not isinstance(page_trans[index], str)
+        or _collapsed_plain_text(html.unescape(page_trans[index]))
+        not in {
+            _collapsed_plain_text(html.unescape(source or ""))
+            for source in (
+                elements[index].get("content", ""),
+                elements[index].get("rich_content") or elements[index].get("content", ""),
+            )
+        }
+    ]
+    if candidates and not left:
         return {
             index: "no other translation would be left on the page"
             for index in stacked_keeps

@@ -3,8 +3,8 @@
 An element whose translation fails the sign check (``prose-number-missing``)
 keeps its source through the path the stacked-cell rule uses, and is left to
 today's path (drawn as the live release draws it) whenever keeping it would
-cost more than the element: the page left with nothing translated (at
-translation validation and at the assembly net), the per-page limit, a
+cost more than the element: the page left with nothing translated, the
+per-page limit, a
 neighbour's removal touching its ink, any refusal of the confinement.  Such
 a waiver is recorded once in ``delivered_element_warnings`` by the assembly
 stage only, and only while the translation is in the delivered page: when
@@ -125,7 +125,7 @@ def test_a_warning_is_recorded_once_and_goes_with_an_element_put_back_to_source(
     assert PDF_DELIVERED_ELEMENT_WARNINGS not in audit
 
 
-# --- translation validation: the page left with nothing translated ---------
+# --- the translation stage does not check (R-20) ----------------------------
 
 
 def test_translation_keeps_the_only_translation_of_a_page_and_writes_no_warning(monkeypatch):
@@ -138,7 +138,7 @@ def test_translation_keeps_the_only_translation_of_a_page_and_writes_no_warning(
     assert context.pdf_audit["source_page_fallbacks"] == []
     assert context.pdf_audit.get("element_source_fallbacks", []) == []
     assert PDF_DELIVERED_ELEMENT_WARNINGS not in context.pdf_audit
-    assert len(calls) == 2  # the existing clean retry
+    assert len(calls) == 1  # as the live release: no retry
 
 
 # --- the assembly net --------------------------------------------------------

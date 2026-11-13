@@ -371,13 +371,92 @@ def test_a_neighbour_left_without_a_place_over_the_kept_ink_waives_the_cell():
     over = _text([150, 660, 300, 668], "Rising star", fontsize=8.0)
     away = _text([400, 100, 500, 108], "Far away", fontsize=8.0)
     elements = [_body(100), stacked, over, away]
+    page_trans = {0: ZH[:30], 1: STACKED_BLOCK, 2: "新晋升级", 3: "远处"}
     conflicts = assembly._stacked_table_cell_placement_conflicts(
-        elements, {1: "x"}, [2], {0, 1, 2}, {0, 2}
+        elements, {1: "x"}, [2], {0, 1, 2}, {0, 2}, page_trans
     )
     assert list(conflicts) == [1] and "neighbour elem 2" in conflicts[1]
     assert assembly._stacked_table_cell_placement_conflicts(
-        elements, {1: "x"}, [3], {0, 1, 3}, {0, 3}
+        elements, {1: "x"}, [3], {0, 1, 3}, {0, 3}, page_trans
     ) == {}
+
+
+# Ruling R-21: another element counts as a translation left on the page only
+# when its translation differs from its source as plain text.
+SOURCE_ECHOES = pytest.mark.parametrize(
+    ("content", "rich", "stored"),
+    [
+        ("2025E", "2025<sup>E</sup>", "2025<sup>E</sup>"),
+        ("Copyright 2026 Sample Analytics.", None, "Copyright <b>2026</b> Sample Analytics."),
+        ("Rates & credit", "Rates &amp; credit", "Rates &amp; credit"),
+        ("Rates and credit", None, "  Rates   and\ncredit "),
+    ],
+    ids=["markup", "markup-in-translation", "entity", "white-space"],
+)
+
+
+@SOURCE_ECHOES
+def test_a_source_echo_is_no_translation_left_on_the_page(content, rich, stored):
+    stacked = _stacked(STACKED_LINES, bands=2)
+    echo = _text([300, 646, 400, 654], content, fontsize=8.0, layout_class="table")
+    if rich is not None:
+        echo["rich_content"] = rich
+    elements = [stacked, echo]
+    conflicts = assembly._stacked_table_cell_placement_conflicts(
+        elements, {0: "x"}, [], {0, 1}, {1}, {0: STACKED_BLOCK, 1: stored}
+    )
+    assert list(conflicts) == [0] and "no other translation" in conflicts[0]
+    # The mirror: a real translation of the same element is one.
+    assert assembly._stacked_table_cell_placement_conflicts(
+        elements, {0: "x"}, [], {0, 1}, {1}, {0: STACKED_BLOCK, 1: "利率与信用"}
+    ) == {}
+
+
+def _echo_label(y=300.0):
+    """A short label whose stored translation is its source with markup."""
+    return _text(
+        [300, y, 400, y + 8], "2025E", fontsize=8.0, layout_class="table",
+        rich_content="2025<sup>E</sup>",
+    )
+
+
+def test_a_stacked_cell_beside_only_a_markup_echo_is_drawn_as_today(tmp_path, font_path):
+    stacked = _stacked(STACKED_LINES, bands=2)
+    document = Document(
+        tmp_path, font_path, [([stacked, _echo_label()], {0: STACKED_BLOCK, 1: "2025<sup>E</sup>"})]
+    )
+
+    (text,) = document.assemble()
+
+    assert document.fallback_pages() == []
+    assert "评级票据" in _squash(text)
+    assert _stacked_records(document) == []
+    (waiver,) = document.audit["stacked_table_cell_waivers"]
+    assert (waiver["page"], waiver["element"]) == (1, 0)
+    assert "no other translation" in waiver["reason"]
+
+
+def test_a_stacked_cell_beside_a_markup_echo_and_a_translation_keeps_its_source_ink(
+    tmp_path, font_path
+):
+    stacked = _stacked(STACKED_LINES, bands=2)
+    document = Document(
+        tmp_path,
+        font_path,
+        [(
+            [_body(100), stacked, _echo_label()],
+            {0: ZH[:30], 1: STACKED_BLOCK, 2: "2025<sup>E</sup>"},
+        )],
+    )
+
+    (text,) = document.assemble()
+
+    assert document.fallback_pages() == []
+    assert "评级票据" not in _squash(text)
+    assert ZH[:30] in _squash(text)
+    (entry,) = _stacked_records(document)
+    assert (entry["page"], entry["element"], entry["stage"]) == (1, 1, "render")
+    assert "stacked_table_cell_waivers" not in document.audit
 
 
 def test_a_stacked_merge_endpoint_is_drawn_as_today(tmp_path, font_path):

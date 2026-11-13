@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "package_name": "PhoenaTranslator-20261113-confined-fallbacks-reinstall",
-  "version": "2026.11.13-confined-fallbacks",
-  "built_at_utc": "2026-11-13T01:54:00+00:00",
-  "source_policy": "release 2026.11.13-confined-fallbacks: more failure modes are confined to the element that fails instead of the page (a paragraph whose translation leaves a protected sign without a figure near it is retried, then kept in source, by a proximity check for one known failure, not a check of every number in running text; table cells of several rows extracted as one element keep their exact source ink; text the source page does not show is neither translated nor redrawn); the numeric row guard reads more signed and currency spellings; placeholder leaks are caught across any whitespace; a page delivered as its source page keeps no partial-delivery records; prompts, configuration and caches unchanged",
-  "active_release": "/opt/phoena-translator/releases/release-2026.11.13-confined-fallbacks",
+  "package_name": "PhoenaTranslator-20261113b-confined-fallbacks-reinstall",
+  "version": "2026.11.13b-confined-fallbacks",
+  "built_at_utc": "2026-11-13T05:37:29+00:00",
+  "source_policy": "release 2026.11.13b-confined-fallbacks, correcting 2026.11.13-confined-fallbacks (whose translation stage could fail a whole task on the sign proximity check): the sign check runs only at assembly; more failure modes are confined to the element that fails instead of the page (a paragraph whose translation leaves a protected sign without a figure near it is kept in source when the page is laid out, without a second translation, by a proximity check for one known failure, not a check of every number in running text; table cells of several rows extracted as one element keep their exact source ink; text the source page does not show is neither translated nor redrawn); the numeric row guard reads more signed and currency spellings; placeholder leaks are caught across any whitespace; a page delivered as its source page keeps no partial-delivery records; prompts, configuration and caches unchanged",
+  "active_release": "/opt/phoena-translator/releases/release-2026.11.13b-confined-fallbacks",
   "payload_file_count": 89,
-  "payload_total_bytes": 1241102,
-  "payload_manifest_sha256": "e1071351045677d6b18867f75bd991c2ee83f505e44f9dc15a5c62634eebf47c",
+  "payload_total_bytes": 1238055,
+  "payload_manifest_sha256": "afb2ec27a834b5030947010b29438d26854e631d0ed3400ae62bf60ca0483363",
   "prior_deployment_content_aggregate_sha256": "1486d4896e8d1b03b090fdce6d1d171b5f3caba145a386ba32c230fa00ef1c6c",
-  "supersedes": "PhoenaTranslator-20261112b-local-flaw-delivery-reinstall (2026.11.12b-local-flaw-delivery)",
+  "supersedes": "PhoenaTranslator-20261113-confined-fallbacks-reinstall (2026.11.13-confined-fallbacks)",
   "excluded_classes": [
     "credentials and environment files",
     "TLS certificates and private keys",
@@ -18,5 +18,5 @@
     "fonts, audit evidence, backups and Git metadata",
     "tests, test requirements and release tooling (kept in the source repository)"
   ],
-  "validation": "Local regression suite: 2232 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including tests for the sign proximity check, stacked table cells, invisible source text, the numeric row spellings, placeholder leaks across whitespace and the page record cleanup, each new condition checked by mutation; an offline, keyless reassembly of six real production jobs on the production host: no page newly restored to its source against the live release, no internal placeholder token in any text layer, no element recorded twice; five review rounds by two independent reviewers."
+  "validation": "Local regression suite: 2275 passed, 2 skipped (Python 3.13, constraints.txt, PyMuPDF 1.27.2.3), including tests of every translation-stage path with the sign check, the sign proximity check at assembly, stacked table cells, invisible source text, the numeric row spellings, placeholder leaks across whitespace and the page record cleanup, each new condition checked by mutation; on the production host, offline and keyless, six real production jobs run through the real translation stage (with the page that failed the previous release, a retry forced by an untranslated element and a failing retry) and through reassembly: every task completes, no page newly restored to its source against the live release, no internal placeholder token in any text layer, no element recorded twice; six review rounds by two independent reviewers."
 }
