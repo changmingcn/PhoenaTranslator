@@ -105,10 +105,10 @@ def test_clean_text_and_source_owned_text_are_not_leaks():
 # Layer 1: translation validation
 # ---------------------------------------------------------------------------
 
-BULLET_A = "Issuers priced ~ 40 units of new bonds within five business days last week"
-BULLET_B = "reinforcing the market capacity to absorb substantial supply even in volatile weeks"
-ZH_A_BODY = ("发行人上周在五个工作日内定价了", "40个单位的新债券")
-ZH_B = "进一步表明即便在波动的几周里，市场仍然有能力消化大量的新增供给"
+BULLET_A = "Farmers planted ~ 40 hectares of new orchards across three valleys this spring"
+BULLET_B = "showing that local growers still have room to expand their orchards in a dry year"
+ZH_A_BODY = ("今年春天农户在三个山谷里新种了", "40公顷的果园")
+ZH_B = "显示即便在干旱的年份里，当地种植户仍然有扩大果园的余地"
 
 
 def _page_elements():
@@ -296,7 +296,7 @@ def test_an_older_page_cache_with_a_token_is_kept_for_assembly(monkeypatch, tmp_
 
 
 def _leaking_cached_page():
-    kept = _text([72, 200, 540, 212], "Reinforcing the capacity to absorb supply", layout_class="body")
+    kept = _text([72, 200, 540, 212], "Showing that growers have room to expand", layout_class="body")
     return [_body(100), kept, _body(400)], kept
 
 
@@ -304,7 +304,7 @@ def test_a_cached_token_is_never_drawn_and_the_element_keeps_its_source_ink(tmp_
     elements, kept = _leaking_cached_page()
     token = _minted_tokens()["IMATH"]
     document = Document(
-        tmp_path, font_path, [(elements, {0: ZH[:30], 1: f"进一步{token}表明", 2: ZH[5:30]})]
+        tmp_path, font_path, [(elements, {0: ZH[:30], 1: f"显示{token}余地", 2: ZH[5:30]})]
     )
 
     (text,) = document.assemble()
@@ -312,7 +312,7 @@ def test_a_cached_token_is_never_drawn_and_the_element_keeps_its_source_ink(tmp_
     assert not TOKEN_RE.search(text)
     assert document.fallback_pages() == []
     assert ZH[:30] in _squash(text) and ZH[5:30] in _squash(text)
-    assert text.count("Reinforcing the capacity") == 1
+    assert text.count("Showing that growers") == 1
     _assert_kept_alone(document, kept)
     (entry,) = _kept_records(document)
     assert (entry["page"], entry["element"], entry["stage"]) == (1, 1, "render")
@@ -335,7 +335,7 @@ def test_a_cached_token_on_a_merge_endpoint_takes_the_merge_closure(tmp_path, fo
         tmp_path,
         font_path,
         [
-            (elements, {0: ZH[:30], 1: f"进一步{token}表明", 2: ZH[5:30]}),
+            (elements, {0: ZH[:30], 1: f"显示{token}余地", 2: ZH[5:30]}),
             ([_body(100), _body(300)], {0: ZH[6:30], 1: ZH[9:30]}),
         ],
         merge_decisions=[merge],
@@ -528,3 +528,156 @@ def test_assembly_draws_ordinary_text_and_an_owned_token(tmp_path, font_path, so
     assert _kept_records(document) == []
     assert document.fallback_pages() == []
     assert any(words in _squash(text) for words in ("已经发布", "在此说明", "插件与"))
+
+
+# ---------------------------------------------------------------------------
+# Review leftover F2 (B5): whitespace a drawing path collapses.
+# ---------------------------------------------------------------------------
+# The class: any string a drawing path shows as one space or as nothing, but
+# that the guard's drawn form keeps as several characters, must not separate
+# the letters of a token.  The guard reads a flattened form (no whitespace at
+# all) besides the visible forms, rather than imitating the renderer.
+COLLAPSING_SEPARATORS = {
+    "decimal-ref": "&#32;" * 4,
+    "hex-ref": "&#x20;" * 4,
+    "decimal-tab-ref": "&#9;" * 4,
+    "named-tab": "&Tab;" * 4,
+    "named-newline": "&NewLine;" * 4,
+    "named-nbsp": "&nbsp;" * 4,
+    "literal-and-refs": " &#32; &#x20;",
+    "bold-spaces": "<b> </b>" * 4,
+    "sup-spaces": "<sup> </sup>" * 4,
+    "comment-spaces": " <!--a--> <!--b--> <!--c--> <!--d-->",
+    "pi-spaces": " <?a?> <?b?> <?c?> <?d?>",
+    "refs-markup-unicode": "\u2002&#32;<b> </b>\u3000",
+    **{
+        f"U+{code:04X}": chr(code) * 4
+        for code in (0x00A0, *range(0x2000, 0x200B), 0x202F, 0x205F, 0x3000)
+    },
+}
+# Where the separator falls: inside the prefix, inside the kind, before the
+# index, before the digest.
+SEPARATOR_PLACES = {
+    "prefix": ("PHOE", "NA_IMATH_0001_0123456789ABCDEF"),
+    "kind": ("PHOENA_IM", "ATH_0001_0123456789ABCDEF"),
+    "index": ("PHOENA_IMATH", "0001_0123456789ABCDEF"),
+    "digest": ("PHOENA_IMATH_0001", "0123456789ABCDEF"),
+}
+COLLAPSED_TOKENS = {
+    f"{name}-in-{place}": head + separator + tail
+    for name, separator in COLLAPSING_SEPARATORS.items()
+    for place, (head, tail) in SEPARATOR_PLACES.items()
+}
+# One separator of each family in every place, for the slower layers.
+_LAYER_SEPARATORS = ("decimal-ref", "bold-spaces", "comment-spaces", "U+2002", "U+3000")
+LAYER_TOKENS = {
+    key: value
+    for key, value in COLLAPSED_TOKENS.items()
+    if any(key.startswith(f"{name}-in-") for name in _LAYER_SEPARATORS)
+}
+SPACED_OWNER = f"The diagnostic field {SOURCE_TOKEN}    Notes apply here for reference"
+COLLAPSED_CLEAN = {
+    "owned-token-then-refs-and-word": (
+        SPACED_OWNER, f"诊断字段{SOURCE_TOKEN}&#32;&#32;&#32;&#32;Notes在此说明，仅供参考"
+    ),
+    "owned-token-in-unicode-spaces": (
+        SOURCE_OWNING, f"诊断字段\u3000\u3000{SOURCE_TOKEN}\u2002\u2002\u2002\u2002在此说明"
+    ),
+    "words-after-collapsed-runs": (
+        WORD_SOURCE,
+        "Phoena <!--a--> <!--b--> <!--c--> <!--d-->IDE 插件与 Phoena\u2002\u2002\u2002\u2002Supply 柜台"
+        "与 Phoena<b> </b><b> </b><b> </b><b> </b>IDs 现已可以正常使用。",
+    ),
+    "product-after-collapsed-run": (
+        # A digit-free source: character references would hand condition M
+        # their digits, so this run is written in Unicode spaces.
+        ORDINARY_SOURCE, "Phoena\u3000\u3000\u3000\u3000Model 2 已经发布，并且现在可以正常使用。"
+    ),
+}
+
+
+def _collapsed_candidate(token):
+    return f"{ZH_B}{token}。"
+
+
+@pytest.mark.parametrize("token", COLLAPSED_TOKENS.values(), ids=COLLAPSED_TOKENS.keys())
+def test_f2_whitespace_a_renderer_collapses_does_not_hide_a_token(token):
+    assert pdf_internal_placeholder_leaks(BULLET_B, _collapsed_candidate(token))
+
+
+@pytest.mark.parametrize(("source", "candidate"), COLLAPSED_CLEAN.values(), ids=COLLAPSED_CLEAN.keys())
+def test_f2_owned_tokens_and_words_stay_clean_across_collapsed_runs(source, candidate):
+    assert pdf_internal_placeholder_leaks(source, candidate) == []
+
+
+@pytest.mark.parametrize("token", LAYER_TOKENS.values(), ids=LAYER_TOKENS.keys())
+def test_f2_validation_and_the_batch_net_reject_a_collapsed_token(token):
+    from phoena_translator.pdf.translate import page
+
+    candidate = _collapsed_candidate(token)
+    with pytest.raises(PDFTranslationIntegrityError) as raised:
+        _validate_pdf_page_translations(1, _single(BULLET_B), {0: candidate})
+    assert raised.value.issues == [{"element": 1, "reason": PDF_PLACEHOLDER_LEAK_REASON}]
+    context = SimpleNamespace(task_id="t", logger=log)
+    element = _single(BULLET_B)[0]
+    assert page._restore_batch_part(context, 0, element, 1, BULLET_B, candidate, ((), (), ())) is None
+
+
+@pytest.mark.parametrize("token", LAYER_TOKENS.values(), ids=LAYER_TOKENS.keys())
+def test_f2_assembly_never_draws_a_collapsed_token(tmp_path, font_path, token):
+    kept = _text([72, 200, 540, 212], BULLET_B, layout_class="body")
+    document = Document(
+        tmp_path,
+        font_path,
+        [([_body(100), kept, _body(400)], {0: ZH[:30], 1: _collapsed_candidate(token), 2: ZH[5:30]})],
+    )
+
+    (text,) = document.assemble()
+
+    assert _drawn_tokens(text) == []
+    assert document.fallback_pages() == []
+    _assert_kept_alone(document, kept)
+    (entry,) = _kept_records(document)
+    assert entry["reason"].startswith(PDF_PLACEHOLDER_LEAK_REASON)
+
+
+@pytest.mark.parametrize(("source", "candidate"), COLLAPSED_CLEAN.values(), ids=COLLAPSED_CLEAN.keys())
+def test_f2_assembly_draws_the_clean_near_misses(tmp_path, font_path, source, candidate):
+    element = _text([72, 200, 540, 212], source, layout_class="body")
+    document = Document(
+        tmp_path, font_path, [([_body(100), element, _body(400)], {0: ZH[:30], 1: candidate, 2: ZH[5:30]})]
+    )
+
+    document.assemble()
+
+    assert _kept_records(document) == []
+    assert document.fallback_pages() == []
+
+
+def _htmlbox_round_trip(candidate):
+    import fitz
+
+    from phoena_translator.pdf.render.paragraph_html import _pdf_text_to_html
+
+    with fitz.open() as document:
+        page = document.new_page()
+        page.insert_htmlbox(fitz.Rect(36, 36, 576, 400), _pdf_text_to_html(candidate))
+        return page.get_text()
+
+
+@pytest.mark.parametrize("token", COLLAPSED_TOKENS.values(), ids=COLLAPSED_TOKENS.keys())
+def test_f2_round_trip_whatever_is_drawn_was_caught(token):
+    # Draw, read the text back, run the check: a token the reader can see in
+    # the drawn text was already caught in the candidate.
+    candidate = f"Revenue rose {token} in the quarter."
+    drawn = _htmlbox_round_trip(candidate)
+    if pdf_internal_placeholder_leaks("", drawn):
+        assert pdf_internal_placeholder_leaks("", candidate), drawn
+
+
+@pytest.mark.parametrize("name", ["decimal-ref", "hex-ref", "named-tab", "bold-spaces", "comment-spaces"])
+def test_f2_round_trip_the_renderer_does_collapse_these(name):
+    # The round trip has teeth: the htmlbox draws one space for each of
+    # these runs, so the drawn text holds a token the old drawn form missed.
+    candidate = f"Revenue rose PHOE{COLLAPSING_SEPARATORS[name]}NA_IMATH_0001_0123456789ABCDEF in the quarter."
+    assert pdf_internal_placeholder_leaks("", _htmlbox_round_trip(candidate))

@@ -96,6 +96,20 @@ def _pdf_visible_text_forms(text: str) -> list[str]:
     return visible
 
 
+def _pdf_flattened_form(form: str) -> tuple[str, list[int]]:
+    """A visible form without any whitespace, and the position in ``form`` of
+    each character kept.
+
+    A drawing path may show a run of whitespace as one space or as nothing,
+    however the run was written (literal, character references, Unicode
+    spaces, or split by inline markup or comments), and how it does depends
+    on the engine and the font.  The guard does not imitate that: in this
+    form no count of whitespace can separate the letters of a token.
+    """
+    kept = [index for index, char in enumerate(form) if not char.isspace()]
+    return "".join(form[index] for index in kept), kept
+
+
 def _pdf_token_identity(token: str) -> str:
     return re.sub(r"[\W_]", "", token).upper()
 
@@ -111,6 +125,10 @@ def pdf_internal_placeholder_leaks(source_text: str, translated_text: str) -> li
     (``_PDF_COMPLETE_TOKEN_RE``) of the translation that occurs, identical
     and complete, in the source: a cut-off, re-spelt or partly read token
     never borrows the source's ownership.
+
+    Each visible form is read as it is and flattened (``_pdf_flattened_form``);
+    a token found in the flattened form is exempt only when it lies inside
+    such an owned complete token of the visible form.
     """
     owned = {
         match.group(0)
@@ -124,10 +142,15 @@ def pdf_internal_placeholder_leaks(source_text: str, translated_text: str) -> li
             for match in _PDF_COMPLETE_TOKEN_RE.finditer(form)
             if match.group(0) in owned
         ]
-        for match in PDF_INTERNAL_PLACEHOLDER_RE.finditer(form):
-            if any(start <= match.start() and match.end() <= end for start, end in exempt):
-                continue
-            leaks.setdefault(_pdf_token_identity(match.group(0)), match.group(0))
+        flattened, positions = _pdf_flattened_form(form)
+        for text, origin in ((form, None), (flattened, positions)):
+            for match in PDF_INTERNAL_PLACEHOLDER_RE.finditer(text):
+                start, end = match.span()
+                if origin is not None:
+                    start, end = origin[start], origin[end - 1] + 1
+                if any(low <= start and end <= high for low, high in exempt):
+                    continue
+                leaks.setdefault(_pdf_token_identity(match.group(0)), match.group(0))
     return list(leaks.values())
 
 

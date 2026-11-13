@@ -129,6 +129,7 @@ def test_two_preserved_subtitles_each_get_one_retry(tmp_path, font_path):
     for elem in left:
         x0, y0, x1, y1 = elem["bbox"]
         right.append(dict(elem, bbox=[x0 + 260, y0, x1 + 260, y1]))
+    right[0]["content"] = right[0]["content"].replace("9", "10")  # its own number
     elements = [_body(60), *left, *right]
     translations = {0: ZH[:30], 1: "图表9", 3: "图表10"}
     document = Document(tmp_path, font_path, [(elements, translations)])

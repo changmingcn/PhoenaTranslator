@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 import fitz
 
@@ -17,6 +18,7 @@ from phoena_translator.pdf.text_shape import (
     _collapsed_plain_text,
     _join_pdf_line_fragments,
 )
+from phoena_translator.pdf.translate.numeric_guard import _is_data_token
 
 log = logging.getLogger("translator")
 
@@ -267,6 +269,84 @@ def _pdf_semantic_table_group_rect(group: list[dict]) -> fitz.Rect:
     return group_source_rect
 
 
+def _pdf_semantic_cell_shared_row_bands(
+    group_items: list[tuple[int, dict]],
+    row_bands: list[list[tuple[int, dict]]],
+    cell_of: dict[int, int] | None = None,
+) -> int:
+    """Number of the group's visual line bands in which another column shows
+    a cell separate from that column's cell in another of the group's bands.
+
+    Other-column candidates are those lying wholly beside the group.
+    ``cell_of`` maps a candidate to the cell it belongs to after all merges
+    (a candidate absent from it is a cell of its own).  Two different cells
+    of one column (their horizontal extents overlap) that hold different
+    bands of the group are evidence that the group spans several table rows;
+    the lines of a neighbour cell that wraps in parallel merge into one cell
+    and are no such evidence.  Recorded after the merges (it is not part of
+    the cache identity) and read by the stacked-cell net at assembly.
+    """
+    members = {index for index, _ in group_items}
+    group_rect = _pdf_semantic_table_group_rect([elem for _, elem in group_items])
+    cell_of = cell_of or {}
+    band_cells: list[set[int]] = []
+    spans: dict[int, list[float]] = {}
+    for band in row_bands:
+        if not any(index in members for index, _ in band):
+            continue
+        cells: set[int] = set()
+        for index, elem in band:
+            rect = _get_pdf_elem_rect(elem)
+            if index in members or not (
+                rect.x1 <= group_rect.x0 or rect.x0 >= group_rect.x1
+            ):
+                continue
+            cell = cell_of.get(index, index)
+            cells.add(cell)
+            span = spans.setdefault(cell, [float(rect.x0), float(rect.x1)])
+            span[0] = min(span[0], float(rect.x0))
+            span[1] = max(span[1], float(rect.x1))
+        band_cells.append(cells)
+
+    def one_column(first: int, second: int) -> bool:
+        return min(spans[first][1], spans[second][1]) > max(
+            spans[first][0], spans[second][0]
+        )
+
+    shared = 0
+    for position, cells in enumerate(band_cells):
+        if any(
+            other != cell
+            and one_column(cell, other)
+            and cell not in band_cells[other_position]
+            and other not in cells
+            for cell in cells
+            for other_position, others in enumerate(band_cells)
+            if other_position != position
+            for other in others
+        ):
+            shared += 1
+    return shared
+
+
+def _record_pdf_semantic_cell_row_bands(
+    replacements: dict[int, dict],
+    band_ledger: list[
+        tuple[int, list[tuple[int, dict]], list[list[tuple[int, dict]]] | None]
+    ],
+) -> None:
+    """Record ``semantic_cell_row_bands`` on every merged cell once all merges
+    are known, so that a neighbour's cell is the cell it finally belongs to."""
+    cell_of = {
+        index: leader for leader, items, _bands in band_ledger for index, _ in items
+    }
+    for leader, items, bands in band_ledger:
+        if bands is not None and leader in replacements:
+            replacements[leader]["semantic_cell_row_bands"] = (
+                _pdf_semantic_cell_shared_row_bands(items, bands, cell_of)
+            )
+
+
 def _record_pdf_semantic_table_cell_merge(
     group_items: list[tuple[int, dict]],
     page_rect: fitz.Rect,
@@ -277,8 +357,16 @@ def _record_pdf_semantic_table_cell_merge(
     *,
     reject_claimed: bool,
     semantic_native_table_cell: bool = False,
+    row_bands: list[list[tuple[int, dict]]] | None = None,
+    band_ledger: list | None = None,
 ) -> bool:
-    """Apply one non-overlapping semantic-cell merge to the result ledger."""
+    """Apply one non-overlapping semantic-cell merge to the result ledger.
+
+    ``row_bands`` are the visual line bands of the candidates the merge was
+    chosen from.  The merge is entered in ``band_ledger``; once all merges
+    are known the merged element records ``semantic_cell_row_bands``
+    (``_record_pdf_semantic_cell_row_bands``).
+    """
     if len(group_items) < 2:
         return False
     ordered_items = sorted(
@@ -303,6 +391,8 @@ def _record_pdf_semantic_table_cell_merge(
         cell_rect=cell_rect,
         semantic_native_table_cell=semantic_native_table_cell,
     )
+    if band_ledger is not None:
+        band_ledger.append((group_indices[0], ordered_items, row_bands))
     removed.update(group_indices[1:])
     claimed.update(group_indices)
     return True
@@ -316,6 +406,7 @@ def _merge_pdf_exact_table_cells(
     replacements: dict[int, dict],
     removed: set[int],
     claimed: set[int],
+    band_ledger: list | None = None,
 ) -> int:
     """Merge fragments inside deterministic detected table-cell bounds.
 
@@ -345,6 +436,7 @@ def _merge_pdf_exact_table_cells(
             return 0
 
     merge_count = 0
+    region_bands = _pdf_table_visual_line_bands(candidates)
     for raw_cell_rect in raw_cells:
         cell_rect = fitz.Rect(raw_cell_rect)
         if cell_rect.is_empty:
@@ -402,6 +494,8 @@ def _merge_pdf_exact_table_cells(
                     claimed,
                     reject_claimed=True,
                     semantic_native_table_cell=not fallback_open,
+                    row_bands=region_bands,
+                    band_ledger=band_ledger,
                 )
             )
     return merge_count
@@ -534,6 +628,7 @@ def _merge_pdf_inferred_table_cells(
     replacements: dict[int, dict],
     removed: set[int],
     claimed: set[int],
+    band_ledger: list | None = None,
 ) -> int:
     """Merge wrapped cells inferred from row pitch and column origins."""
     row_plan = _pdf_semantic_table_row_plan(candidates)
@@ -591,6 +686,8 @@ def _merge_pdf_inferred_table_cells(
                     removed,
                     claimed,
                     reject_claimed=False,
+                    row_bands=bands,
+                    band_ledger=band_ledger,
                 )
             )
     return merge_count
@@ -633,6 +730,7 @@ def _merge_pdf_semantic_table_cells(
     replacements: dict[int, dict] = {}
     removed: set[int] = set()
     claimed: set[int] = set()
+    band_ledger: list = []
     merge_count = 0
     regions = table_regions or [
         {
@@ -660,6 +758,7 @@ def _merge_pdf_semantic_table_cells(
             replacements,
             removed,
             claimed,
+            band_ledger=band_ledger,
         )
         if region.get("fallback_open"):
             # Exact fallback columns are already compact-clustered; the global
@@ -673,13 +772,107 @@ def _merge_pdf_semantic_table_cells(
             replacements,
             removed,
             claimed,
+            band_ledger=band_ledger,
         )
 
     if not replacements:
         return elements, 0
+    _record_pdf_semantic_cell_row_bands(replacements, band_ledger)
     return (
         _apply_pdf_semantic_table_replacements(elements, replacements, removed),
         merge_count,
     )
 
 
+# --- stacked table cells (B2) ---
+# A merged table cell with this many bands in which another column shows
+# separate cells (``_pdf_semantic_cell_shared_row_bands``) took cells of
+# several table rows even without any value line.
+STACKED_TABLE_CELL_MIN_SHARED_BANDS = 4
+# A label line and a value line are evidence only when separate cells of
+# another column sit beside at least this many different lines of the cell:
+# a cell holding a label and its value (a tile, a header with a date line)
+# has no such neighbours.
+STACKED_TABLE_CELL_MIN_BACKED_LINES = 2
+# This many lines that are values only are evidence of rows on their own
+# (R-6b), whatever the native grid says and without other columns: a column
+# of figures merged with its heading, the tick values of a chart axis merged
+# with the axis title.  One value line is not (a tile, a header with a date).
+STACKED_TABLE_CELL_MIN_VALUE_LINES = 2
+_STACKED_TABLE_CELL_TOKEN_EDGES = "()[]{}<>,;:*\u2020\u2021"
+_STACKED_TABLE_CELL_YEAR_RE = re.compile(r"(?:19|20)\d{2}")
+_STACKED_TABLE_CELL_SIGNS = "+-\u2212\u00b1"
+_STACKED_TABLE_CELL_VALUE_WORDS = frozenset({"unch", "unch."})
+
+
+def _stacked_table_cell_value_token(token: str) -> bool:
+    if token.lower() in _STACKED_TABLE_CELL_VALUE_WORDS:
+        return True
+    unsigned = token.lstrip(_STACKED_TABLE_CELL_SIGNS)
+    return _is_data_token(token) or bool(unsigned and _is_data_token(unsigned))
+
+
+def _stacked_table_cell_line_kind(plain: str) -> str:
+    """``value`` for a line of data tokens only (numbers, %, n.a., -),
+    ``year`` for a line of four-digit years only, ``label`` for a line with a
+    letter, ``other`` for anything else."""
+    tokens = [token.strip(_STACKED_TABLE_CELL_TOKEN_EDGES) for token in plain.split()]
+    tokens = [token for token in tokens if token]
+    if not tokens:
+        return "other"
+    if all(_STACKED_TABLE_CELL_YEAR_RE.fullmatch(token) for token in tokens):
+        return "year"
+    if all(_stacked_table_cell_value_token(token) for token in tokens):
+        return "value"
+    if any(char.isalpha() for char in plain):
+        return "label"
+    return "other"
+
+
+def pdf_stacked_table_cell(elem: dict) -> bool:
+    """Whether a merged table cell holds cells of several table rows.
+
+    Drawn as one paragraph from the top of its box, its values would land in
+    the first row and the rows below would be left empty.  Its own lines are
+    evidence of rows when at least ``STACKED_TABLE_CELL_MIN_VALUE_LINES`` of
+    them are values only (numbers with their sign, separators, percent or
+    unit suffix, no-data marks; a line of four-digit years alone is a header,
+    not a value): such a cell is stacked whatever the native grid says.
+    Otherwise the evidence must come from other columns having separate cells
+    beside it: the merger's record ``semantic_cell_row_bands`` counts the
+    cell's bands in which another column shows a cell separate from that
+    column's cell in another of its bands.  Two signals:
+
+    - that record is at least ``STACKED_TABLE_CELL_MIN_SHARED_BANDS``;
+    - its own lines hold a label line and a value line, backed by a record
+      of at least ``STACKED_TABLE_CELL_MIN_BACKED_LINES``.
+
+    Short of the value lines, a cell the native table grid confirms as one
+    cell is never stacked.  Without such evidence the element is drawn as
+    before: a wrongly kept cell withholds a correct translation, so when in
+    doubt it is not stacked.
+    """
+    if not elem.get("semantic_table_cell"):
+        return False
+    lines = [
+        line.get("plain") or ""
+        for paragraph in (elem.get("paragraphs") or [])
+        for line in (paragraph.get("source_lines") or [])
+        if (line.get("plain") or "").strip()
+    ]
+    if len(lines) < 2:
+        return False
+    line_kinds = [_stacked_table_cell_line_kind(line) for line in lines]
+    if line_kinds.count("value") >= STACKED_TABLE_CELL_MIN_VALUE_LINES:
+        return True
+    if elem.get("semantic_native_table_cell"):
+        return False
+    try:
+        shared_bands = int(elem.get("semantic_cell_row_bands") or 0)
+    except (TypeError, ValueError):
+        shared_bands = 0
+    if shared_bands >= STACKED_TABLE_CELL_MIN_SHARED_BANDS:
+        return True
+    if shared_bands < STACKED_TABLE_CELL_MIN_BACKED_LINES:
+        return False
+    return "label" in line_kinds and "value" in line_kinds

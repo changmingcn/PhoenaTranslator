@@ -12,6 +12,7 @@ import fitz
 from phoena_translator.pdf.extract.baselines import (
     _normalize_pdf_same_baseline_prose_fragments,
 )
+from phoena_translator.pdf.extract.distribution_codes import _token_conditions
 from phoena_translator.pdf.extract.filters import (
     _mark_pdf_embedded_thumbnail_text_elements,
     _sanitize_pdf_hidden_text_artifact_spans,
@@ -44,7 +45,7 @@ from phoena_translator.pdf.geometry import (
     _pdf_rotation_from_direction,
     _split_pdf_line_layout_cells,
 )
-from phoena_translator.pdf.model import DEFAULT_FONTSIZE, ElementType, PdfElement
+from phoena_translator.pdf.model import DEFAULT_FONTSIZE, ElementType, PdfElement, SkipReason
 from phoena_translator.pdf.semantics.continuations import (
     _merge_pdf_detached_list_marker_elements,
     _merge_pdf_semantic_continuation_elements,
@@ -204,7 +205,274 @@ def _pdf_span_entry(span: dict) -> dict | None:
         "flags": int(span.get("flags", 0)),
         "origin": tuple(span.get("origin", (span["bbox"][0], span["bbox"][3]))),
         "bold": is_bold,
+        "invisible": _pdf_span_invisible(span),
     }
+
+
+# A page whose text is mostly invisible is a scan with a text layer: that layer
+# is what gets translated, so invisible text is marked only below this share
+# of the page's non-blank span characters (counted before any merge).
+PDF_INVISIBLE_TEXT_SCAN_SHARE = 0.5
+# Text trace occurrence types (``page.get_texttrace()``): a fill, a stroke,
+# and the invisible render mode.  Clipping is not reported by the trace: a
+# text clip without fill or stroke (render mode 7) leaves no occurrence, and
+# fill or stroke plus clip (modes 4-6) reads as the fill or stroke alone.
+_PDF_TRACE_FILL = 0
+_PDF_TRACE_INVISIBLE = 3
+# The lexemes of a content stream (ISO 32000-1, 7.2): white space, a comment,
+# the ``(`` that opens a literal string (read to its end by
+# ``_pdf_literal_string_end``), a dictionary delimiter, a hexadecimal string,
+# an array or brace delimiter, a name, and a run of regular characters
+# (anything but white space and the delimiters ``()<>[]{}/%``).  What none
+# of them matches -- ``)`` or ``>`` alone, a ``<`` that opens no valid
+# hexadecimal string -- is a state the lexer cannot follow.
+_PDF_REGULAR_CHAR = rb"[^\x00\t\n\x0c\r ()<>\[\]{}/%]"
+_PDF_LEXEME_RE = re.compile(
+    rb"(?P<space>[\x00\t\n\x0c\r ]+)"
+    rb"|(?P<comment>%[^\r\n]*)"
+    rb"|(?P<string>\()"
+    rb"|(?P<dictionary><<|>>)"
+    rb"|(?P<hex><[0-9A-Fa-f\x00\t\n\x0c\r ]*>)"
+    rb"|(?P<bracket>[\[\]{}])"
+    rb"|(?P<name>/" + _PDF_REGULAR_CHAR + rb"*)"
+    rb"|(?P<regular>" + _PDF_REGULAR_CHAR + rb"+)"
+)
+# Within a literal string, what changes the lexer's state: an escape, and
+# the parentheses that nest.
+_PDF_LITERAL_STRING_STOP_RE = re.compile(rb"[\\()]")
+_PDF_NUMBER_RE = re.compile(rb"[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)")
+_PDF_INTEGER_RE = re.compile(rb"[+-]?[0-9]+")
+# A regular token beginning with one of these and not a number is one a
+# reader may split (MuPDF reads ``4Tr`` as an unknown keyword, a reader whose
+# number lexer stops at the first letter reads ``4`` and ``Tr``).
+_PDF_NUMBER_START = b"+-.0123456789"
+_PDF_OPERAND_KEYWORDS = frozenset({b"true", b"false", b"null"})
+# The non-clipping text render modes: fill, stroke, fill and stroke, invisible.
+_PDF_NON_CLIPPING_RENDER_MODES = range(4)
+# Grid (points) on which glyph origins of the trace and of the extraction
+# are matched; a neighbouring grid cell matches too.
+_PDF_GLYPH_ORIGIN_GRID = 0.05
+
+
+def _pdf_trace_occurrence_invisible(occurrence: dict) -> bool:
+    """Whether one paint occurrence of the text trace shows nothing: the
+    invisible render mode, or a fill with fill opacity exactly 0.  A stroke
+    is visible whatever the span flags say."""
+    try:
+        kind = int(occurrence.get("type", _PDF_TRACE_FILL))
+        opacity = float(occurrence.get("opacity", 1.0))
+    except (TypeError, ValueError):
+        return False
+    return kind == _PDF_TRACE_INVISIBLE or (kind == _PDF_TRACE_FILL and opacity == 0.0)
+
+
+def _pdf_glyph_cell(x: float, y: float) -> tuple[int, int]:
+    return (round(x / _PDF_GLYPH_ORIGIN_GRID), round(y / _PDF_GLYPH_ORIGIN_GRID))
+
+
+def _pdf_text_paint_record(page) -> dict | None:
+    """Per glyph place (character, origin) of the text trace, whether one of
+    its paint occurrences is visible and whether one is invisible.  ``None``
+    when the trace has no invisible occurrence (nothing to mark) or cannot be
+    read (no evidence: nothing is marked)."""
+    try:
+        trace = page.get_texttrace()
+    except Exception as exc:  # the trace is evidence only, never required
+        log.debug("Page %s: text trace unavailable: %s", page.number + 1, exc)
+        return None
+    record: dict[tuple, list[bool]] = {}
+    any_invisible = False
+    for occurrence in trace or ():
+        invisible = _pdf_trace_occurrence_invisible(occurrence)
+        any_invisible = any_invisible or invisible
+        for char in occurrence.get("chars") or ():
+            try:
+                key = (int(char[0]), *_pdf_glyph_cell(float(char[2][0]), float(char[2][1])))
+            except (TypeError, ValueError, IndexError):
+                continue
+            seen = record.setdefault(key, [False, False])
+            seen[1 if invisible else 0] = True
+    return record if any_invisible else None
+
+
+def _pdf_glyph_painted_invisibly(record: dict, char: dict) -> bool:
+    """A glyph is invisible when the trace paints it at its place, every
+    such occurrence is invisible, and no visible occurrence shares the place."""
+    text = char.get("c") or ""
+    origin = char.get("origin")
+    if len(text) != 1 or not origin:
+        return False
+    column, row = _pdf_glyph_cell(float(origin[0]), float(origin[1]))
+    found = False
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            seen = record.get((ord(text), column + dx, row + dy))
+            if seen is None:
+                continue
+            if seen[0]:
+                return False
+            found = found or seen[1]
+    return found
+
+
+def _pdf_literal_string_end(stream: bytes, position: int) -> int | None:
+    """The position after the literal string whose ``(`` ends at ``position``:
+    balanced parentheses nest inside it, a backslash escapes the byte after
+    it.  ``None`` when the stream ends first (an unbalanced string)."""
+    depth = 1
+    while depth:
+        stop = _PDF_LITERAL_STRING_STOP_RE.search(stream, position)
+        if stop is None:
+            return None
+        position = stop.end()
+        char = stream[stop.start()]
+        if char == 0x5C:  # backslash
+            position += 1
+        elif char == 0x28:  # (
+            depth += 1
+        else:
+            depth -= 1
+    return position
+
+
+def _pdf_render_mode_operand_is_non_clipping(
+    operand: tuple[str, bytes] | None, before: tuple[str, bytes] | None
+) -> bool:
+    """Whether ``Tr`` with the token ``operand`` before it, and ``before``
+    before that, selects a non-clipping mode with certainty: exactly one
+    operand (``before`` is an operator, or the stream begins; with two,
+    MuPDF takes the first), and it is an integer whose value is 0-3 (a real
+    is not: readers truncate it)."""
+    return (
+        operand is not None
+        and operand[0] == "number"
+        and _PDF_INTEGER_RE.fullmatch(operand[1]) is not None
+        and int(operand[1]) in _PDF_NON_CLIPPING_RENDER_MODES
+        and (before is None or before[0] == "operator")
+    )
+
+
+def _pdf_stream_text_modes_are_non_clipping(stream: bytes) -> bool:
+    """Whether every text render mode operator in a content stream is read
+    with certainty as selecting a non-clipping mode (0-3).
+
+    A small lexer (``_PDF_LEXEME_RE``) reads the stream and skips white
+    space, comments, literal strings and hexadecimal strings, so letters
+    inside them are never taken for the operator; ``Tr`` counts only as an
+    operator token, with its operand token before it
+    (``_pdf_render_mode_operand_is_non_clipping``).  Uncertain, and so
+    ``False``: an operand that does not read as a non-clipping mode; a token
+    that begins like a number but is not one (``4Tr``); an inline image
+    (``BI``: its data cannot be skipped with certainty); an unbalanced
+    string or anything else the lexer cannot follow.  The lexer stops after
+    the stream's last occurrence of the bytes ``Tr``: nothing beyond it can
+    be the operator, so what follows there (an inline image at the end of
+    the stream, say) cannot hide one; a stream without them has none."""
+    final = stream.rfind(b"Tr")
+    position = 0
+    last = before = None  # (kind, token) of the two latest tokens
+    while position <= final:
+        found = _PDF_LEXEME_RE.match(stream, position)
+        if found is None:
+            return False
+        kind, token = found.lastgroup, found.group()
+        position = found.end()
+        if kind in ("space", "comment"):
+            continue
+        if kind == "string":
+            position = _pdf_literal_string_end(stream, position)
+            if position is None:
+                return False
+        elif kind == "regular":
+            if _PDF_NUMBER_RE.fullmatch(token):
+                kind = "number"
+            elif token[0] in _PDF_NUMBER_START:
+                return False
+            elif token not in _PDF_OPERAND_KEYWORDS:
+                kind = "operator"
+                if token == b"BI":
+                    return False
+                if token == b"Tr" and not _pdf_render_mode_operand_is_non_clipping(last, before):
+                    return False
+        last, before = (kind, token), last
+    return True
+
+
+def _pdf_page_clips_with_text(page) -> bool:
+    """Whether the page may clip with text: true unless every text render mode
+    operator in the page's content (its streams read as one) and in each of
+    its form XObjects is read with certainty as carrying a non-clipping mode
+    (0-3; ``_pdf_stream_text_modes_are_non_clipping``).  Uncertain evidence
+    -- an operand that does not read as one of those modes, an inline image,
+    a state the lexer cannot follow, content that cannot be read -- counts
+    as clipping, so nothing on the page is marked invisible."""
+    try:
+        doc = page.parent
+        streams = [b"\n".join(doc.xref_stream(xref) or b"" for xref in page.get_contents())]
+        # ``get_xobjects`` lists the page's form XObjects, nested ones
+        # included (never images).
+        streams += [doc.xref_stream(item[0]) or b"" for item in page.get_xobjects()]
+        return not all(_pdf_stream_text_modes_are_non_clipping(stream) for stream in streams)
+    except Exception:
+        return True
+
+
+def _annotate_pdf_span_paint_visibility(page, page_dict: dict) -> None:
+    """Record on every span of ``page_dict`` whether the page paints none of
+    its glyphs visibly (``paint_invisible``), read per paint occurrence from
+    the text trace.  The extraction's own span flags lose evidence: a stroke
+    over a transparent fill, and a transparent and an opaque copy of a glyph
+    at one place.  Nothing is recorded invisible on a page that clips with
+    text (the trace does not report the clip)."""
+    record = _pdf_text_paint_record(page)
+    if record is None:
+        return
+    raw = page.get_text("rawdict", flags=fitz.TEXT_PRESERVE_WHITESPACE)
+    candidates = []
+    for block, raw_block in zip(page_dict.get("blocks", []), raw.get("blocks", [])):
+        if block.get("type") != 0 or raw_block.get("type") != 0:
+            continue
+        for line, raw_line in zip(block.get("lines", []), raw_block.get("lines", [])):
+            for span, raw_span in zip(line.get("spans", []), raw_line.get("spans", [])):
+                chars = raw_span.get("chars") or []
+                if "".join(char.get("c", "") for char in chars) != span.get("text", ""):
+                    continue
+                shown = [char for char in chars if (char.get("c") or "").strip()]
+                if shown and all(_pdf_glyph_painted_invisibly(record, char) for char in shown):
+                    candidates.append(span)
+    if candidates and not _pdf_page_clips_with_text(page):
+        for span in candidates:
+            span["paint_invisible"] = True
+
+
+def _pdf_span_invisible(span: dict) -> bool:
+    """Whether the source page shows none of the span's glyphs, as recorded
+    from the text trace (``_annotate_pdf_span_paint_visibility``).  Without
+    that record a span is visible."""
+    return bool(span.get("paint_invisible"))
+
+
+def _pdf_page_is_scan_layer(page_dict: dict) -> bool:
+    """Whether invisible text is ``PDF_INVISIBLE_TEXT_SCAN_SHARE`` or more of
+    the page's non-blank span characters, counted on the spans as extracted
+    (before any merge): a scan with a text layer."""
+    total = invisible = 0
+    for block in page_dict.get("blocks", []):
+        if block.get("type") != 0:
+            continue
+        for line in block.get("lines", []):
+            for span in line.get("spans", []):
+                count = len("".join(str(span.get("text", "")).split()))
+                total += count
+                if _pdf_span_invisible(span):
+                    invisible += count
+    return bool(total) and invisible >= PDF_INVISIBLE_TEXT_SCAN_SHARE * total
+
+
+def _pdf_spans_invisible(spans: list[dict]) -> bool:
+    """Every non-blank span is invisible (and there is one)."""
+    shown = [span for span in spans if str(span.get("text", "")).strip()]
+    return bool(shown) and all(span.get("invisible") for span in shown)
 
 
 def _make_pdf_split_layout_element(
@@ -395,6 +663,8 @@ def _extract_pdf_line_record(
                 cluster_math=cluster_math,
             )
             if element:
+                if _pdf_spans_invisible(cell["cluster"]):
+                    element["source_invisible_text"] = element.get("content", "")
                 split_elements.append(element)
         return split_elements, None
 
@@ -426,6 +696,11 @@ def _extract_pdf_line_record(
         "math_reasons": list(line_math["reasons"]),
         "math_mixed": bool(line_math["mixed"]),
         "math_symbol_count": int(line_math["math_symbol_count"]),
+        "invisible_plain": (
+            "".join(span["text"] for span in span_entries)
+            if _pdf_spans_invisible(span_entries)
+            else None
+        ),
     }
 
 
@@ -606,6 +881,7 @@ def _append_pdf_grouped_line_elements(
                     table_hint=True,
                 )
                 if element:
+                    _note_pdf_invisible_lines(element, [group_line])
                     elements.append(element)
             continue
         for segment_lines in _split_pdf_heading_segments(group_lines):
@@ -614,7 +890,56 @@ def _append_pdf_grouped_line_elements(
                 page_rect,
             )
             if element:
+                _note_pdf_invisible_lines(element, segment_lines)
                 elements.append(element)
+
+
+def _note_pdf_invisible_lines(element: dict, lines: list[dict]) -> None:
+    """Note an element built only from invisible lines (each line's text is
+    still the text its spans had: no normalisation merged a visible line in).
+
+    The note is the element's text at creation; ``_mark_pdf_invisible_source``
+    honours it only while the element still holds exactly that text, so a
+    later merge with visible text cancels it.
+    """
+    if lines and all(
+        line.get("invisible_plain") is not None
+        and _collapsed_plain_text(line["invisible_plain"])
+        == _collapsed_plain_text(line.get("plain", ""))
+        for line in lines
+    ):
+        element["source_invisible_text"] = element.get("content", "")
+
+
+def _mark_pdf_invisible_source(elements: list[dict], *, scan_layer: bool) -> int:
+    """Give every element the source page does not show ``INVISIBLE_SOURCE``.
+
+    An element is invisible when it still holds exactly the text noted at its
+    creation from invisible spans only.  Not marked: an element that already
+    has a skip reason, one shaped like a distribution code (its own detector
+    decides, and removes it), and every element of a page that is a scan with
+    a text layer (``scan_layer``, decided on the spans before any merge by
+    ``_pdf_page_is_scan_layer``), where the layer is translated as before.
+    The notes are removed from every element.
+    """
+    noted = [
+        elem
+        for elem in elements
+        if elem.get("type") == ElementType.TEXT
+        and elem.get("source_invisible_text") is not None
+        and _collapsed_plain_text(elem.get("content", ""))
+        == _collapsed_plain_text(elem["source_invisible_text"])
+    ]
+    marked = 0
+    if not scan_layer:
+        for elem in noted:
+            if elem.get("skip_translate_reason") or all(_token_conditions(elem).values()):
+                continue
+            elem["skip_translate_reason"] = SkipReason.INVISIBLE_SOURCE
+            marked += 1
+    for elem in elements:
+        elem.pop("source_invisible_text", None)
+    return marked
 
 
 def _append_pdf_text_block_elements(
@@ -756,6 +1081,7 @@ def _drop_pdf_duplicate_glyph_spans(page_dict: dict) -> tuple[dict, int]:
 def _extract_pdf_text_elements(
     page,
     table_rects: list[fitz.Rect],
+    visibility: dict | None = None,
 ) -> list[dict]:
     """Extract rich text and formula elements from every text block.
 
@@ -763,13 +1089,20 @@ def _extract_pdf_text_elements(
     ``PDFPageExtractionError`` so the recovery policy preserves the exact
     source page with an audit record, instead of silently emitting a page
     with no text elements.
+
+    ``visibility``, when given, receives ``scan_layer``: the page-level
+    decision of ``_pdf_page_is_scan_layer`` on the spans as extracted, before
+    any merge, for ``_mark_pdf_invisible_source``.
     """
     elements: list[dict] = []
     page_dict = page.get_text(
         "dict",
         flags=fitz.TEXT_PRESERVE_WHITESPACE,
     )
+    _annotate_pdf_span_paint_visibility(page, page_dict)
     page_dict, duplicate_spans = _drop_pdf_duplicate_glyph_spans(page_dict)
+    if visibility is not None:
+        visibility["scan_layer"] = _pdf_page_is_scan_layer(page_dict)
     if duplicate_spans:
         log.info(
             "Page %s: dropped %s duplicate glyph span(s) stroked in place",
@@ -985,10 +1318,11 @@ def _extract_page_elements(page, doc) -> list[PdfElement]:
         page,
         table_rects,
     )
+    visibility: dict = {}
     elements = [
         *table_elements,
         *image_elements,
-        *_extract_pdf_text_elements(page, table_rects),
+        *_extract_pdf_text_elements(page, table_rects, visibility),
     ]
     elements = _merge_and_validate_pdf_page_semantics(
         page,
@@ -996,4 +1330,12 @@ def _extract_page_elements(page, doc) -> list[PdfElement]:
         table_rects,
         table_regions,
     )
-    return _enrich_pdf_page_elements(page, elements, image_rects)
+    elements = _enrich_pdf_page_elements(page, elements, image_rects)
+    _log_page_pass(
+        page,
+        _mark_pdf_invisible_source(
+            elements, scan_layer=bool(visibility.get("scan_layer"))
+        ),
+        "kept %s text element(s) the source page does not show out of translation",
+    )
+    return elements

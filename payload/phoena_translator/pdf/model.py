@@ -51,6 +51,9 @@ class SkipReason(StrEnum):
     # the rest of the page is translated.
     RENDER_ELEMENT_SOURCE = "render_element_source"
     # --- end render element confinement ---
+    # Text the source page does not show (every glyph has fill opacity 0 or
+    # neither fill nor stroke): never translated, redrawn or painted over.
+    INVISIBLE_SOURCE = "invisible_source"
 
 
 Rect = list[float]  # [x0, y0, x1, y1] in page points
@@ -146,6 +149,9 @@ class TextElement(TypedDict, total=False):
     vector_ocr: bool
     # Provenance counters written by the merge passes.
     merged_visual_line_count: int
+    # Bands a merged table cell shares with other columns (stacked-cell net);
+    # not part of the cache identity.
+    semantic_cell_row_bands: int
     strong_semantic_continuation_merged: int
     reference_entry_merged: int
 

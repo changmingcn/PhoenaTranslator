@@ -52,7 +52,7 @@ from phoena_translator.pdf.render.primitives import (
 from phoena_translator.pdf.render.source_fallbacks import (
     _append_pdf_source_page_fallback,
     _clear_pdf_figure_table_skip_reasons,
-    _drop_pdf_figure_table_audit_records,
+    _drop_pdf_partial_delivery_records,
     _exclude_pdf_audit_expectations_for_element,
     _exclude_pdf_audit_expectations_for_source_pages,
     _pdf_source_page_fallback_entry,
@@ -60,6 +60,7 @@ from phoena_translator.pdf.render.source_fallbacks import (
     _replace_pdf_pages_with_source,
 )
 from phoena_translator.pdf.semantics.cross_page import _cross_page_dominant_fontsize
+from phoena_translator.pdf.semantics.tables import pdf_stacked_table_cell
 from phoena_translator.pdf.text_shape import _collapsed_plain_text, _plain_text
 from phoena_translator.pdf.translate.deterministic_labels import (
     _translate_pdf_fixed_short_label,
@@ -67,7 +68,10 @@ from phoena_translator.pdf.translate.deterministic_labels import (
 from phoena_translator.pdf.translate.numeric_guard import (
     PDF_LABEL_NUMBERS_REASON,
     PDF_NUMERIC_ROW_REASON,
+    PDF_PROSE_NUMBERS_REASON,
     pdf_numeric_guard_failure,
+    pdf_sign_amount_failure,
+    record_pdf_delivered_prose_loss,
 )
 from phoena_translator.pdf.translate.placeholders import (
     PDF_PLACEHOLDER_LEAK_REASON,
@@ -132,6 +136,12 @@ class PDFPageAssemblyPlan:
     # table took: kept in exact source ink, their ink protected from the
     # neighbours' redaction (``_keep_failed_element_source_ink``).
     source_elements: frozenset[int] = frozenset()
+    # Elements the confinement nets (stacked cells, the sign check) keep in
+    # source on this attempt, and every element they consider: all go back to
+    # today's path when the confinement is refused after planning
+    # (``_assemble_page_with_figure_table_fallbacks``).
+    net_keeps: frozenset[int] = frozenset()
+    net_elements: frozenset[int] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -311,6 +321,7 @@ def _prepare_page(
     source_groups: tuple[FigureTableGroup, ...] = (),
     refused_seeds: set[int] | None = None,
     source_elements: dict[int, str] | None = None,
+    stacked_waived: dict[int, str] | None = None,
 ) -> PDFPageAssemblyPlan | None:
     """Resolve translations and validate formula-safe placement before redaction.
 
@@ -321,13 +332,16 @@ def _prepare_page(
     element an earlier attempt could not render (and no group took) to the
     failure: it keeps its exact source ink, and its ink is protected like a
     formula region so that no neighbour's redaction, re-typeset or drawn
-    translation touches it.
+    translation touches it.  ``stacked_waived`` maps each element the
+    confinement nets (stacked table cells, the sign check) leave to today's
+    path on this page to why.
     """
 
     if refused_seeds is None:
         refused_seeds = set()
     if source_elements is None:
         source_elements = {}
+    requested_source_elements = source_elements
     out_page = context.out_doc[page_num]
     info = context.page_extractions.get(page_num, {})
     page_trans = _page_translations(info)
@@ -365,6 +379,31 @@ def _prepare_page(
                 if merge_fallback_error is not None:
                     raise merge_fallback_error
             source_elements[index] = failure
+    # --- stacked table cells: assembly net (begin) ---
+    stacked_keeps, stacked_waivers = _stacked_table_cell_keeps(
+        context, page_num, elements, page_trans, source_elements, source_groups, stacked_waived or {}
+    )
+    stacked_snapshot = None
+    if stacked_keeps:
+        stacked_snapshot = _PageAttemptSnapshot.capture(context, page_num)
+        source_elements = dict(source_elements)
+        source_elements.update(stacked_keeps)
+    _record_stacked_table_cell_waivers(context, page_num, elements, stacked_waivers)
+
+    def _retry_without_stacked(conflicts: dict[int, str]) -> PDFPageAssemblyPlan | None:
+        # Keeping a stacked cell must never cost more than the element: this
+        # attempt is undone and the page prepared again with those cells on
+        # today's path.
+        stacked_snapshot.restore(context, page_num)
+        return _prepare_page(
+            context,
+            page_num,
+            source_groups,
+            refused_seeds,
+            requested_source_elements,
+            stacked_waived={**(stacked_waived or {}), **conflicts},
+        )
+    # --- stacked table cells: assembly net (end) ---
 
     layout = _PageLayout(
         page_num=page_num,
@@ -395,6 +434,7 @@ def _prepare_page(
         for i, elem in enumerate(elements)
         if i not in layout.watermark_indices
         and elem["type"] == ElementType.TEXT
+        and elem.get("skip_translate_reason") != SkipReason.INVISIBLE_SOURCE
         and i in page_trans
         and page_trans[i] != elem.get("content", "")
     }
@@ -416,6 +456,12 @@ def _prepare_page(
     # redacted yet, so an unplaceable element can simply keep its
     # original source ink while the rest of the page still translates.
     unplaceable = sorted(_unplaceable_indices(context, layout, page_trans, translated_indices))
+    if stacked_keeps:
+        conflicts = _stacked_table_cell_placement_conflicts(
+            elements, stacked_keeps, unplaceable, candidates, translated_indices
+        )
+        if conflicts:
+            return _retry_without_stacked(conflicts)
     if candidates and not translated_indices.difference(unplaceable):
         # Every translation candidate of the page is withdrawn, whatever
         # withdrew it (a retained figure/table group, single elements kept in
@@ -443,7 +489,9 @@ def _prepare_page(
     try:
         redraw_source_indices = _overlap_redraw_indices(
             page_num,
-            _without_kept_source_elements(elements, source_elements),
+            _without_invisible_source_elements(
+                _without_kept_source_elements(elements, source_elements)
+            ),
             set(translated_indices) | set(layout.watermark_indices) | merged_away_indices,
         )
     except PDFPageRenderError as error:
@@ -468,6 +516,18 @@ def _prepare_page(
             source_groups[-1],
             "a kept element would still be redrawn",
         )
+    if stacked_keeps:
+        conflicts = _stacked_table_cell_neighbour_conflicts(
+            elements,
+            stacked_keeps,
+            set(source_elements),
+            set(translated_indices)
+            | redraw_source_indices
+            | set(layout.watermark_indices)
+            | merged_away_indices,
+        )
+        if conflicts:
+            return _retry_without_stacked(conflicts)
     touched = set(source_elements) & (
         redraw_source_indices
         | translated_indices
@@ -499,6 +559,8 @@ def _prepare_page(
         source_groups=tuple(source_groups),
         refused_seeds=refused_seeds,
         source_elements=frozenset(source_elements),
+        net_keeps=frozenset(stacked_keeps),
+        net_elements=frozenset(stacked_keeps) | frozenset(stacked_waivers),
     )
 
 
@@ -536,7 +598,10 @@ def _assembly_net_candidates(
         elem = elements[index]
         if elem.get("type") != ElementType.TEXT:
             continue
-        if elem.get("skip_translate_reason") == SkipReason.WATERMARK:
+        if elem.get("skip_translate_reason") in {
+            SkipReason.WATERMARK,
+            SkipReason.INVISIBLE_SOURCE,
+        }:
             continue
         translation = page_trans[index]
         if not isinstance(translation, str) or translation == elem.get("content", ""):
@@ -613,6 +678,168 @@ def _assembly_accepted_merge_endpoints(context: PDFAssemblyContext) -> frozenset
         cache["accepted_merge_endpoints"] = endpoints
     return endpoints
 # --- numeric row guard: assembly net (end) ---
+
+
+# --- stacked table cells: assembly net (begin) ---
+PDF_STACKED_TABLE_CELLS_REASON = "stacked-table-cells"
+PDF_STACKED_TABLE_CELLS_RENDER_FAILURE = (
+    f"{PDF_STACKED_TABLE_CELLS_REASON}: table cells of several rows were extracted "
+    "as one element; drawn as one paragraph its values would leave their rows"
+)
+
+
+PDF_SIGN_AMOUNT_RENDER_FAILURE = (
+    f"{PDF_PROSE_NUMBERS_REASON}: a protected sign that touches an amount in the "
+    "source text has no figure near it in the translation (a proximity check)"
+)
+
+
+def _stacked_table_cell_keeps(
+    context: PDFAssemblyContext,
+    page_num: int,
+    elements: list[dict],
+    page_trans: dict[int, str],
+    source_elements: dict[int, str],
+    source_groups: tuple[FigureTableGroup, ...],
+    waived: dict[int, str],
+) -> tuple[dict[int, str], dict[int, str]]:
+    """Candidates (``_assembly_net_candidates``) the confinement nets keep in
+    their exact source ink, and those left to today's path with why.
+
+    Two nets share this path: stacked table cells (``pdf_stacked_table_cell``)
+    and translations failing the sign check (``pdf_sign_amount_failure``,
+    never checked on an accepted cross-page merge endpoint).  Keeping one
+    must never cost the page: a stacked cell on a merge endpoint (its closure
+    would fall back), or any element beyond ``ELEMENT_SOURCE_MAX_PER_PAGE``
+    kept in source on the page, stays on today's path.  The conflicts only
+    known later in the preparation (no translation left on the page, a
+    neighbour without a place, neighbour redaction) are waived by
+    ``_prepare_page`` itself, a refusal after planning by
+    ``_assemble_page_with_figure_table_fallbacks``.
+    """
+    merge_endpoints = None  # looked up only for an element a net takes
+    keeps: dict[int, str] = {}
+    waivers: dict[int, str] = {}
+    for index in _assembly_net_candidates(elements, page_trans, source_elements, source_groups):
+        elem = elements[index]
+        if pdf_stacked_table_cell(elem):
+            failure = PDF_STACKED_TABLE_CELLS_RENDER_FAILURE
+        elif pdf_sign_amount_failure(
+            elem, elem.get("rich_content") or elem.get("content", ""), page_trans[index]
+        ):
+            failure = PDF_SIGN_AMOUNT_RENDER_FAILURE
+        else:
+            continue
+        if merge_endpoints is None:
+            merge_endpoints = _assembly_accepted_merge_endpoints(context)
+        endpoint = (page_num + 1, index) in merge_endpoints
+        if endpoint and failure == PDF_SIGN_AMOUNT_RENDER_FAILURE:
+            continue  # a merge endpoint is never checked
+        if index in waived:
+            waivers[index] = waived[index]
+        elif endpoint:
+            waivers[index] = "accepted cross-page merge endpoint"
+        else:
+            keeps[index] = failure
+    room = max(ELEMENT_SOURCE_MAX_PER_PAGE - len(source_elements), 0)
+    for index in sorted(keeps)[room:]:
+        waivers[index] = (
+            f"{ELEMENT_SOURCE_MAX_PER_PAGE} element(s) kept in source on the page"
+        )
+        keeps.pop(index)
+    return keeps, waivers
+
+
+def _record_stacked_table_cell_waivers(
+    context: PDFAssemblyContext, page_num: int, elements: list[dict], waivers: dict[int, str]
+) -> None:
+    """Record each element left to today's path (drawn as the live release
+    draws it): a stacked cell in ``stacked_table_cell_waivers``, a sign-check
+    failure once in ``delivered_element_warnings``."""
+    for index, why in sorted(waivers.items()):
+        if not pdf_stacked_table_cell(elements[index]):
+            record_pdf_delivered_prose_loss(
+                context.pdf_audit,
+                page_num + 1,
+                index,
+                "render",
+                source_text=elements[index].get("content", ""),
+                why=why,
+            )
+            context.logger.warning(
+                f"[{context.task_id}] Page {page_num + 1} elem {index}: translation "
+                f"has a protected sign with no figure near it (proximity check); drawn "
+                f"all the same ({why})"
+            )
+            continue
+        context.pdf_audit.setdefault("stacked_table_cell_waivers", []).append(
+            {"page": page_num + 1, "element": int(index), "reason": str(why)[:200]}
+        )
+        context.logger.warning(
+            f"[{context.task_id}] Page {page_num + 1} elem {index}: stacked table "
+            f"cells left on today's path ({why})"
+        )
+
+
+def _padded_ink_rects(elem: dict) -> list[fitz.Rect]:
+    padding = PDF_FORMULA_GUARD_PADDING
+    return [
+        fitz.Rect(rect.x0 - padding, rect.y0 - padding, rect.x1 + padding, rect.y1 + padding)
+        for rect in _kept_source_ink_rects(elem)
+    ]
+
+
+def _stacked_table_cell_placement_conflicts(
+    elements: list[dict],
+    stacked_keeps: dict[int, str],
+    unplaceable: list[int],
+    candidates: set[int],
+    translated_indices: set[int],
+) -> dict[int, str]:
+    """Stacked cells whose keeping would cost more than themselves at
+    placement: a neighbour left without a formula-safe place over their ink,
+    or no translation left to draw on the page."""
+    if candidates and not translated_indices.difference(unplaceable):
+        return {
+            index: "no other translation would be left on the page"
+            for index in stacked_keeps
+        }
+    conflicts = {}
+    for index in stacked_keeps:
+        guards = _padded_ink_rects(elements[index])
+        for other in unplaceable:
+            if any(_get_pdf_elem_rect(elements[other]).intersects(guard) for guard in guards):
+                conflicts[index] = f"neighbour elem {other} would lose its place"
+                break
+    return conflicts
+
+
+def _stacked_table_cell_neighbour_conflicts(
+    elements: list[dict],
+    stacked_keeps: dict[int, str],
+    kept: set[int],
+    removed: set[int],
+) -> dict[int, str]:
+    """Stacked cells whose padded ink a removed neighbour's ink touches.
+
+    ``_check_kept_source_neighbours`` would refuse the page for such a
+    neighbour (or must read the redacted page to accept it); left on
+    today's path, the cell costs nothing."""
+    conflicts = {}
+    for index in stacked_keeps:
+        guards = _padded_ink_rects(elements[index])
+        for other in sorted(removed - kept):
+            if not 0 <= other < len(elements):
+                continue
+            if any(
+                rect.intersects(guard)
+                for rect in _kept_source_ink_rects(elements[other])
+                for guard in guards
+            ):
+                conflicts[index] = f"neighbour elem {other} is redacted next to its ink"
+                break
+    return conflicts
+# --- stacked table cells: assembly net (end) ---
 
 
 def _page_translations(info: PageExtraction) -> dict[int, str] | None:
@@ -834,6 +1061,27 @@ def _without_kept_source_elements(
     return [
         dict(elem, type="kept_source") if index in source_elements else elem
         for index, elem in enumerate(elements)
+    ]
+
+
+def _without_invisible_source_elements(elements: list[dict]) -> list[dict]:
+    """The page's elements with the text the source does not show hidden from
+    the overlap-redraw search.
+
+    Such an element is never translated, so it seeds no removal; hidden here
+    it is never redrawn either (a redraw would paint it visibly, its opacity
+    lost), and as it is in no removal set its box is never painted white.  A
+    neighbour's redaction may erase its glyphs: nothing visible is lost.
+    """
+    if not any(
+        elem.get("skip_translate_reason") == SkipReason.INVISIBLE_SOURCE for elem in elements
+    ):
+        return elements
+    return [
+        dict(elem, type="invisible_source")
+        if elem.get("skip_translate_reason") == SkipReason.INVISIBLE_SOURCE
+        else elem
+        for elem in elements
     ]
 
 
@@ -1935,14 +2183,20 @@ def _assemble_page(
     source_groups: tuple[FigureTableGroup, ...] = (),
     refused_seeds: set[int] | None = None,
     source_elements: dict[int, str] | None = None,
+    net_waived: dict[int, str] | None = None,
 ) -> None:
-    """Assemble one output page and checkpoint HTML-box work when configured."""
+    """Assemble one output page and checkpoint HTML-box work when configured.
+
+    ``net_waived``: elements the confinement nets leave to today's path
+    (``_prepare_page``'s ``stacked_waived``)."""
 
     total_pages = context.total_pages
     pdf_password = context.pdf_password
     assembly_work_path = context.assembly_work_path
     out_doc = context.out_doc
-    plan = _prepare_page(context, page_num, source_groups, refused_seeds, source_elements)
+    plan = _prepare_page(
+        context, page_num, source_groups, refused_seeds, source_elements, net_waived
+    )
     if plan is None:
         return
     render_indices = plan.render_indices
@@ -1952,9 +2206,15 @@ def _assemble_page(
     # footnote separator rules) beats painting white boxes: nothing is
     # covered, and copy/search on the output no longer hits the hidden
     # source-language layer. Whiteout remains as the fallback.
-    css = _redact_page(context, plan)
-    if plan.source_elements:
-        _check_kept_source_neighbours(context, plan)
+    try:
+        css = _redact_page(context, plan)
+        if plan.source_elements:
+            _check_kept_source_neighbours(context, plan)
+    except PDFPageRenderError as error:
+        if getattr(error, "element_source_refused", False) and plan.net_keeps:
+            # The confinement nets' keeps go back to today's path first.
+            error.net_elements = plan.net_elements
+        raise
 
     for i in sorted(render_indices):
         try:
@@ -2221,8 +2481,11 @@ def _assemble_page_with_figure_table_fallbacks(
     retries: each accepted group has a seed never grouped before on the
     page, at most ``max_groups_per_page`` held at once, and a group dropped
     by the safety net bars its seed), and each element retry keeps one more
-    element, at most ``ELEMENT_SOURCE_MAX_PER_PAGE``; so at most
-    ``2 * max_groups_per_page + ELEMENT_SOURCE_MAX_PER_PAGE + 1`` attempts.
+    element, at most ``ELEMENT_SOURCE_MAX_PER_PAGE``.  A refusal of the
+    confinement after planning while the confinement nets keep elements
+    (stacked cells, the sign check) puts every element they consider back
+    on today's path, once; so at most
+    ``2 * max_groups_per_page + ELEMENT_SOURCE_MAX_PER_PAGE + 2`` attempts.
     On exhaustion, and for any failure that is not narrowed, the page's
     state is restored to before the first attempt (when an attempt was
     discarded) and the page error is raised, so the page-level fallback
@@ -2235,18 +2498,22 @@ def _assemble_page_with_figure_table_fallbacks(
     groups: list[FigureTableGroup] = []
     refused: set[int] = set()
     confined: dict[int, str] = {}
+    net_waived: dict[int, str] = {}
     discarded = False  # whether an attempt was thrown away (state to restore)
     max_group_retries = 2 * FIGURE_TABLE_RULES.max_groups_per_page
     group_retries = 0
     last_error: PDFPageRenderError | None = None
     # Defence in depth: every retry above grows a bounded set, so this hard
     # ceiling is never reached by a correct page.
-    for _attempt in range(max_group_retries + ELEMENT_SOURCE_MAX_PER_PAGE + 1):
+    for _attempt in range(max_group_retries + ELEMENT_SOURCE_MAX_PER_PAGE + 2):
         try:
+            waived = {"net_waived": dict(net_waived)} if net_waived else {}
             if confined:
-                _assemble_page(context, page_num, tuple(groups), refused, dict(confined))
+                _assemble_page(
+                    context, page_num, tuple(groups), refused, dict(confined), **waived
+                )
             else:
-                _assemble_page(context, page_num, tuple(groups), refused)
+                _assemble_page(context, page_num, tuple(groups), refused, **waived)
             return
         except PDFPageRenderError as error:
             last_error = error
@@ -2271,6 +2538,14 @@ def _assemble_page_with_figure_table_fallbacks(
                     f"elem {group.trigger_element}: {group.trigger} inside a "
                     f"figure/table ({group.kind}); reassembling the page with its "
                     f"{len(group.members)} element(s) kept in exact source ink"
+                )
+            elif set(getattr(error, "net_elements", ())) - set(net_waived):
+                net_waived.update(
+                    {index: f"keeping it in source was refused ({error})" for index in error.net_elements}
+                )
+                message = (
+                    f"keeping elements in source was refused ({error}); reassembling the "
+                    "page with the stacked cells and sign-check failures on today's path"
                 )
             else:
                 index = _confinable_element(context, page_num, error, groups, confined)
@@ -2387,9 +2662,9 @@ def _continue_assembly_with_source_pages(
         context.pdf_audit,
         new_pages,
     )
-    # A page narrowed earlier in this pass and now pulled back to source
-    # through an accepted merge keeps no narrowing record or state.
-    _drop_pdf_figure_table_audit_records(context.pdf_audit, new_pages)
+    # A page now delivered as its source page keeps no partial-delivery
+    # record (any stage) and no narrowing state.
+    _drop_pdf_partial_delivery_records(context.pdf_audit, new_pages)
     _clear_pdf_figure_table_skip_reasons(context.page_extractions, new_pages)
     context.pdf_audit.setdefault(
         "inline_render_source_page_fallbacks",

@@ -28,7 +28,11 @@ from phoena_translator.pdf.translate.inline_markup import (
     _pdf_inline_markup_preserved,
     _pdf_inline_math_fragments_preserved,
 )
-from phoena_translator.pdf.translate.numeric_guard import pdf_numeric_guard_failure
+from phoena_translator.pdf.translate.numeric_guard import (
+    PDF_PROSE_NUMBERS_REASON,
+    pdf_numeric_guard_failure,
+    pdf_sign_amount_failure,
+)
 from phoena_translator.pdf.translate.placeholders import (
     PDF_PLACEHOLDER_LEAK_REASON,
     pdf_internal_placeholder_leaks,
@@ -624,6 +628,7 @@ def _validate_pdf_page_translations(
     page_number: int,
     elements: list[dict],
     translations: dict,
+    sign_exempt=None,
     *,
     allow_missing: bool = False,
     reject_placeholder_leaks: bool = True,
@@ -645,8 +650,15 @@ def _validate_pdf_page_translations(
 
     The same holds for a translation that loses or moves the numbers of a
     numeric row, or puts numbers into a digit-free label
-    (``pdf_numeric_guard_failure``, reason named by the condition); the cache
-    rebind passes ``reject_numeric_flaws=False`` for the same reason.
+    (``pdf_numeric_guard_failure``, reason named by the condition), and for
+    one that keeps a protected sign touching an amount in the source with no
+    figure near it (``pdf_sign_amount_failure``, ``PDF_PROSE_NUMBERS_REASON``,
+    a proximity check: it does not establish that the amount survived); the
+    cache rebind passes ``reject_numeric_flaws=False`` for the same reason.
+    The sign check runs only where the caller knows the page's accepted
+    merge endpoints: ``sign_exempt`` holds them (an endpoint is never
+    checked) and the elements whose failing translation the page keeps;
+    ``None`` (the page translator itself) leaves the check to the stage.
     """
     normalized = {str(key): value for key, value in (translations or {}).items()}
     issues = []
@@ -674,6 +686,14 @@ def _validate_pdf_page_translations(
             continue
         if not _pdf_inline_markup_preserved(source, candidate):
             issues.append({"element": elem_index + 1, "reason": "inline-markup-mismatch"})
+            continue
+        if (
+            reject_numeric_flaws
+            and sign_exempt is not None
+            and elem_index not in sign_exempt
+            and pdf_sign_amount_failure(elem, source, candidate)
+        ):
+            issues.append({"element": elem_index + 1, "reason": PDF_PROSE_NUMBERS_REASON})
     if issues:
         raise PDFTranslationIntegrityError(page_number, issues, translations)
 

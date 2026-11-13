@@ -74,6 +74,12 @@ def _cell(x, y, content, width=40.0, **extra):
     return _text([x, y, x + width, y + 6], content, fontsize=5.0, **extra)
 
 
+def _keeping_numbers(translation, source):
+    """A synthetic translation that keeps its source's numbers (a translation
+    that drops one is withheld by the prose number condition)."""
+    return " ".join([translation, *re.findall(r"\d+", source)])
+
+
 def _figure(y, title="Figure 3: A detailed snapshot of AI exposures", cells=4):
     """A captioned small-type table the table finder did not recognise."""
     elements = [_text([72, y, 400, y + 9], title, fontsize=9.0, layout_class="scattered")]
@@ -288,7 +294,7 @@ def test_two_failing_figures_on_one_page_are_each_narrowed(tmp_path, font_path, 
     second = _figure(300, title="Figure 4: Hyperscaler holders")
     elements = [_body(80), *first, *second, _body(450)]
     translations = {
-        index: f"译文{index}"
+        index: _keeping_numbers(f"译文{index}", elem["content"])
         for index, elem in enumerate(elements)
         if elem["type"] == ElementType.TEXT
     }
@@ -1234,8 +1240,9 @@ def test_structure_fallback_drops_the_narrowing_of_its_page(tmp_path):
 
     assert [entry["page"] for entry in audit["source_page_fallbacks"]] == [1]
     assert "figure_table_source_fallbacks" not in audit
-    # The baseline's own element entries are left as 7fb1aa1 leaves them.
-    assert audit["element_source_fallbacks"] == [{"page": 1, "element": 3, "stage": "render"}]
+    # B5/F4: a source page keeps no element record of any stage (this
+    # replaced the 7fb1aa1 baseline, which kept the ``render`` entry).
+    assert audit["element_source_fallbacks"] == []
     assert "skip_translate_reason" not in elements[0]
     with fitz.open(str(out_path)) as output:
         assert "SOURCE" in output[0].get_text()
@@ -1251,7 +1258,10 @@ def test_dominant_type_size_is_computed_once_per_assembly(tmp_path, font_path, m
     second = _figure(300, title="Figure 4: Hyperscaler holders")
     first[1] = _cell(72, 164, LONG_CELL, width=24.0, layout_class="scattered")
     elements = [_body(80), *first, *second, _body(450)]
-    translations = {index: f"译文{index}" for index in (0, 1, 3, 7, 9, 13)}
+    translations = {
+        index: _keeping_numbers(f"译文{index}", elements[index]["content"])
+        for index in (0, 1, 3, 7, 9, 13)
+    }
     translations[2] = ZH * 4
     document = Document(tmp_path, font_path, [(elements, translations)])
     calls = []
@@ -1926,7 +1936,8 @@ def test_page_failure_without_any_narrowing_keeps_the_baseline_records(
 ):
     # Codex round-3 NO_GROUP_THEN_PAGE (refuter RX): an element restore with
     # no group, then a body paragraph fails the page.  As at 7fb1aa1, the
-    # failed attempt's restore record, skip reason and placement event stay.
+    # failed attempt's skip reason and placement event stay; its restore
+    # record goes with the page (B5/F4: a source page keeps no element record).
     elements = [
         _body(100),
         _text([440, 300, 560, 306], "Analyst John Doe, CFA", fontsize=6, layout_class="scattered"),
@@ -1949,10 +1960,7 @@ def test_page_failure_without_any_narrowing_keeps_the_baseline_records(
     document.assemble()
 
     assert document.fallback_pages() == [1]
-    assert [
-        (entry["page"], entry["element"], entry["stage"])
-        for entry in document.audit["element_source_fallbacks"]
-    ] == [(1, 1, "render")]
+    assert document.audit["element_source_fallbacks"] == []
     assert elements[1]["skip_translate_reason"] == SkipReason.RENDER_SOURCE_RESTORE
     assert [event["element"] for event in document.audit["htmlbox_placement_events"]] == [0]
 

@@ -33,11 +33,12 @@ from phoena_translator.pdf.render.primitives import _compact_pdf_file_in_place
 from phoena_translator.pdf.render.source_fallbacks import (
     _append_pdf_source_page_fallback,
     _clear_pdf_figure_table_skip_reasons,
-    _drop_pdf_figure_table_audit_records,
+    _drop_pdf_partial_delivery_records,
     _exclude_pdf_audit_expectations_for_source_pages,
     _pdf_source_page_fallback_entry,
     _replace_pdf_pages_with_source,
 )
+from phoena_translator.pdf.translate.numeric_guard import PDF_DELIVERED_ELEMENT_WARNINGS
 from phoena_translator.pdf.verify.merges import (
     _expand_pdf_fallback_pages_for_accepted_merges,
 )
@@ -574,7 +575,7 @@ def _apply_structure_fallbacks(context: PDFOutputStageContext) -> None:
             candidate_audit,
             new_pages,
         )
-        _drop_pdf_figure_table_audit_records(candidate_audit, new_pages)
+        _drop_pdf_partial_delivery_records(candidate_audit, new_pages)
         # The output file is the transaction boundary: do not claim a source
         # fallback in the audit until the atomic page replacement succeeds.
         _replace_pdf_pages_with_source(
@@ -663,6 +664,18 @@ def finalize_output(
                     ]
                 }
                 if completed_audit.get("delivered_local_warnings")
+                else {}
+            ),
+            # Translations drawn although they fail the sign check (keeping
+            # their source would cost more than the element; only when there
+            # is one, so other records keep their exact shape).
+            **(
+                {
+                    PDF_DELIVERED_ELEMENT_WARNINGS: completed_audit[
+                        PDF_DELIVERED_ELEMENT_WARNINGS
+                    ]
+                }
+                if completed_audit.get(PDF_DELIVERED_ELEMENT_WARNINGS)
                 else {}
             ),
         },

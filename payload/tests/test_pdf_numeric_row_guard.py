@@ -565,6 +565,11 @@ def _signed_row(label, spelling):
     return " ".join([label, *(spelling.format(v=value) for value in ROW_VALUES)])
 
 
+def _kept_unit(spelling):
+    """What a negative keeps of its spelling: a percent sign."""
+    return "%" if "%" in spelling else ""
+
+
 def _partners(index):
     """Two other spellings of the same value (a percent value pairs with
     percent spellings: a percent sign may be added, never dropped)."""
@@ -583,8 +588,7 @@ def test_every_spelling_of_one_negative_is_that_value_and_one_data_token(spellin
         _numeric_view,
     )
 
-    percent = "%" if "%" in spelling else ""
-    expected = [f"-{value}{percent}" for value in ROW_VALUES]
+    expected = [f"-{value}{_kept_unit(spelling)}" for value in ROW_VALUES]
     for label in ("Net profit", "净利润"):
         assert pdf_numbers(_signed_row(label, spelling)) == expected
     tokens = _counted_tokens(_numeric_view(spelling.format(v="1.2")))
@@ -781,3 +785,201 @@ def test_the_merge_endpoint_lookup_is_computed_once_per_assembly(tmp_path, font_
     assert len(_kept_records(document)) == 6
     # One pass over the merge list for six withdrawn rows, not one per row.
     assert flawed.passes - clean.passes == 1
+
+
+# ---------------------------------------------------------------------------
+# Review leftovers F1 and F3 (B5), each as a class.
+# ---------------------------------------------------------------------------
+# F1, the class: a sign never decides whether a token is data.  Every operand
+# of a range or ratio may be a signed value (any separator, either or both
+# operands, every minus spelling, accounting parentheses, a currency, a unit
+# or percent sign); each negative token is data exactly as its positive
+# counterpart is, and its row is checked.
+SIGNED_OPERANDS = [
+    ("1.2/-2.3", "1.2/2.3", ["1.2", "-2.3"]),
+    ("1.2:-2.3", "1.2:2.3", ["1.2", "-2.3"]),
+    ("1.2–-2.3", "1.2–2.3", ["1.2", "-2.3"]),
+    ("1.2--2.3", "1.2-2.3", ["1.2", "-2.3"]),
+    ("-1.2/-2.3", "1.2/2.3", ["-1.2", "-2.3"]),
+    ("-1.2/2.3", "1.2/2.3", ["-1.2", "2.3"]),
+    ("1.2/−2.3", "1.2/2.3", ["1.2", "-2.3"]),
+    ("1.2/–2.3", "1.2/2.3", ["1.2", "-2.3"]),
+    ("1.2/(2.3)", "1.2/2.3", ["1.2", "-2.3"]),
+    ("(1.2)/(2.3)", "1.2/2.3", ["-1.2", "-2.3"]),
+    ("$1.2/-$2.3", "$1.2/$2.3", ["1.2", "-2.3"]),
+    ("1.2x/-2.3x", "1.2x/2.3x", ["1.2", "-2.3"]),
+    ("-1.2%/-2.3%", "1.2%/2.3%", ["-1.2%", "-2.3%"]),
+    ("1.2bp/-2.3bp", "1.2bp/2.3bp", ["1.2", "-2.3"]),
+    ("1.2/-2.3%", "1.2/2.3%", ["1.2", "-2.3%"]),
+    ("1.2/-2.3/-3.4", "1.2/2.3/3.4", ["1.2", "-2.3", "-3.4"]),
+]
+SIGNED_OPERAND_IDS = [negative for negative, _positive, _values in SIGNED_OPERANDS]
+
+
+def _operand_row(label, token):
+    return f"{label} {token} 24.6 48.9"
+
+
+@pytest.mark.parametrize(("negative", "positive", "values"), SIGNED_OPERANDS, ids=SIGNED_OPERAND_IDS)
+def test_f1_a_signed_operand_keeps_its_token_data_and_its_row_checked(negative, positive, values):
+    from phoena_translator.pdf.translate.numeric_guard import (
+        _counted_tokens,
+        _is_data_token,
+        _numeric_view,
+    )
+
+    for token in (negative, positive):
+        (counted,) = _counted_tokens(_numeric_view(token))
+        assert _is_data_token(counted), (token, counted)
+        assert pdf_text_is_numeric_dominant(_operand_row("Net profit", token)), token
+    assert pdf_numbers(_operand_row("Net profit", negative)) == [*values, "24.6", "48.9"]
+
+
+@pytest.mark.parametrize(("negative", "positive", "_values"), SIGNED_OPERANDS, ids=SIGNED_OPERAND_IDS)
+def test_f1_a_signed_operand_turned_positive_fails_both_ways(negative, positive, _values):
+    assert pdf_numeric_guard_failure(
+        _operand_row("Net profit", negative), _operand_row("净利润", positive)
+    ) == PDF_NUMERIC_ROW_REASON
+    assert pdf_numeric_guard_failure(
+        _operand_row("Net profit", positive), _operand_row("净利润", negative)
+    ) == PDF_NUMERIC_ROW_REASON
+    assert pdf_numeric_guard_failure(
+        _operand_row("Net profit", negative), _operand_row("净利润", negative)
+    ) is None
+
+
+@pytest.mark.parametrize(
+    "token",
+    ["3-in-1", "A1/B2", "1.2/abc", "abc/1.2", "x-1.2", "4NC3"],
+)
+def test_f1_a_token_with_a_word_operand_stays_text(token):
+    from phoena_translator.pdf.translate.numeric_guard import (
+        _counted_tokens,
+        _is_data_token,
+        _numeric_view,
+    )
+
+    (counted,) = _counted_tokens(_numeric_view(token))
+    assert not _is_data_token(counted)
+
+
+# F3, the class: a negative stays negative whatever stands between its sign or
+# accounting parentheses and its digits (a letter-prefixed or ISO currency
+# before the parentheses or before or after the sign; spaces after a
+# currency; several spaces or a tab after a minus; a space before a percent
+# sign inside parentheses; a figure or em dash).  Parentheses that hold a
+# letter read as the live release reads them (R-9d,
+# ``test_pdf_numeric_units_currency.py``).  Each spelling is that negative value and
+# one data token; its positive counterpart is one data token too.
+MORE_NEGATIVES = [
+    ("-US${v}", "US${v}"),
+    ("US$-{v}", "US${v}"),
+    ("US$({v})", "US${v}"),
+    ("HK$ ({v})", "HK${v}"),
+    ("($ {v})", "${v}"),
+    ("( $ {v} )", "${v}"),
+    ("(€ {v})", "€{v}"),
+    ("-€ {v}", "€{v}"),
+    ("−$ {v}", "${v}"),
+    ("-US$ {v}", "US${v}"),
+    ("-EUR {v}", "EUR{v}"),
+    ("EUR -{v}", "EUR{v}"),
+    ("-RMB{v}", "RMB{v}"),
+    ("RMB-{v}", "RMB{v}"),
+    ("RMB({v})", "RMB{v}"),
+    ("-\t{v}", "{v}"),
+    ("-  {v}", "{v}"),
+    ("−  {v}", "{v}"),
+    ("- \t${v}", "${v}"),
+    ("({v} %)", "{v}%"),
+    ("‒{v}", "{v}"),
+    ("—{v}", "{v}"),
+]
+MORE_NEGATIVE_IDS = [spelling.format(v="v") for spelling, _ in MORE_NEGATIVES]
+# Every spelling of the old matrix and the new one, without percent signs: a
+# value written in any of them passes against any other, both ways.
+# A spelling with a letter inside its parentheses (``({v}bn)``) puts its pair
+# under the live release's reading (R-9d): it is no partner of the new ones.
+_LETTERED = re.compile(r"\([^()]*[A-Za-z][^()]*\)")
+_PLAIN_FAMILY = [
+    s for s, _ in SINGLE_NEGATIVES + MORE_NEGATIVES if "%" not in s and not _LETTERED.search(s)
+]
+_PERCENT_FAMILY = [s for s, _ in SINGLE_NEGATIVES + MORE_NEGATIVES if "%" in s]
+
+
+@pytest.mark.parametrize(("spelling", "positive"), MORE_NEGATIVES, ids=MORE_NEGATIVE_IDS)
+def test_f3_every_spelling_of_one_negative_is_that_value_and_one_data_token(spelling, positive):
+    from phoena_translator.pdf.translate.numeric_guard import (
+        _counted_tokens,
+        _is_data_token,
+        _numeric_view,
+    )
+
+    percent = "%" if "%" in spelling else ""
+    expected = [f"-{value}{_kept_unit(spelling)}" for value in ROW_VALUES]
+    for label in ("Net profit", "净利润"):
+        assert pdf_numbers(_signed_row(label, spelling)) == expected
+    for written in (spelling, positive):
+        tokens = _counted_tokens(_numeric_view(written.format(v="1.2")))
+        assert len(tokens) == 1 and _is_data_token(tokens[0]), (written, tokens)
+    assert pdf_numbers(_signed_row("Net profit", positive)) == [
+        f"{value}{percent}" for value in ROW_VALUES
+    ]
+    assert pdf_text_is_numeric_dominant(_signed_row("Net profit", spelling))
+    assert pdf_text_is_numeric_dominant(_signed_row("Net profit", positive))
+
+
+@pytest.mark.parametrize(("spelling", "positive"), MORE_NEGATIVES, ids=MORE_NEGATIVE_IDS)
+def test_f3_a_negative_turned_positive_fails_both_ways(spelling, positive):
+    assert pdf_numeric_guard_failure(
+        _signed_row("Net profit", spelling), _signed_row("净利润", positive)
+    ) == PDF_NUMERIC_ROW_REASON
+    assert pdf_numeric_guard_failure(
+        _signed_row("Net profit", positive), _signed_row("净利润", spelling)
+    ) == PDF_NUMERIC_ROW_REASON
+
+
+@pytest.mark.parametrize(("spelling", "_positive"), MORE_NEGATIVES, ids=MORE_NEGATIVE_IDS)
+def test_f3_every_equivalent_spelling_passes_both_ways(spelling, _positive):
+    family = _PERCENT_FAMILY if "%" in spelling else _PLAIN_FAMILY
+    for partner in family:
+        assert pdf_numeric_guard_failure(
+            _signed_row("Net profit", spelling), _signed_row("净利润", partner)
+        ) is None, (spelling, partner)
+        assert pdf_numeric_guard_failure(
+            _signed_row("Net profit", partner), _signed_row("净利润", spelling)
+        ) is None, (partner, spelling)
+
+
+@pytest.mark.parametrize(("spelling", "_positive"), MORE_NEGATIVES, ids=MORE_NEGATIVE_IDS)
+def test_f3_a_pair_with_a_lettered_spelling_gets_the_live_verdict(spelling, _positive):
+    """``(1.2bn)`` on one side: the pair is read as the live release reads it,
+    which knows a plain minus and none of the new spellings."""
+    lettered = _signed_row("Net profit", "({v}bn)")
+    assert pdf_numeric_guard_failure(lettered, _signed_row("净利润", "-{v}")) is None
+    live_spellings = ("-{v}", "- {v}", "-${v}", "$-{v}", "US$-{v}", "EUR -{v}")
+    expected = None if spelling in live_spellings else PDF_NUMERIC_ROW_REASON
+    if "%" not in spelling and not spelling.startswith(("(", "US$(", "HK$ (", "RMB(")):
+        assert pdf_numeric_guard_failure(lettered, _signed_row("净利润", spelling)) == expected
+
+
+@pytest.mark.parametrize(
+    "text, numbers",
+    [
+        # A spaced en or em dash is a range, however many spaces.
+        ("Range 1.5 – 2.5 and 1.5  –  2.5", ["1.5", "2.5", "1.5", "2.5"]),
+        ("Range 1.5 — 2.5 and 2025—26", ["1.5", "2.5", "2025", "26"]),
+        ("Range 1.5‒2.5 and 2025-26", ["1.5", "2.5", "2025", "26"]),
+        # A dash after a letter or code is part of the code.
+        ("Code ABC-1.2 and Baa-2", ["1.2", "2"]),
+        # Letters that are not a currency leave parentheses grouping.
+        ("Note (EURO 1.2) (FY 2.3) (usd 3.4) (Q1 4.5)", ["1.2", "2.3", "3.4", "4.5"]),
+        # Two numbers inside parentheses are grouping; a word inside them
+        # leaves them grouping as in the live release (R-9d).
+        ("Note (1.2 bn and 2.3) (1.2 bnx)", ["1.2", "2.3", "1.2"]),
+    ],
+    ids=["spaced-dash-range", "em-dash-range", "figure-dash-between-digits", "codes",
+         "non-currency-letters", "words-inside"],
+)
+def test_f3_ranges_codes_and_grouping_stay_unsigned(text, numbers):
+    assert pdf_numbers(text) == numbers

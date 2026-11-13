@@ -14,6 +14,7 @@ import fitz
 
 from phoena_translator.pdf.model import PageExtraction, PdfAudit, SkipReason
 from phoena_translator.pdf.text_shape import _collapsed_plain_text
+from phoena_translator.pdf.translate.numeric_guard import PDF_DELIVERED_ELEMENT_WARNINGS
 
 log = logging.getLogger("translator")
 
@@ -85,8 +86,19 @@ def _record_pdf_element_source_fallback(
 
     This is the element-granular sibling of ``source_page_fallbacks``: the page
     itself still translates and assembles normally, only this element's original
-    ink (or restored source text) is delivered untranslated.
+    ink (or restored source text) is delivered untranslated.  A delivered
+    warning of the element goes: its translation is no longer delivered.
     """
+    warnings = [
+        warning
+        for warning in audit.get(PDF_DELIVERED_ELEMENT_WARNINGS) or []
+        if (int(warning.get("page", 0) or 0), int(warning.get("element", -1)))
+        != (int(page_number), int(element_index))
+    ]
+    if warnings:
+        audit[PDF_DELIVERED_ELEMENT_WARNINGS] = warnings
+    else:
+        audit.pop(PDF_DELIVERED_ELEMENT_WARNINGS, None)
     entry = {
         "page": int(page_number),
         "element": int(element_index),
@@ -127,43 +139,49 @@ def _exclude_pdf_audit_expectations_for_element(
             audit[key] = retained
 
 
-def _drop_pdf_figure_table_audit_records(
+def _drop_pdf_partial_delivery_records(
     audit: PdfAudit,
     page_numbers: set[int] | list[int],
 ) -> None:
-    """Forget figure/table narrowing on pages now delivered as source pages.
+    """Forget every partial-delivery record of pages now delivered whole as
+    their source pages.
 
-    Only the narrowing's own records go: its ``figure_table_source_fallbacks``
-    entries, its ``render-figure-table`` element entries, and the entries of
-    single elements kept in source ink after a render failure
-    (``source_ink_kept``).  Other element entries for those pages are left as
-    they are.
+    A page delivered as its exact source page delivers nothing partially, so
+    the decision is by page, never by stage: every element-level record of
+    such a page (``element_source_fallbacks``, whichever stage wrote it:
+    ``translation``, ``render``, ``render-preflight``,
+    ``render-figure-table``), every group-level record
+    (``figure_table_source_fallbacks``), every stacked-cell waiver
+    (``stacked_table_cell_waivers``: a cell drawn as one block) and every
+    delivered element warning (``delivered_element_warnings``: a translation
+    drawn although it fails the sign check) goes.
+    Records of pages that still deliver a translation stay.
     """
     pages = {int(page) for page in page_numbers if int(page) > 0}
     if not pages:
         return
-    if "figure_table_source_fallbacks" in audit:
+    # These keys exist only while they hold an entry, as before.
+    for key in (
+        "figure_table_source_fallbacks",
+        "stacked_table_cell_waivers",
+        PDF_DELIVERED_ELEMENT_WARNINGS,
+    ):
+        if key not in audit:
+            continue
         kept = [
             entry
-            for entry in audit.get("figure_table_source_fallbacks") or []
+            for entry in audit.get(key) or []
             if int(entry.get("page", 0) or 0) not in pages
         ]
         if kept:
-            audit["figure_table_source_fallbacks"] = kept
+            audit[key] = kept
         else:
-            # The key exists only while something was narrowed, as before.
-            del audit["figure_table_source_fallbacks"]
+            del audit[key]
     if "element_source_fallbacks" in audit:
         audit["element_source_fallbacks"] = [
             entry
             for entry in audit.get("element_source_fallbacks") or []
-            if not (
-                int(entry.get("page", 0) or 0) in pages
-                and (
-                    entry.get("stage") == "render-figure-table"
-                    or entry.get("source_ink_kept")
-                )
-            )
+            if int(entry.get("page", 0) or 0) not in pages
         ]
 
 
