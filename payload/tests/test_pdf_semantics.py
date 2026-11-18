@@ -622,6 +622,232 @@ class TestWatermarkKeywordCorroboration:
             )
 
 
+class TestWatermarkStampedAtSeveralPlaces:
+    """One per-copy watermark printed at several places on a page: a faint
+    stamp across the body plus a footer line with the same text."""
+
+    STAMP_TEXT = "reader.name@ example.com"  # synthetic
+    GRAY = 0x808080
+    PORTRAIT = (595.0, 842.0)
+    LANDSCAPE = (842.0, 595.0)
+    STAMP_BOX = [217.0, 177.0, 462.0, 421.0]
+    FOOTER_BOX = [177.0, 797.0, 308.0, 811.0]
+
+    @classmethod
+    def _copy(cls, bbox, fontsize, color=None, content=None):
+        return {
+            "type": "text",
+            "content": cls.STAMP_TEXT if content is None else content,
+            "bbox": list(bbox),
+            "color": cls.GRAY if color is None else color,
+            "fontsize": fontsize,
+        }
+
+    @classmethod
+    def _stamp(cls, **overrides):
+        return cls._copy(cls.STAMP_BOX, 24.0, **overrides)
+
+    @classmethod
+    def _footer(cls, **overrides):
+        return cls._copy(cls.FOOTER_BOX, 10.0, **overrides)
+
+    @staticmethod
+    def _body():
+        return {
+            "type": "text",
+            "content": "Demand stayed firm across the quarter.",
+            "bbox": [72.0, 100.0, 520.0, 140.0],
+            "color": 0,
+            "fontsize": 10.0,
+        }
+
+    @classmethod
+    def _mark(cls, pages, sizes=None):
+        import fitz
+
+        from phoena_translator.pdf.semantics.watermarks import _mark_watermark_elements
+
+        page_extractions = {
+            page_num: {"elements": list(elements)}
+            for page_num, elements in enumerate(pages)
+        }
+        page_rects = {
+            page_num: fitz.Rect(0, 0, *((sizes or {}).get(page_num, cls.PORTRAIT)))
+            for page_num in page_extractions
+        }
+        _mark_watermark_elements(page_extractions, page_rects, len(pages))
+        return [
+            [elem.get("skip_translate_reason") for elem in info["elements"]]
+            for info in page_extractions.values()
+        ]
+
+    def test_stamp_goes_when_the_footer_copy_sits_on_more_pages(self):
+        # The stamp is missing where extraction held it as formula geometry,
+        # so the footer line is the dominant position.
+        pages = [
+            [self._body(), self._stamp(), self._footer()] if page_num < 8
+            else [self._body(), self._footer()]
+            for page_num in range(10)
+        ]
+        marks = self._mark(pages)
+        assert marks[:8] == [[None, "watermark", "watermark"]] * 8
+        assert marks[8:] == [[None, "watermark"]] * 2
+
+    def test_footer_copy_goes_when_the_stamp_sits_on_more_pages(self):
+        pages = [
+            [self._stamp(), self._footer()] if page_num < 8 else [self._stamp()]
+            for page_num in range(10)
+        ]
+        marks = self._mark(pages)
+        assert marks[:8] == [["watermark", "watermark"]] * 8
+        assert marks[8:] == [["watermark"]] * 2
+
+    def test_stamp_goes_when_a_black_footer_line_repeats_its_text_on_more_pages(self):
+        # The black line is content and stays; the stamp covers most pages at
+        # its own place and goes although it is not the dominant position.
+        pages = [
+            [self._footer(color=0), self._stamp()] if page_num < 8
+            else [self._footer(color=0)]
+            for page_num in range(10)
+        ]
+        marks = self._mark(pages)
+        assert marks[:8] == [[None, "watermark"]] * 8
+        assert marks[8:] == [[None]] * 2
+
+    def test_stamp_on_the_one_page_of_another_size_goes_by_its_look(self):
+        pages = [[self._stamp(), self._footer()] for _ in range(10)]
+        pages.append([self._copy([300.0, 60.0, 545.0, 304.0], 24.0)])
+        marks = self._mark(pages, sizes={10: self.LANDSCAPE})
+        assert marks[10] == ["watermark"]
+
+    def test_single_copy_with_another_look_stays(self):
+        pages = [[self._stamp(), self._footer()] for _ in range(10)]
+        pages.append([self._copy([300.0, 60.0, 545.0, 304.0], 30.0)])
+        marks = self._mark(pages, sizes={10: self.LANDSCAPE})
+        assert marks[:10] == [["watermark", "watermark"]] * 10
+        assert marks[10] == [None]
+
+    def test_cover_title_repeating_a_gray_running_header_stays(self):
+        header = [72.0, 30.0, 300.0, 40.0]
+        title = [72.0, 300.0, 520.0, 340.0]
+        text = "Global Markets Outlook"
+        pages = [[self._copy(title, 28.0, color=0, content=text)]]
+        pages += [[self._copy(header, 9.0, content=text)] for _ in range(10)]
+        marks = self._mark(pages)
+        assert marks[0] == [None]
+        assert marks[1:] == [["watermark"]] * 10
+
+    def test_text_below_the_document_wide_share_keeps_the_dominant_position_rule(self):
+        # A gray label at one chart position on four pages of twenty and at
+        # another position on three: only the dominant position is taken, as
+        # before.
+        first = [100.0, 400.0, 180.0, 410.0]
+        second = [330.0, 600.0, 410.0, 610.0]
+        text = "Chart note"
+        pages = [[self._body()] for _ in range(20)]
+        for page_num in range(4):
+            pages[page_num].append(self._copy(first, 8.0, content=text))
+        for page_num in range(4, 7):
+            pages[page_num].append(self._copy(second, 8.0, content=text))
+        marks = self._mark(pages)
+        assert [mark[1] for mark in marks[:4]] == ["watermark"] * 4
+        assert [mark[1] for mark in marks[4:7]] == [None] * 3
+
+    def test_gray_source_line_at_two_chart_positions_loses_only_the_dominant_one(self):
+        # Small grey type never makes a text a document-wide watermark, even
+        # when one position holds it on more than half the pages and the line
+        # happens to hold a watermark keyword ("Sample").
+        first = [72.0, 380.0, 250.0, 388.0]
+        second = [320.0, 640.0, 498.0, 648.0]
+        text = "Source: Sample Data Service"
+        pages = [[self._body()] for _ in range(10)]
+        for page_num in range(6):
+            pages[page_num].append(self._copy(first, 7.0, content=text))
+        for page_num in range(6, 9):
+            pages[page_num].append(self._copy(second, 7.0, content=text))
+        pages[9].append(self._copy([200.0, 500.0, 378.0, 508.0], 7.0, content=text))
+        marks = self._mark(pages)
+        assert [mark[1] for mark in marks[:6]] == ["watermark"] * 6
+        assert [mark[1] for mark in marks[6:]] == [None] * 4
+
+    def test_white_table_header_at_two_positions_loses_only_the_dominant_one(self):
+        first = [300.0, 200.0, 340.0, 210.0]
+        second = [300.0, 520.0, 340.0, 530.0]
+        pages = [[self._body()] for _ in range(12)]
+        for page_num in range(6):
+            pages[page_num].append(self._copy(first, 7.0, color=0xFFFFFF, content="2026E"))
+        for page_num in range(6, 9):
+            pages[page_num].append(self._copy(second, 7.0, color=0xFFFFFF, content="2026E"))
+        marks = self._mark(pages)
+        assert [mark[1] for mark in marks[:6]] == ["watermark"] * 6
+        assert [mark[1] for mark in marks[6:9]] == [None] * 3
+
+    def test_rotated_axis_title_at_two_positions_loses_only_the_dominant_one(self):
+        left = [60.0, 300.0, 70.0, 380.0]
+        right = [310.0, 300.0, 320.0, 380.0]
+        pages = [[self._body()] for _ in range(10)]
+        for page_num in range(6):
+            pages[page_num].append(
+                {**self._copy(left, 8.0, color=0, content="% of GDP"), "non_horizontal": True}
+            )
+        for page_num in range(6, 10):
+            pages[page_num].append(
+                {**self._copy(right, 8.0, color=0, content="% of GDP"), "non_horizontal": True}
+            )
+        marks = self._mark(pages)
+        assert [mark[1] for mark in marks[:6]] == ["watermark"] * 6
+        assert [mark[1] for mark in marks[6:]] == [None] * 4
+
+    def test_large_light_title_on_few_pages_stays_beside_a_gray_running_header(self):
+        header = [72.0, 30.0, 300.0, 40.0]
+        title = [120.0, 380.0, 480.0, 420.0]
+        text = "Global Markets Outlook"
+        pages = [[self._copy(header, 9.0, content=text)] for _ in range(12)]
+        for page_num in (3, 6, 9):
+            pages[page_num].append(self._copy(title, 26.0, color=0xFFFFFF, content=text))
+        marks = self._mark(pages)
+        assert [mark[0] for mark in marks] == ["watermark"] * 12
+        assert [marks[page_num][1] for page_num in (3, 6, 9)] == [None] * 3
+
+    @pytest.mark.parametrize("total_pages", [4, 6])
+    def test_large_title_on_half_the_pages_of_a_short_note_stays(self, total_pages):
+        # Front and back cover (or dividers) repeat the running header text
+        # in large type: half the pages is not "nearly every page".
+        header = [72.0, 30.0, 300.0, 40.0]
+        title = [120.0, 380.0, 480.0, 420.0]
+        text = "Global Markets Outlook"
+        pages = [[self._copy(header, 9.0, content=text)] for _ in range(total_pages)]
+        title_pages = range(0, total_pages, 2)
+        for page_num in title_pages:
+            pages[page_num].append(self._copy(title, 26.0, color=0xFFFFFF, content=text))
+        marks = self._mark(pages)
+        assert [mark[0] for mark in marks] == ["watermark"] * total_pages
+        assert [marks[page_num][1] for page_num in title_pages] == [None] * len(title_pages)
+
+    def test_stamp_on_fewer_than_two_thirds_of_the_pages_stays(self):
+        # A miss only leaves the stamp; below the share nothing but the
+        # dominant position is taken.
+        pages = [
+            [self._footer(), self._stamp()] if page_num < 6 else [self._footer()]
+            for page_num in range(10)
+        ]
+        marks = self._mark(pages)
+        assert marks[:6] == [["watermark", None]] * 6
+        assert marks[6:] == [["watermark"]] * 4
+
+    def test_rare_large_copy_of_a_black_footer_text_stays(self):
+        # Section pages that print the running footer text large and centred:
+        # neither place reaches the document-wide share as a watermark.
+        text = "Global Markets Outlook"
+        pages = [[self._footer(color=0, content=text)] for _ in range(10)]
+        for page_num in (2, 5, 8):
+            pages[page_num].append(
+                self._copy([120.0, 380.0, 480.0, 420.0], 26.0, color=0, content=text)
+            )
+        marks = self._mark(pages)
+        assert all(mark is None for page in marks for mark in page)
+
+
 class TestTailStartPolicy:
     def test_shapes(self):
         from phoena_translator.pdf.semantics.cross_page import (

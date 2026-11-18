@@ -4,6 +4,7 @@ disclaimer blocks that keep their source text."""
 from __future__ import annotations
 
 import logging
+import math
 import re
 
 from phoena_translator.pdf.geometry import _get_pdf_elem_rect
@@ -89,10 +90,95 @@ def _normalize_watermark_text(text: str) -> str:
     return re.sub(r"\s+", " ", plain)
 
 
+# A text stamped across the page at one place (``_record_is_stamp``) on at
+# least this share of the pages that carry elements, and on no fewer than
+# ``WATERMARK_DOCUMENT_WIDE_MIN_PAGES`` of them (all of them in a shorter
+# document), is a document-wide watermark: a per-copy stamp such as the
+# recipient's e-mail address.  A stamp is on nearly every page; the share
+# leaves room for pages where extraction holds it as formula geometry, and
+# keeps out a title printed large on the covers or dividers of a short note.
+WATERMARK_DOCUMENT_WIDE_PAGE_SHARE = 2 / 3
+WATERMARK_DOCUMENT_WIDE_MIN_PAGES = 3
+
+
+def _record_looks_like_watermark(record: dict) -> bool:
+    # A keyword alone is not proof: repeated compliance footers such
+    # as "For internal use only. Do not distribute." are printed in
+    # normal black body type and are document content, not watermark
+    # stamps.  The keyword arm therefore needs one visual watermark
+    # trait; plain repeated keyword lines fall through to normal
+    # translation instead of being erased.
+    return bool(
+        (
+            record["keyword"]
+            and (
+                record["light_gray"]
+                or record["non_horizontal"]
+                or record["large"]
+            )
+        )
+        or record["non_horizontal"]
+        or (
+            record["light_gray"]
+            and (record["centerish"] or record["header_footer"])
+        )
+        or (record["centerish"] and record["large"])
+    )
+
+
+def _record_is_stamp(record: dict) -> bool:
+    """A stamp proper: large type across the middle of the page, or large
+    type carrying a watermark keyword.
+
+    Narrower than ``_record_looks_like_watermark`` on purpose.  Grey or white
+    type, rotated type and small lines that happen to hold a keyword
+    ("sample", "preliminary") are also how source lines, table headers on a
+    dark band and chart axis titles are printed, and those repeat at several
+    places on the pages of a chart book; they must not make their text a
+    document-wide watermark.
+    """
+    return bool(record["large"] and (record["centerish"] or record["keyword"]))
+
+
+def _mark_watermark_record(page_extractions, record: dict) -> None:
+    elem = page_extractions[record["page_num"]]["elements"][record["elem_idx"]]
+    elem["skip_translate_reason"] = SkipReason.WATERMARK
+
+
 def _mark_watermark_elements(page_extractions, page_rects, total_pages: int):
-    """Identify repeated watermark-like text blocks and skip translating them."""
+    """Identify repeated watermark-like text blocks and skip translating them.
+
+    A repeated text is judged at its dominant position: the place where it
+    sits on the most pages.  Copies there that look like a watermark are
+    removed.
+
+    Portals also stamp one watermark at several places on a page (a faint
+    diagonal stamp across the body plus a footer line with the same text),
+    and either copy can be the dominant one.  So a text stamped across the
+    page (``_record_is_stamp``) at one place on at least
+    ``WATERMARK_DOCUMENT_WIDE_PAGE_SHARE`` of the pages that carry elements
+    (and no fewer than ``WATERMARK_DOCUMENT_WIDE_MIN_PAGES``)
+    is a document-wide watermark: every watermark-like copy of it that
+    repeats at its own place is removed, dominant or not, and so is a single
+    copy that shares the font size and colour of a removed one (the same
+    stamp on a page of another size).
+
+    Without such a stamp the dominant-position rule applies alone, as it
+    always has: grey source lines, white table headers and rotated axis
+    titles that repeat at several places lose no further copy.  A copy that
+    does not look like a watermark is never removed, so a title or a black
+    footer line that repeats the stamped text stays.
+    """
     groups = {}
     min_repeat_pages = 2 if total_pages <= 6 else 3
+    pages_with_elements = sum(
+        1 for info in page_extractions.values() if info.get("elements")
+    )
+    document_wide_pages = max(
+        min_repeat_pages,
+        min(pages_with_elements, WATERMARK_DOCUMENT_WIDE_MIN_PAGES),
+        math.ceil(pages_with_elements * WATERMARK_DOCUMENT_WIDE_PAGE_SHARE),
+    )
 
     for page_num, info in page_extractions.items():
         elements = info.get("elements", [])
@@ -126,6 +212,10 @@ def _mark_watermark_elements(page_extractions, page_rects, total_pages: int):
                     "non_horizontal": bool(elem.get("non_horizontal")),
                     "large": elem.get("fontsize", 0) >= 18 or area_ratio >= 0.035,
                     "keyword": bool(WATERMARK_PATTERNS.search(raw_text)),
+                    "look": (
+                        round(float(elem.get("fontsize", 0) or 0) * 2) / 2,
+                        elem.get("color", 0),
+                    ),
                     "text": raw_text,
                 }
             )
@@ -135,46 +225,48 @@ def _mark_watermark_elements(page_extractions, page_rects, total_pages: int):
         if len(pages) < min_repeat_pages:
             continue
 
-        bucket_counts = {}
+        bucket_pages = {}
+        watermark_like_pages = {}
+        stamp_pages = {}
         for record in records:
-            bucket_counts.setdefault(record["bucket"], set()).add(record["page_num"])
+            bucket_pages.setdefault(record["bucket"], set()).add(record["page_num"])
+            if _record_looks_like_watermark(record):
+                watermark_like_pages.setdefault(record["bucket"], set()).add(
+                    record["page_num"]
+                )
+            if _record_is_stamp(record):
+                stamp_pages.setdefault(record["bucket"], set()).add(record["page_num"])
         best_bucket, best_pages = max(
-            bucket_counts.items(), key=lambda item: len(item[1])
+            bucket_pages.items(), key=lambda item: len(item[1])
         )
         if len(best_pages) < min_repeat_pages:
             continue
 
-        for record in records:
-            if record["bucket"] != best_bucket:
-                continue
-
-            # A keyword alone is not proof: repeated compliance footers such
-            # as "For internal use only. Do not distribute." are printed in
-            # normal black body type and are document content, not watermark
-            # stamps.  The keyword arm therefore needs one visual watermark
-            # trait; plain repeated keyword lines fall through to normal
-            # translation instead of being erased.
-            looks_like_watermark = (
-                (
-                    record["keyword"]
-                    and (
-                        record["light_gray"]
-                        or record["non_horizontal"]
-                        or record["large"]
-                    )
-                )
-                or record["non_horizontal"]
-                or (
-                    record["light_gray"]
-                    and (record["centerish"] or record["header_footer"])
-                )
-                or (record["centerish"] and record["large"])
+        removed_buckets = {best_bucket}
+        document_wide = any(
+            len(stamped) >= document_wide_pages for stamped in stamp_pages.values()
+        )
+        if document_wide:
+            removed_buckets.update(
+                bucket
+                for bucket, copies in watermark_like_pages.items()
+                if len(copies) >= min_repeat_pages
             )
-            if not looks_like_watermark:
-                continue
 
-            elem = page_extractions[record["page_num"]]["elements"][record["elem_idx"]]
-            elem["skip_translate_reason"] = SkipReason.WATERMARK
+        removed_looks = set()
+        single_copies = []
+        for record in records:
+            if not _record_looks_like_watermark(record):
+                continue
+            if record["bucket"] in removed_buckets:
+                _mark_watermark_record(page_extractions, record)
+                removed_looks.add(record["look"])
+            else:
+                single_copies.append(record)
+        if document_wide:
+            for record in single_copies:
+                if record["look"] in removed_looks:
+                    _mark_watermark_record(page_extractions, record)
 
     marked = sum(
         1

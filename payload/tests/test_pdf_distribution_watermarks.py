@@ -440,3 +440,58 @@ def test_pipeline_removes_the_code_without_translating_it(tmp_path):
     output_ink = output[0].get_pixmap(clip=corner, colorspace=fitz.csGRAY, alpha=False)
     assert min(source_ink.samples) < 128  # the code is visible in the source
     assert min(output_ink.samples) >= 250  # and nothing is drawn in its place
+
+
+# --- a recipient stamp printed at two places on every page -----------------
+
+RECIPIENT = "reader.name@ example.com"  # synthetic; the gap is how such stamps extract
+STAMP_ONLY_AREA = fitz.Rect(250, 250, 420, 400)  # below the prose, crossed by the stamp
+
+
+def build_recipient_stamp_pdf(path: Path) -> None:
+    """Four pages of prose, each carrying the recipient's address twice: an
+    invisible footer line, and (on pages 1-3) a faint diagonal stamp across
+    the page.  The footer line sits on more pages than the stamp."""
+    import golden_support
+
+    gray = (0.5, 0.5, 0.5)
+    doc = fitz.open()
+    for number in range(1, 5):
+        page = doc.new_page(width=595, height=842)
+        page.insert_text((72, 80), f"Market outlook part {number}", fontsize=16, fontname="helv")
+        golden_support._paragraph(
+            page, 110,
+            "Demand for duration stayed firm as investors added to long positions. "
+            "Dealers reported steady flows from pension funds and insurers.",
+        )
+        page.insert_text((177, 808), RECIPIENT, fontsize=10, fontname="helv",
+                         color=gray, fill_opacity=0)
+        if number < 4:
+            anchor = fitz.Point(230, 410)
+            page.insert_text(anchor, RECIPIENT, fontsize=24, fontname="helv", color=gray,
+                             fill_opacity=0.3, morph=(anchor, fitz.Matrix(45)))
+    doc.save(str(path))
+    doc.close()
+
+
+def test_pipeline_removes_a_recipient_stamp_printed_at_two_places(tmp_path):
+    workdir, raw = _run_corpus(tmp_path, "build_recipient_stamp_pdf")
+    task = raw["task"]
+    assert task["status"] == "completed"
+    assert task["source_page_fallbacks"] == []
+    assert not task.get("element_source_fallbacks")
+    assert not any("example.com" in request for request in raw["requests"])
+
+    output = fitz.open(str(workdir / "outputs" / "golden0000000000.pdf"))
+    source = fitz.open(str(workdir / "uploads" / "golden0000000000.pdf"))
+    for page_num in range(3):
+        source_ink = source[page_num].get_pixmap(
+            clip=STAMP_ONLY_AREA, colorspace=fitz.csGRAY, alpha=False
+        )
+        output_ink = output[page_num].get_pixmap(
+            clip=STAMP_ONLY_AREA, colorspace=fitz.csGRAY, alpha=False
+        )
+        assert min(source_ink.samples) < 235  # the stamp is visible in the source
+        assert min(output_ink.samples) >= 250  # and gone from the delivered page
+    assert not any("example.com" in page.get_text() for page in output)
+    assert all(text for text in raw["output_text"])  # every page still has its prose
