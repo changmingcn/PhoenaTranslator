@@ -1,4 +1,4 @@
-"""LLM network adapters: DeepSeek (OpenAI-compatible SDK) and Claude (anthropic SDK)."""
+"""LLM network adapters: DeepSeek and OpenAI (``openai`` SDK) and Claude (``anthropic`` SDK)."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from .claude_models import (  # noqa: F401 - re-exported model identities
     CLAUDE_SONNET_5_5,
     claude_model_family,
 )
+from .config import OPENAI_DEFAULT_BASE_URL, OPENAI_DEFAULT_MODEL
 
 
 class LLMConfigurationError(RuntimeError):
@@ -409,5 +410,189 @@ class ClaudeTranslationAdapter:
             requested_model=requested_model,
             stop_reason=stop_reason,
             fallback_served=fallback_served,
+            id=getattr(response, "id", None),
+        )
+
+
+# ---------------------------------------------------------------------------
+# OpenAI backend (``openai`` SDK, Chat Completions) for key slots
+# ---------------------------------------------------------------------------
+#
+# Used when a key slot resolves to provider ``openai``. Request rules, live
+# tested on gpt-6.2-sol / gpt-6-luna: ``max_tokens`` is a 400 (send
+# ``max_completion_tokens``), any non-default ``temperature`` is a 400 (never
+# sent), ``reasoning_effort`` defaults to ``low``. Reasoning tokens count
+# toward the output cap, so the cap has a floor like the Claude path. SDK
+# retries stay off: ``api_runtime`` owns retries.
+
+OPENAI_MIN_MAX_TOKENS = 16_000
+OPENAI_OK_FINISH_REASONS = frozenset({"stop"})
+
+
+class OpenAIResponseError(RuntimeError):
+    """A completed OpenAI call whose output must not be used (see ClaudeResponseError)."""
+
+    def __init__(self, message: str, *, stop_reason: str | None, model: str | None):
+        super().__init__(message)
+        self.stop_reason = stop_reason
+        self.model = model
+
+
+@dataclass(frozen=True)
+class OpenAISettings:
+    api_key: str = field(repr=False)
+    base_url: str = OPENAI_DEFAULT_BASE_URL
+    model: str = OPENAI_DEFAULT_MODEL
+    reasoning_effort: str | None = "low"
+    timeout_seconds: float = 300.0
+    # See LLMSettings.max_retries: api_runtime owns retries.
+    max_retries: int = 0
+    min_max_tokens: int = OPENAI_MIN_MAX_TOKENS
+
+
+def build_openai_request(
+    messages: list[dict],
+    *,
+    model: str,
+    max_tokens: int,
+    reasoning_effort: str | None = "low",
+    min_max_tokens: int = OPENAI_MIN_MAX_TOKENS,
+) -> dict:
+    """Chat Completions kwargs for OpenAI reasoning models (no network)."""
+    params: dict[str, Any] = {
+        "model": model,
+        "messages": list(messages),
+        "max_completion_tokens": max(int(max_tokens), int(min_max_tokens)),
+    }
+    if reasoning_effort:
+        params["reasoning_effort"] = reasoning_effort
+    return params
+
+
+@dataclass(frozen=True)
+class OpenAICompletion(ClaudeCompletion):
+    """OpenAI response in the same OpenAI-shaped view and ledger contract."""
+
+    provider: str = "openai"
+
+
+def _openai_usage_dict(usage: Any) -> dict:
+    def tokens(source: Any, name: str) -> int:
+        try:
+            return max(int(getattr(source, name, 0) or 0), 0)
+        except (TypeError, ValueError):
+            return 0
+
+    prompt_tokens = tokens(usage, "prompt_tokens")
+    completion_tokens = tokens(usage, "completion_tokens")
+    cached = min(
+        tokens(getattr(usage, "prompt_tokens_details", None), "cached_tokens"),
+        prompt_tokens,
+    )
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": tokens(usage, "total_tokens") or prompt_tokens + completion_tokens,
+        "prompt_cache_hit_tokens": cached,
+        "prompt_cache_miss_tokens": prompt_tokens - cached,
+    }
+
+
+class OpenAITranslationAdapter:
+    """Lazy OpenAI adapter with the same ``translate`` contract as DeepSeek."""
+
+    provider = "openai"
+
+    def __init__(
+        self,
+        settings: OpenAISettings,
+        *,
+        client_factory: Callable[..., Any] = OpenAI,
+    ) -> None:
+        self._settings = settings
+        self._client_factory = client_factory
+        self._client_instance: Any | None = None
+        self._client_lock = threading.Lock()
+
+    def _client(self) -> Any:
+        if not self._settings.api_key:
+            raise LLMConfigurationError("an OpenAI key slot is configured without a key")
+        if self._client_instance is None:
+            with self._client_lock:
+                if self._client_instance is None:
+                    self._client_instance = self._client_factory(
+                        api_key=self._settings.api_key,
+                        base_url=self._settings.base_url,
+                        timeout=self._settings.timeout_seconds,
+                        max_retries=self._settings.max_retries,
+                    )
+        return self._client_instance
+
+    def translate(
+        self,
+        *,
+        messages: list[dict],
+        max_tokens: int,
+        temperature: float,
+        model: str | None = None,
+    ) -> OpenAICompletion:
+        """Generate a semantic translation; ``temperature`` is never sent."""
+        del temperature
+        requested_model = model or self._settings.model
+        params = build_openai_request(
+            messages,
+            model=requested_model,
+            max_tokens=max_tokens,
+            reasoning_effort=self._settings.reasoning_effort,
+            min_max_tokens=self._settings.min_max_tokens,
+        )
+        response = self._client().chat.completions.create(**params)
+        return self._normalise(response, requested_model, params["max_completion_tokens"])
+
+    def _normalise(
+        self, response: Any, requested_model: str, max_tokens: int
+    ) -> OpenAICompletion:
+        served_model = getattr(response, "model", None) or requested_model
+        choices = list(getattr(response, "choices", None) or [])
+        if not choices:
+            raise OpenAIResponseError(
+                f"OpenAI response without choices (model={served_model})",
+                stop_reason=None,
+                model=served_model,
+            )
+        finish_reason = getattr(choices[0], "finish_reason", None)
+        message = getattr(choices[0], "message", None)
+        if getattr(message, "refusal", None):
+            raise OpenAIResponseError(
+                f"OpenAI refusal (model={served_model})",
+                stop_reason="refusal",
+                model=served_model,
+            )
+        if finish_reason == "length":
+            raise OpenAIResponseError(
+                f"OpenAI output truncated (finish_reason=length, "
+                f"max_completion_tokens={max_tokens}, model={served_model})",
+                stop_reason=finish_reason,
+                model=served_model,
+            )
+        if finish_reason not in OPENAI_OK_FINISH_REASONS:
+            raise OpenAIResponseError(
+                f"OpenAI unexpected finish_reason={finish_reason} (model={served_model})",
+                stop_reason=finish_reason,
+                model=served_model,
+            )
+        return OpenAICompletion(
+            choices=[
+                CompletionChoice(
+                    message=CompletionMessage(
+                        content=getattr(message, "content", None) or ""
+                    ),
+                    finish_reason=finish_reason,
+                )
+            ],
+            usage=_openai_usage_dict(getattr(response, "usage", None)),
+            model=served_model,
+            requested_model=requested_model,
+            stop_reason=finish_reason,
             id=getattr(response, "id", None),
         )

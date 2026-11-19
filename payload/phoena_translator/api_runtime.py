@@ -77,6 +77,17 @@ class CompletionDependencies:
     is_retryable_error: Callable[[Exception], bool]
     retry_delay: Callable[[Exception, int], float]
     sleep: Callable[[float], None] = time.sleep
+    # Key failover: errors that must reach the failover layer unretried
+    # (e.g. a quota 429). Without a backup slot nothing is raised early.
+    raise_immediately: Callable[[Exception], bool] = lambda exc: False
+
+
+class LLMRetryBudgetExhausted(RuntimeError):
+    """``create_chat_completion`` spent every attempt; ``last_error`` says why."""
+
+    def __init__(self, message: str, *, last_error: Exception | None):
+        super().__init__(message)
+        self.last_error = last_error
 
 
 def strip_think_tags(text: str) -> str:
@@ -164,6 +175,61 @@ def is_retryable_api_error(exc: Exception) -> bool:
         or "server error" in text
         or "unknown status code" in text
     )
+
+
+def _error_identifiers(exc: Exception) -> list[str]:
+    """Provider error ``code``/``type`` strings (openai: attributes; anthropic: body)."""
+    values: list[Any] = [getattr(exc, "code", None), getattr(exc, "type", None)]
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        error = body.get("error", body)
+        if isinstance(error, dict):
+            values.extend((error.get("code"), error.get("type")))
+    found: list[str] = []
+    for value in values:
+        if isinstance(value, str) and value and value not in found:
+            found.append(value)
+    return found
+
+
+def provider_error_code(exc: Exception) -> str:
+    identifiers = _error_identifiers(exc)
+    return identifiers[0] if identifiers else "-"
+
+
+def key_unusable_reason(exc: Exception) -> tuple[int | None, str] | None:
+    """``(status, code)`` when ``exc`` says this key cannot serve, else ``None``.
+
+    Key-unusable: 401/402/403; a 400 about credit balance, billing or usage
+    limits (Anthropic spend limit); a 429 whose code/type names quota or
+    billing; an ordinary 429 that outlived the retry budget. Network errors,
+    timeouts, 5xx, other 4xx and unusable output are never key-unusable.
+    """
+    if isinstance(exc, LLMRetryBudgetExhausted):
+        last = exc.last_error
+        if last is not None and is_rate_limit_error(last):
+            return extract_status_code(last) or 429, "rate_limit_exhausted"
+        return None
+    status = extract_status_code(exc)
+    identifiers = " ".join(_error_identifiers(exc)).lower()
+    if status in {401, 402, 403}:
+        return status, provider_error_code(exc)
+    if status == 400:
+        text = str(exc).lower()
+        if (
+            "credit balance" in text
+            or "billing" in text
+            or "usage limit" in text
+            or "billing" in identifiers
+        ):
+            return status, provider_error_code(exc)
+    if status == 429 and ("quota" in identifiers or "billing" in identifiers):
+        return status, provider_error_code(exc)
+    return None
+
+
+def raise_key_unusable_immediately(exc: Exception) -> bool:
+    return key_unusable_reason(exc) is not None
 
 
 def prune_api_events(state: APIRuntimeState, now: float, window_seconds: float) -> None:
@@ -313,6 +379,7 @@ def completion_usage_record(
     prices: APIUsagePrices,
     *,
     timestamp: float | None = None,
+    extra_fields: dict | None = None,
 ) -> dict | None:
     raw = usage_as_dict(getattr(response, "usage", None))
     if not raw:
@@ -371,11 +438,14 @@ def completion_usage_record(
     # prompt_tokens = input + cache_write + cache_read; prompt_cache_hit_tokens
     # = cache reads; prompt_cache_miss_tokens = input + cache writes, of which
     # cache_creation_input_tokens were billed at the cache-write rate.
+    # Slot mode adds ``key_slot`` (primary/backup) and the serving provider.
     ledger_fields = getattr(response, "ledger_fields", None)
-    if isinstance(ledger_fields, dict) and ledger_fields:
+    merged = dict(ledger_fields) if isinstance(ledger_fields, dict) else {}
+    merged.update(extra_fields or {})
+    if merged:
         record["schema"] = 2
         record["cache_creation_input_tokens"] = cache_write_tokens
-        record.update(ledger_fields)
+        record.update(merged)
     return record
 
 
@@ -386,8 +456,10 @@ def record_completion_usage(
     path: Path,
     state: APIRuntimeState,
     logger: logging.Logger,
+    *,
+    extra_fields: dict | None = None,
 ) -> dict | None:
-    record = completion_usage_record(response, model, prices)
+    record = completion_usage_record(response, model, prices, extra_fields=extra_fields)
     if record is None:
         return None
     try:
@@ -436,6 +508,8 @@ def create_chat_completion(
                 return response
             except Exception as exc:
                 last_error = exc
+                if dependencies.raise_immediately(exc):
+                    raise
                 if dependencies.is_rate_limit_error(exc):
                     stats = dependencies.record_event("rate_limit")
                     delay = dependencies.retry_delay(exc, attempt)
@@ -475,13 +549,20 @@ def create_chat_completion(
         if retry_delay is not None and attempt < policy.attempts - 1:
             dependencies.sleep(retry_delay)
 
-    raise RuntimeError(
-        f"LLM API request failed after {policy.attempts} attempts: {last_error}"
+    raise LLMRetryBudgetExhausted(
+        f"LLM API request failed after {policy.attempts} attempts: {last_error}",
+        last_error=last_error,
     )
 
 
 class LLMGateway:
-    """One provider adapter with its process-local pacing, retry and usage ledger."""
+    """One provider adapter with its process-local pacing, retry and usage ledger.
+
+    Key slots: ``state`` lets slots share the concurrency cap and ledger lock
+    while keeping separate rate-limit pacing; ``ledger_fields`` tags every
+    usage record; ``raise_immediately`` hands key-unusable errors to the
+    failover layer unretried.
+    """
 
     def __init__(
         self,
@@ -493,14 +574,19 @@ class LLMGateway:
         max_concurrency: int,
         logger: logging.Logger,
         policy: APIRetryPolicy = DEFAULT_RETRY_POLICY,
+        state: APIRuntimeState | None = None,
+        ledger_fields: dict | None = None,
+        raise_immediately: Callable[[Exception], bool] | None = None,
     ) -> None:
         self.adapter = adapter
         self.model = model
         self.prices = prices
         self.usage_log = Path(usage_log)
         self.policy = policy
-        self.state = APIRuntimeState.create(max_concurrency)
+        self.state = state or APIRuntimeState.create(max_concurrency)
         self.logger = logger
+        self.ledger_fields = dict(ledger_fields or {})
+        optional = {} if raise_immediately is None else {"raise_immediately": raise_immediately}
         self._dependencies = CompletionDependencies(
             adapter=adapter,
             concurrency_semaphore=self.state.concurrency_semaphore,
@@ -517,11 +603,18 @@ class LLMGateway:
             is_rate_limit_error=is_rate_limit_error,
             is_retryable_error=is_retryable_api_error,
             retry_delay=partial(extract_retry_delay, policy=policy),
+            **optional,
         )
 
     def record_usage(self, response: Any, model: str) -> dict | None:
         return record_completion_usage(
-            response, model, self.prices, self.usage_log, self.state, self.logger
+            response,
+            model,
+            self.prices,
+            self.usage_log,
+            self.state,
+            self.logger,
+            extra_fields=self.ledger_fields,
         )
 
     def complete(
@@ -538,4 +631,183 @@ class LLMGateway:
             temperature=temperature,
             model=self.model if model is None else model,
             dependencies=self._dependencies,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Primary/backup key failover
+# ---------------------------------------------------------------------------
+
+
+class LLMKeysUnusableError(RuntimeError):
+    """Every key slot answered key-unusable for one request.
+
+    Not chained to the provider errors: OpenAI's 401 text echoes a masked key
+    fragment, and tracebacks print chained causes. ``errors`` keeps them.
+    """
+
+    def __init__(self, message: str, *, errors: list[Exception]):
+        super().__init__(message)
+        self.errors = errors
+
+
+@dataclass(frozen=True)
+class LLMSlot:
+    name: str  # "primary" | "backup"
+    provider: str  # "claude" | "openai" | "deepseek"
+    gateway: LLMGateway
+
+
+class FailoverLLMGateway:
+    """Key slots in order; each slot's ``LLMGateway`` stays the retry owner.
+
+    A request runs on the active slot through the full ``api_runtime`` retry
+    loop. Only a key-unusable outcome (:func:`key_unusable_reason`) re-issues
+    the same request once on the next slot; each slot is tried at most once
+    per request. After a switch the service stays on the new slot; once
+    ``retry_primary_seconds`` have passed, the next real request (one at a
+    time) goes to primary first. If primary does not serve that request, for
+    any reason, the next slot serves it and the window restarts. No synthetic
+    probe calls are made.
+    """
+
+    def __init__(
+        self,
+        slots: list[LLMSlot],
+        *,
+        retry_primary_seconds: float,
+        logger: logging.Logger,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        if len(slots) < 2:
+            raise ValueError("FailoverLLMGateway needs at least two key slots")
+        self.slots = tuple(slots)
+        self.retry_primary_seconds = retry_primary_seconds
+        self.logger = logger
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._active = 0
+        self._switched_at = 0.0
+        self._probe_in_flight = False
+
+    @property
+    def active_slot(self) -> str:
+        with self._lock:
+            return self.slots[self._active].name
+
+    def _plan(self) -> tuple[list[int], bool]:
+        """Slot order for one request, and whether it is the primary retry."""
+        with self._lock:
+            probe = (
+                self._active != 0
+                and not self._probe_in_flight
+                and self._clock() - self._switched_at >= self.retry_primary_seconds
+            )
+            if probe:
+                self._probe_in_flight = True
+            first = 0 if probe else self._active
+            order = [first] + [i for i in range(len(self.slots)) if i != first]
+            return order, probe
+
+    def _log_switch(self, source: int, target: int, status: Any, code: str) -> None:
+        old, new = self.slots[source], self.slots[target]
+        self.logger.warning(
+            "llm-failover: from=%s(%s) to=%s(%s) status=%s code=%s",
+            old.name,
+            old.provider,
+            new.name,
+            new.provider,
+            status if status is not None else "-",
+            code,
+        )
+
+    def _switch(self, source: int, target: int, reason: tuple[int | None, str]) -> None:
+        self._log_switch(source, target, *reason)
+        with self._lock:
+            self._active = target
+            self._switched_at = self._clock()
+
+    def _primary_retry_failed(self, target: int, exc: Exception) -> str:
+        """Log a non-key failure of the primary retry and restart the window.
+
+        Logs status, error code and exception class only, never provider text.
+        Returns the failure entry for the all-slots error message.
+        """
+        cause = exc
+        error = type(exc).__name__
+        if isinstance(exc, LLMRetryBudgetExhausted) and exc.last_error is not None:
+            cause = exc.last_error
+            error = f"{error}/{type(cause).__name__}"
+        status = extract_status_code(cause)
+        code = provider_error_code(cause)
+        old, new = self.slots[0], self.slots[target]
+        self.logger.warning(
+            "llm-failover: primary_retry_failed from=%s(%s) to=%s(%s) status=%s code=%s error=%s",
+            old.name,
+            old.provider,
+            new.name,
+            new.provider,
+            status if status is not None else "-",
+            code,
+            error,
+        )
+        with self._lock:
+            self._switched_at = self._clock()
+        return f"{old.name}({old.provider}) retry failed HTTP {status or '-'} {code} {error}"
+
+    def _restore_primary(self) -> None:
+        with self._lock:
+            source = self._active
+            if source == 0:
+                return
+            self._active = 0
+        self._log_switch(source, 0, 200, "primary_retry_ok")
+
+    def complete(
+        self,
+        *,
+        messages: list[dict],
+        max_tokens: int,
+        temperature: float,
+        model: str | None = None,
+    ):
+        order, probe = self._plan()
+        failures: list[str] = []
+        errors: list[Exception] = []
+        try:
+            for position, index in enumerate(order):
+                slot = self.slots[index]
+                try:
+                    response = slot.gateway.complete(
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        model=model,
+                    )
+                except Exception as exc:
+                    reason = key_unusable_reason(exc)
+                    if reason is None:
+                        # Only a return to primary falls through on a non-key error.
+                        if not (probe and index == 0 and position + 1 < len(order)):
+                            raise
+                        failures.append(self._primary_retry_failed(order[position + 1], exc))
+                        errors.append(exc)
+                        continue
+                    status, code = reason
+                    failures.append(
+                        f"{slot.name}({slot.provider}) HTTP {status or '-'} {code}"
+                    )
+                    errors.append(exc)
+                    if position + 1 < len(order):
+                        self._switch(index, order[position + 1], reason)
+                    continue
+                if probe and index == 0:
+                    self._restore_primary()
+                return response
+        finally:
+            if probe:
+                with self._lock:
+                    self._probe_in_flight = False
+        raise LLMKeysUnusableError(
+            "all LLM key slots unusable: " + "; ".join(failures), errors=errors
         )

@@ -15,7 +15,15 @@ import os
 import threading
 from functools import partial
 
-from phoena_translator.api_runtime import APIUsagePrices, LLMGateway, strip_think_tags
+from phoena_translator.api_runtime import (
+    APIRuntimeState,
+    APIUsagePrices,
+    FailoverLLMGateway,
+    LLMGateway,
+    LLMSlot,
+    raise_key_unusable_immediately,
+    strip_think_tags,
+)
 from phoena_translator.config import AppConfig
 from phoena_translator.epub.archive import ArchiveLimits
 from phoena_translator.epub.pipeline import EPUBPipeline, EPUBPipelineDependencies
@@ -26,6 +34,8 @@ from phoena_translator.llm import (
     ClaudeTranslationAdapter,
     DeepSeekTranslationAdapter,
     LLMSettings,
+    OpenAISettings,
+    OpenAITranslationAdapter,
 )
 from phoena_translator.logging_setup import configure_logging
 from phoena_translator.pdf import pipeline as pdf_pipeline
@@ -75,12 +85,12 @@ def trim_process_memory() -> None:
         pass
 
 
-def build_llm_gateway(config: AppConfig, logger: logging.Logger) -> LLMGateway:
-    """Select the configured provider: OpenAI-compatible DeepSeek (default) or Claude."""
-    if config.llm_provider == "claude":
+def _provider_parts(config: AppConfig, provider: str, api_key: str, logger: logging.Logger):
+    """Adapter, model and prices of one provider (legacy provider or key slot)."""
+    if provider == "claude":
         adapter = ClaudeTranslationAdapter(
             ClaudeSettings(
-                api_key=config.anthropic_api_key,
+                api_key=api_key,
                 model=config.claude_model,
                 effort=config.claude_effort,
                 fallbacks=config.claude_fallbacks,
@@ -96,10 +106,25 @@ def build_llm_gateway(config: AppConfig, logger: logging.Logger) -> LLMGateway:
             output_usd_per_million=config.claude_price_output_usd_per_m,
             cache_write_usd_per_million=config.claude_price_cache_write_usd_per_m,
         )
+    elif provider == "openai":
+        adapter = OpenAITranslationAdapter(
+            OpenAISettings(
+                api_key=api_key,
+                base_url=config.openai_base_url,
+                model=config.openai_model,
+                reasoning_effort=config.openai_reasoning_effort,
+            )
+        )
+        model = config.openai_model
+        prices = APIUsagePrices(
+            cache_hit_usd_per_million=config.openai_price_cached_input_usd_per_m,
+            cache_miss_usd_per_million=config.openai_price_input_usd_per_m,
+            output_usd_per_million=config.openai_price_output_usd_per_m,
+        )
     else:
         adapter = DeepSeekTranslationAdapter(
             LLMSettings(
-                api_key=config.deepseek_api_key,
+                api_key=api_key,
                 base_url=config.deepseek_base_url,
                 model=config.deepseek_model,
             )
@@ -110,12 +135,74 @@ def build_llm_gateway(config: AppConfig, logger: logging.Logger) -> LLMGateway:
             cache_miss_usd_per_million=config.deepseek_price_cache_miss_usd_per_m,
             output_usd_per_million=config.deepseek_price_output_usd_per_m,
         )
-    return LLMGateway(
-        adapter,
-        model=model,
-        prices=prices,
-        usage_log=config.progress_dir / USAGE_LEDGER_NAME,
-        max_concurrency=config.api_max_concurrency,
+    return adapter, model, prices
+
+
+def build_llm_gateway(
+    config: AppConfig, logger: logging.Logger
+) -> LLMGateway | FailoverLLMGateway:
+    """Legacy: one provider (DeepSeek default, or Claude). Slot mode: key slots."""
+    usage_log = config.progress_dir / USAGE_LEDGER_NAME
+    if not config.llm_slot_mode:
+        if config.llm_backup_api_key:
+            logger.warning(
+                "LLM_BACKUP_API_KEY is set without LLM_PRIMARY_API_KEY; ignored, "
+                "using TRANSLATOR_LLM_PROVIDER=%s",
+                config.llm_provider,
+            )
+        legacy_key = (
+            config.anthropic_api_key
+            if config.llm_provider == "claude"
+            else config.deepseek_api_key
+        )
+        adapter, model, prices = _provider_parts(
+            config, config.llm_provider, legacy_key, logger
+        )
+        return LLMGateway(
+            adapter,
+            model=model,
+            prices=prices,
+            usage_log=usage_log,
+            max_concurrency=config.api_max_concurrency,
+            logger=logger,
+        )
+
+    configured = [("primary", config.llm_primary_provider, config.llm_primary_api_key)]
+    if config.llm_backup_api_key:
+        configured.append(
+            ("backup", config.llm_backup_provider, config.llm_backup_api_key)
+        )
+    failover = len(configured) > 1
+    # Slots share the process-wide concurrency cap and the ledger lock; each
+    # keeps its own rate-limit pacing so one key's 429s never pause the other.
+    shared = APIRuntimeState.create(config.api_max_concurrency)
+    slots = []
+    for name, provider, api_key in configured:
+        adapter, model, prices = _provider_parts(config, provider, api_key, logger)
+        gateway = LLMGateway(
+            adapter,
+            model=model,
+            prices=prices,
+            usage_log=usage_log,
+            max_concurrency=config.api_max_concurrency,
+            logger=logger,
+            state=APIRuntimeState(
+                concurrency_semaphore=shared.concurrency_semaphore,
+                usage_lock=shared.usage_lock,
+            ),
+            ledger_fields={"key_slot": name, "provider": provider},
+            raise_immediately=raise_key_unusable_immediately if failover else None,
+        )
+        slots.append(LLMSlot(name=name, provider=provider, gateway=gateway))
+    logger.info(
+        "LLM key slots: %s",
+        ", ".join(f"{slot.name}={slot.provider}/{slot.gateway.model}" for slot in slots),
+    )
+    if not failover:
+        return slots[0].gateway
+    return FailoverLLMGateway(
+        slots,
+        retry_primary_seconds=config.llm_failover_retry_primary_seconds,
         logger=logger,
     )
 
@@ -128,7 +215,12 @@ class Runtime:
     relevant bundle instead of monkeypatching module globals.
     """
 
-    def __init__(self, config: AppConfig, *, gateway: LLMGateway | None = None) -> None:
+    def __init__(
+        self,
+        config: AppConfig,
+        *,
+        gateway: LLMGateway | FailoverLLMGateway | None = None,
+    ) -> None:
         self.config = config
         self.gateway = gateway or build_llm_gateway(config, log)
         self.tasks = TaskRepository(

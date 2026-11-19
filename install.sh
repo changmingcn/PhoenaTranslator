@@ -1009,6 +1009,8 @@ ENV_NEW="$ROLLBACK_ROOT/new-translator.env"
     printf 'DEEPSEEK_API_KEY=%s\n' "$API_KEY"
     printf 'DEEPSEEK_BASE_URL=%s\n' "$API_BASE_URL"
     printf 'DEEPSEEK_MODEL=%s\n' "$API_MODEL"
+    printf '%s\n' '# Optional primary/backup key failover (see README): set LLM_PRIMARY_API_KEY'
+    printf '%s\n' '# and LLM_BACKUP_API_KEY (Claude, OpenAI or DeepSeek keys); DEEPSEEK_API_KEY is then unused.'
     printf 'TRANSLATOR_UPLOAD_DIR=%s\n' "$DATA_ROOT/uploads"
     printf 'TRANSLATOR_OUTPUT_DIR=%s\n' "$DATA_ROOT/outputs"
     printf 'TRANSLATOR_PROGRESS_DIR=%s\n' "$DATA_ROOT/progress"

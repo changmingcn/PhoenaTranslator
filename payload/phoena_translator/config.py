@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -66,6 +67,61 @@ def _llm_provider(env: Mapping[str, str]) -> str:
     return raw
 
 
+# Slot mode (primary/backup key failover): each slot holds a key of any
+# provider; the provider is read from the key shape unless overridden.
+SLOT_PROVIDERS = ("claude", "openai", "deepseek")
+LLM_SLOTS = ("primary", "backup")
+_DEEPSEEK_KEY = re.compile(r"sk-[0-9a-fA-F]{32}")
+_OPENAI_KEY_PREFIXES = ("sk-proj-", "sk-svcacct-", "sk-admin-")
+OPENAI_DEFAULT_MODEL = "gpt-6.2-sol"
+OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
+
+def detect_slot_provider(slot: str, key: str, override: str = "") -> str:
+    """Provider of one key slot: explicit override, else the key's shape.
+
+    Errors name the slot and override variables, never the key itself.
+    """
+    key_var = f"LLM_{slot.upper()}_API_KEY"
+    override_var = f"LLM_{slot.upper()}_PROVIDER"
+    forced = override.strip().lower()
+    if forced:
+        if forced not in SLOT_PROVIDERS:
+            raise ValueError(
+                f"{override_var}={forced!r} is invalid; expected one of "
+                f"{', '.join(SLOT_PROVIDERS)}"
+            )
+        return forced
+    if key.startswith("sk-ant-"):
+        return "claude"
+    if key.startswith(_OPENAI_KEY_PREFIXES):
+        return "openai"
+    if _DEEPSEEK_KEY.fullmatch(key):
+        return "deepseek"
+    if key.startswith("sk-"):
+        return "openai"
+    raise ValueError(
+        f"{key_var} does not look like a Claude, OpenAI or DeepSeek key; set "
+        f"{override_var} to one of {', '.join(SLOT_PROVIDERS)}"
+    )
+
+
+def _slot_settings(env: Mapping[str, str]) -> dict:
+    """Slot fields for AppConfig; providers resolve only when slot mode is on."""
+    primary = env.get("LLM_PRIMARY_API_KEY", "").strip()
+    backup = env.get("LLM_BACKUP_API_KEY", "").strip()
+    fields = {"llm_primary_api_key": primary, "llm_backup_api_key": backup}
+    if primary:
+        fields["llm_primary_provider"] = detect_slot_provider(
+            "primary", primary, env.get("LLM_PRIMARY_PROVIDER", "")
+        )
+        if backup:
+            fields["llm_backup_provider"] = detect_slot_provider(
+                "backup", backup, env.get("LLM_BACKUP_PROVIDER", "")
+            )
+    return fields
+
+
 def _claude_effort(env: Mapping[str, str]) -> str | None:
     raw = env.get("CLAUDE_EFFORT", "").strip().lower()
     if not raw:
@@ -126,7 +182,27 @@ class AppConfig:
     claude_price_output_usd_per_m: float = 20.0
     claude_price_cache_read_usd_per_m: float = 0.20
     claude_price_cache_write_usd_per_m: float = 5.0
+    # Slot mode is on iff llm_primary_api_key is set; legacy fields above
+    # (llm_provider, anthropic_api_key, deepseek_api_key) are then unused.
+    llm_primary_api_key: str = field(default="", repr=False)
+    llm_primary_provider: str = ""
+    llm_backup_api_key: str = field(default="", repr=False)
+    llm_backup_provider: str = ""
+    llm_failover_retry_primary_seconds: float = 3600.0
+    openai_model: str = OPENAI_DEFAULT_MODEL
+    openai_base_url: str = OPENAI_DEFAULT_BASE_URL
+    openai_reasoning_effort: str = "low"
+    # List prices of the default model gpt-6.2-sol (USD per 1M tokens, OpenAI
+    # pricing page, 2026-11-19). Set the OPENAI_PRICE_* variables when
+    # OPENAI_MODEL names another model.
+    openai_price_input_usd_per_m: float = 2.0
+    openai_price_cached_input_usd_per_m: float = 0.1
+    openai_price_output_usd_per_m: float = 10.0
     disable_auto_resume: bool = False
+
+    @property
+    def llm_slot_mode(self) -> bool:
+        return bool(self.llm_primary_api_key)
 
     @classmethod
     def from_env(
@@ -321,6 +397,28 @@ class AppConfig:
                 env,
                 "CLAUDE_PRICE_CACHE_WRITE_USD_PER_M",
                 claude_price_input * CLAUDE_CACHE_WRITE_MULTIPLIER,
+            ),
+            **_slot_settings(env),
+            llm_failover_retry_primary_seconds=_env_float(
+                env,
+                "LLM_FAILOVER_RETRY_PRIMARY_SECONDS",
+                3600.0,
+            ),
+            openai_model=env.get("OPENAI_MODEL", "").strip() or OPENAI_DEFAULT_MODEL,
+            openai_base_url=(
+                env.get("OPENAI_BASE_URL", "").strip() or OPENAI_DEFAULT_BASE_URL
+            ),
+            openai_reasoning_effort=(
+                env.get("OPENAI_REASONING_EFFORT", "").strip().lower() or "low"
+            ),
+            openai_price_input_usd_per_m=_env_float(
+                env, "OPENAI_PRICE_INPUT_USD_PER_M", 2.0
+            ),
+            openai_price_cached_input_usd_per_m=_env_float(
+                env, "OPENAI_PRICE_CACHED_INPUT_USD_PER_M", 0.1
+            ),
+            openai_price_output_usd_per_m=_env_float(
+                env, "OPENAI_PRICE_OUTPUT_USD_PER_M", 10.0
             ),
             disable_auto_resume=_env_bool(
                 env,

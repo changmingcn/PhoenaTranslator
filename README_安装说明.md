@@ -1,19 +1,19 @@
 # PhoenaTranslator 干净重装包
 
-版本：`2026.11.18-watermark-every-copy`
+版本：`2026.11.19-llm-key-failover`
 
 这是当前已修正翻译程序的恢复安装版。它只包含运行所需的程序与依赖文件以及安装元数据（测试保留在源码仓库，不进安装包），不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
 
 ## 相对上一版的变化
 
-本版只改一处：PDF 里同一段水印在一页上印了好几处时的识别。上一版是 `2026.11.13b-confined-fallbacks`。
+本版加一项：主力、备用两把模型Key之间的自动切换。上一版是`2026.11.18-watermark-every-copy`。
 
-研报分发平台常把收件人的邮箱印在每一页上，而且印两处：一处是斜着横跨正文的浅色大字，另一处是页脚里一行同样的文字（有时不可见）。以前同一段重复文字只在它出现页数最多的那个位置上判断是不是水印，另一处会被当成正文送去翻译。邮箱翻不成中文，这一页就被判为没有翻完，整页再译一遍，耗时和模型调用都翻倍，水印还留在成品里，有的页因此整页按英文原页交付。
+以前服务只认一把Key。这把Key被吊销、欠费或额度用完时，每个翻译请求都失败，直到有人换Key并重启服务。
 
-- 现在，一段文字只要以戳记的样子（18 磅以上的大字横跨页面中部，或带水印关键词的大字）在同一位置出现在三分之二以上有内容的页面上（且不少于三页，不足三页的文档要每页都有），就认定为全篇水印。它在其他位置的副本，只要本身像水印（判据与以前相同：浅灰、旋转、居中大字、带关键词并有一项视觉特征）并且在自己的位置上重复出现，就一并去掉，不送翻译。与已去掉的副本字号、颜色相同的单独一份也去掉（例如个别横向页面上的同一枚戳记）。
-- 没有这样的戳记时（包括戳记只出现在少数页面上），规则与上一版完全相同：只处理出现页数最多的那个位置。灰色的来源行、深色底上的白色表头、旋转的坐标轴标题在几处重复出现时，不会比以前多删一处。不像水印的副本（黑色正常字号的页脚、封面标题等）始终保留。
-- 仍然存在的局限：水印压在公式区域上、被当作公式图形保留的页面，水印留在原处（不送翻译，不影响这一页的译文）。去掉一枚斜向戳记要涂掉它外接矩形里的文字再重画；这块区域里另有必须保留原文墨迹的内容时，这一页仍可能整页按英文原页交付，这一点与上一版相同。
-- 没有新增运行时依赖；配置项、提示词与页面缓存格式未改，上一版未完成的任务可直接续跑。
+- 在`/etc/phoena-translator/translator.env`设`LLM_PRIMARY_API_KEY`即进入双Key模式，可另设`LLM_BACKUP_API_KEY`。两把Key可来自Claude、OpenAI、DeepSeek任一家，也可同属一家。服务按Key的形状判断厂商（可用`LLM_PRIMARY_PROVIDER`、`LLM_BACKUP_PROVIDER`指定），OpenAI的模型由`OPENAI_MODEL`指定（默认`gpt-6.2-sol`），Claude、DeepSeek沿用原有变量。变量全表见`README.md`。
+- 主力Key不可用时（HTTP 401、402、403，余额、账单或用量上限类400，额度用尽的429，以及用完原有重试次数仍是429），同一请求立即改由备用Key重发一次，以后的请求都走备用。过一小时（`LLM_FAILOVER_RETRY_PRIMARY_SECONDS`，默认3600秒）后，下一个真实请求先回试主力，成功就回到主力，不成功由备用当场接手并重新计时，不发探测请求。网络错误、超时、5xx/529、其他400、404、拒答和截断不切换，处理方式与原来相同。每个请求每把Key最多试一次，两把都不可用时报错并写明两边的状态码，报错里不含Key。
+- 每次切换在日志记一条以`llm-failover:`开头的WARNING。双Key模式下用量台账的新记录带`key_slot`（`primary`或`backup`）和`provider`。
+- 不设`LLM_PRIMARY_API_KEY`时行为与上一版完全相同。没有新增运行时依赖，提示词与页面缓存格式未改，上一版未完成的任务可直接续跑。重装时安装器按问答重写`translator.env`，双Key变量要重新填入。
 
 ## 支持范围
 
@@ -28,9 +28,9 @@
 先在下载目录校验压缩包（校验文件与压缩包应在同一目录）：
 
 ```bash
-sha256sum -c PhoenaTranslator-20261118-watermark-every-copy-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20261118-watermark-every-copy-reinstall.tar.gz
-cd PhoenaTranslator-20261118-watermark-every-copy-reinstall
+sha256sum -c PhoenaTranslator-20261119-llm-key-failover-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261119-llm-key-failover-reinstall.tar.gz
+cd PhoenaTranslator-20261119-llm-key-failover-reinstall
 # 可选的完整预检（需要系统已装 python3）
 ./install.sh --verify-only
 sudo ./install.sh
