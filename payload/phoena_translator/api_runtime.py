@@ -669,7 +669,21 @@ class FailoverLLMGateway:
     time) goes to primary first. If primary does not serve that request, for
     any reason, the next slot serves it and the window restarts. No synthetic
     probe calls are made.
+
+    With an ``alerter`` (``notify(kind, text)``), each request outcome is
+    checked against the last alerted service state, so one change of state
+    alerts once however many requests saw it: ``switched`` when a backup slot
+    serves while the active slot is not primary, ``restored`` when primary
+    serves while it is the active slot, ``all_dead`` when every slot answered
+    key-unusable for one request. Both keys dead therefore never alerts
+    ``switched``: no backup ever serves. A state counts as alerted only once
+    ``notify`` handed its message on; while the throttle holds it back
+    (``notify`` returns False), later requests in that state offer it again
+    with ``repeat=True``, so it goes out once the interval allows.
     """
+
+    _ALERT_KINDS = {"backup": "switched", "primary": "restored", "all_dead": "all_dead"}
+    _SLOT_LABELS = {"primary": "主力", "backup": "备用"}
 
     def __init__(
         self,
@@ -678,17 +692,23 @@ class FailoverLLMGateway:
         retry_primary_seconds: float,
         logger: logging.Logger,
         clock: Callable[[], float] = time.monotonic,
+        alerter: Any | None = None,
     ) -> None:
         if len(slots) < 2:
             raise ValueError("FailoverLLMGateway needs at least two key slots")
         self.slots = tuple(slots)
         self.retry_primary_seconds = retry_primary_seconds
         self.logger = logger
+        self.alerter = alerter
         self._clock = clock
         self._lock = threading.Lock()
         self._active = 0
         self._switched_at = 0.0
         self._probe_in_flight = False
+        self._primary_reason: tuple[int | None, str] | None = None
+        self._alert_state = "primary"
+        self._alert_unsent = False
+        self._alert_claim = 0
 
     @property
     def active_slot(self) -> str:
@@ -726,6 +746,8 @@ class FailoverLLMGateway:
         with self._lock:
             self._active = target
             self._switched_at = self._clock()
+            if source == 0:
+                self._primary_reason = reason
 
     def _primary_retry_failed(self, target: int, exc: Exception) -> str:
         """Log a non-key failure of the primary retry and restart the window.
@@ -763,6 +785,91 @@ class FailoverLLMGateway:
             self._active = 0
         self._log_switch(source, 0, 200, "primary_retry_ok")
 
+    def _alert_after(
+        self,
+        served: int | None,
+        key_failures: list[tuple[int, int | None, str]],
+    ) -> None:
+        """Alert once per change of service state; never raises or blocks.
+
+        ``served`` is the slot that answered, ``None`` when every slot was
+        key-unusable (``key_failures``: slot index, status, code). The state
+        is decided and claimed under the lock; ``notify`` runs after it is
+        released. A message not handed on leaves the state unsent.
+        """
+        if self.alerter is None:
+            return
+        handed = False
+        claim = None
+        try:
+            with self._lock:
+                if served is None:
+                    state = "all_dead"
+                elif served == 0:
+                    state = "primary" if self._active == 0 else None
+                else:
+                    state = "backup" if self._active != 0 else None
+                if state is None:
+                    return
+                repeat = state == self._alert_state
+                if repeat and not self._alert_unsent:
+                    return
+                # This request carries the message; others in the state wait.
+                self._alert_state = state
+                self._alert_unsent = False
+                self._alert_claim += 1
+                claim = self._alert_claim
+                active = self._active
+                primary_reason = self._primary_reason
+            kind = self._ALERT_KINDS[state]
+            text = self._alert_text(kind, active, primary_reason, key_failures)
+            if repeat:
+                handed = self.alerter.notify(kind, text, repeat=True) is not False
+            else:
+                handed = self.alerter.notify(kind, text) is not False
+        except Exception as exc:
+            self.logger.warning("llm-alert: skipped error=%s", type(exc).__name__)
+        finally:
+            if claim is not None and not handed:
+                # Held back or failed: the next request in this state offers it again.
+                with self._lock:
+                    if self._alert_claim == claim:
+                        self._alert_unsent = True
+
+    def _alert_text(
+        self,
+        kind: str,
+        active: int,
+        primary_reason: tuple[int | None, str] | None,
+        key_failures: list[tuple[int, int | None, str]],
+    ) -> str:
+        """Alert body: slot providers, HTTP status and error code, no provider text."""
+        primary = self.slots[0]
+        if kind == "switched":
+            status, code = primary_reason or (None, "-")
+            return (
+                f"主力 key（{primary.provider}）不可用（HTTP {status or '-'} {code}），"
+                f"已改用备用（{self.slots[active].provider}）。"
+                "翻译继续，请检查主力 key 或额度。"
+            )
+        if kind == "restored":
+            return f"主力 key（{primary.provider}）已恢复，已切回主力。"
+        named = []
+        for index, status, code in sorted(key_failures, key=lambda item: item[0]):
+            slot = self.slots[index]
+            label = self._SLOT_LABELS.get(slot.name, slot.name)
+            named.append((label, slot.provider, status, code))
+        count = "两" if len(named) == 2 else str(len(named))
+        lines = [
+            "和".join(f"{label}（{provider}）" for label, provider, _, _ in named)
+            + f"{count}把 key 都不可用，翻译请求失败。"
+        ]
+        lines.extend(
+            f"{label}（{provider}）：HTTP {status or '-'} {code}"
+            for label, provider, status, code in named
+        )
+        return "\n".join(lines)
+
     def complete(
         self,
         *,
@@ -774,6 +881,7 @@ class FailoverLLMGateway:
         order, probe = self._plan()
         failures: list[str] = []
         errors: list[Exception] = []
+        key_failures: list[tuple[int, int | None, str]] = []
         try:
             for position, index in enumerate(order):
                 slot = self.slots[index]
@@ -798,16 +906,20 @@ class FailoverLLMGateway:
                         f"{slot.name}({slot.provider}) HTTP {status or '-'} {code}"
                     )
                     errors.append(exc)
+                    key_failures.append((index, status, code))
                     if position + 1 < len(order):
                         self._switch(index, order[position + 1], reason)
                     continue
                 if probe and index == 0:
                     self._restore_primary()
+                self._alert_after(index, key_failures)
                 return response
         finally:
             if probe:
                 with self._lock:
                     self._probe_in_flight = False
+        if len(key_failures) == len(order):
+            self._alert_after(None, key_failures)
         raise LLMKeysUnusableError(
             "all LLM key slots unusable: " + "; ".join(failures), errors=errors
         )

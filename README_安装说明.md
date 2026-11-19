@@ -1,19 +1,19 @@
 # PhoenaTranslator 干净重装包
 
-版本：`2026.11.19-llm-key-failover`
+版本：`2026.11.19b-telegram-notify`
 
 这是当前已修正翻译程序的恢复安装版。它只包含运行所需的程序与依赖文件以及安装元数据（测试保留在源码仓库，不进安装包），不包含任何旧任务、PDF/EPUB、翻译结果、缓存、日志、虚拟环境或密钥。
 
 ## 相对上一版的变化
 
-本版加一项：主力、备用两把模型Key之间的自动切换。上一版是`2026.11.18-watermark-every-copy`。
+本版加一项：通过Telegram发消息，一是模型Key切换提醒，二是每个文件翻译结束的通知。上一版是`2026.11.19-llm-key-failover`。
 
-以前服务只认一把Key。这把Key被吊销、欠费或额度用完时，每个翻译请求都失败，直到有人换Key并重启服务。
-
-- 在`/etc/phoena-translator/translator.env`设`LLM_PRIMARY_API_KEY`即进入双Key模式，可另设`LLM_BACKUP_API_KEY`。两把Key可来自Claude、OpenAI、DeepSeek任一家，也可同属一家。服务按Key的形状判断厂商（可用`LLM_PRIMARY_PROVIDER`、`LLM_BACKUP_PROVIDER`指定），OpenAI的模型由`OPENAI_MODEL`指定（默认`gpt-6.2-sol`），Claude、DeepSeek沿用原有变量。变量全表见`README.md`。
-- 主力Key不可用时（HTTP 401、402、403，余额、账单或用量上限类400，额度用尽的429，以及用完原有重试次数仍是429），同一请求立即改由备用Key重发一次，以后的请求都走备用。过一小时（`LLM_FAILOVER_RETRY_PRIMARY_SECONDS`，默认3600秒）后，下一个真实请求先回试主力，成功就回到主力，不成功由备用当场接手并重新计时，不发探测请求。网络错误、超时、5xx/529、其他400、404、拒答和截断不切换，处理方式与原来相同。每个请求每把Key最多试一次，两把都不可用时报错并写明两边的状态码，报错里不含Key。
-- 每次切换在日志记一条以`llm-failover:`开头的WARNING。双Key模式下用量台账的新记录带`key_slot`（`primary`或`backup`）和`provider`。
-- 不设`LLM_PRIMARY_API_KEY`时行为与上一版完全相同。没有新增运行时依赖，提示词与页面缓存格式未改，上一版未完成的任务可直接续跑。重装时安装器按问答重写`translator.env`，双Key变量要重新填入。
+- 在`/etc/phoena-translator/translator.env`同时设`TRANSLATOR_TELEGRAM_BOT_TOKEN`和`TRANSLATOR_TELEGRAM_CHAT_ID`才发消息，缺一项就不发。消息为纯文本，在后台发送，超时10秒，不重试。发不出去只在日志记一条WARNING，不影响翻译，也不改任务状态。日志里不含token。
+- Key切换提醒（`TRANSLATOR_TELEGRAM_KEY_ALERTS`，默认开，只在双Key模式下起作用）：主力不可用并改用备用、切回主力、两把Key都不可用，每次状态变化发一条，不随请求数重复。同一种提醒至少相隔`TRANSLATOR_TELEGRAM_MIN_INTERVAL_SECONDS`（默认1800秒），间隔内压下的次数写进下一条同类提醒；间隔内被压下的状态，间隔一到由下一个请求补发。
+- 完成通知（`TRANSLATOR_TELEGRAM_NOTIFY_DONE`，默认关，设`1`开启）：每个文件翻译结束发一条。成功的写页数、保留原文的页和用时，失败的先写能分辨的类别（两把Key都不可用、所有页退回原文、文件无法解析、任务被中断、程序内部错误），再接任务记录里的错误，最多300字。每个任务只发一次，服务重启不会为已结束的任务重发。
+- `TRANSLATOR_TELEGRAM_LABEL`设消息开头的【标签】（默认`PhoenaTranslator`），`TRANSLATOR_TELEGRAM_DISABLE=1`关闭全部消息。变量全表见`README.md`的“Telegram 通知”一节。
+- 安装器在原有三问之后多问一项可选的Telegram设置，直接回车即跳过。重装时，旧`translator.env`里的`LLM_*`（主力、备用Key）、`OPENAI_*`、`CLAUDE_*`、`ANTHROPIC_*`、`TRANSLATOR_LLM_PROVIDER`与`TRANSLATOR_TELEGRAM_*`行原样保留，双Key与Telegram设置不必重填（上一版重装时双Key变量要重新填入）。
+- 不设Telegram变量时行为与上一版完全相同。没有新增运行时依赖（发送只用Python标准库），提示词与页面缓存格式未改，上一版未完成的任务可直接续跑。
 
 ## 支持范围
 
@@ -28,9 +28,9 @@
 先在下载目录校验压缩包（校验文件与压缩包应在同一目录）：
 
 ```bash
-sha256sum -c PhoenaTranslator-20261119-llm-key-failover-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20261119-llm-key-failover-reinstall.tar.gz
-cd PhoenaTranslator-20261119-llm-key-failover-reinstall
+sha256sum -c PhoenaTranslator-20261119b-telegram-notify-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261119b-telegram-notify-reinstall.tar.gz
+cd PhoenaTranslator-20261119b-telegram-notify-reinstall
 # 可选的完整预检（需要系统已装 python3）
 ./install.sh --verify-only
 sudo ./install.sh
@@ -40,7 +40,10 @@ sudo ./install.sh
 
 1. 翻译 LLM 的 API Key（隐藏输入）；
 2. OpenAI 兼容 API 的 Base URL；
-3. 模型名（直接回车采用 `deepseek-v4-flash`）。
+3. 模型名（直接回车采用 `deepseek-v4-flash`）；
+4. 可选的 Telegram 通知：先问 `Telegram bot token for notifications (Enter to skip)`（隐藏输入，直接回车或输入结束即跳过，不写任何 Telegram 配置）；填了 token 再问 `Telegram chat id`（数字，群组以 `-` 开头，或 `@频道名`）和 `Telegram: send a message when each file finishes? (yes/no) [no]`（每个文件翻译结束是否发一条，默认否）。`translator.env` 里已有 token 和 chat id 时只问最后一项，回车保持原设置。
+
+Telegram token 输入时不回显，chat id 输入时照常显示，两者都不写进安装日志。变量含义见 `README.md` 的“Telegram 通知”一节。
 
 安装过程不会调用翻译 LLM，因此安装本身不产生 LLM API 费用。API Key 不会出现在命令行参数、终端回显、普通日志或安装包中。正常完成后的持久副本位于 `/etc/phoena-translator/translator.env`，权限为 root:root、`0600`；安装事务期间的临时副本只存在于 root-only 回滚目录。
 
@@ -79,7 +82,7 @@ curl -fsS http://127.0.0.1/api/health
 journalctl -u phoena-translator -n 100 --no-pager
 ```
 
-若要更换 API Key、地址或模型，可重新运行 `sudo ./install.sh`。安装器会重新验包并重建虚拟环境，不会删除任务数据。
+若要更换 API Key、地址或模型，可重新运行 `sudo ./install.sh`。安装器会重新验包并重建虚拟环境，不会删除任务数据。重新运行时，旧 `translator.env` 里的 `LLM_*`（主力、备用 Key）、`OPENAI_*`、`CLAUDE_*`、`ANTHROPIC_*`、`TRANSLATOR_LLM_PROVIDER` 与 `TRANSLATOR_TELEGRAM_*` 行原样保留，其余行按问答重写；要换 Telegram token 或 chat id，直接改 `translator.env` 后重启服务。
 
 ## 设计限制
 

@@ -198,11 +198,37 @@ class AppConfig:
     openai_price_input_usd_per_m: float = 2.0
     openai_price_cached_input_usd_per_m: float = 0.1
     openai_price_output_usd_per_m: float = 10.0
+    # Telegram channel: key-failover alerts (switched / restored / all_dead,
+    # on by default) and one message per finished task (off by default).
+    # Nothing is sent unless token and chat id are both set.
+    telegram_bot_token: str = field(default="", repr=False)
+    telegram_chat_id: str = field(default="", repr=False)
+    telegram_key_alerts: bool = True
+    telegram_notify_done: bool = False
+    telegram_label: str = "PhoenaTranslator"
+    telegram_min_interval_seconds: float = 1800.0  # key alerts only
+    telegram_disable: bool = False
     disable_auto_resume: bool = False
 
     @property
     def llm_slot_mode(self) -> bool:
         return bool(self.llm_primary_api_key)
+
+    @property
+    def telegram_ready(self) -> bool:
+        return bool(
+            self.telegram_bot_token
+            and self.telegram_chat_id
+            and not self.telegram_disable
+        )
+
+    @property
+    def key_alerts_enabled(self) -> bool:
+        return self.telegram_ready and self.telegram_key_alerts
+
+    @property
+    def notify_done_enabled(self) -> bool:
+        return self.telegram_ready and self.telegram_notify_done
 
     @classmethod
     def from_env(
@@ -420,6 +446,19 @@ class AppConfig:
             openai_price_output_usd_per_m=_env_float(
                 env, "OPENAI_PRICE_OUTPUT_USD_PER_M", 10.0
             ),
+            telegram_bot_token=env.get("TRANSLATOR_TELEGRAM_BOT_TOKEN", "").strip(),
+            telegram_chat_id=env.get("TRANSLATOR_TELEGRAM_CHAT_ID", "").strip(),
+            telegram_key_alerts=_env_bool(env, "TRANSLATOR_TELEGRAM_KEY_ALERTS", True),
+            telegram_notify_done=_env_bool(
+                env, "TRANSLATOR_TELEGRAM_NOTIFY_DONE", False
+            ),
+            telegram_label=(
+                env.get("TRANSLATOR_TELEGRAM_LABEL", "").strip() or "PhoenaTranslator"
+            ),
+            telegram_min_interval_seconds=_env_float(
+                env, "TRANSLATOR_TELEGRAM_MIN_INTERVAL_SECONDS", 1800.0
+            ),
+            telegram_disable=_env_bool(env, "TRANSLATOR_TELEGRAM_DISABLE", False),
             disable_auto_resume=_env_bool(
                 env,
                 "TRANSLATOR_DISABLE_AUTO_RESUME",

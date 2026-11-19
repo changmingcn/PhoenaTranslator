@@ -10,6 +10,11 @@ from typing import Any, Callable
 from phoena_translator.task_store import TaskRepository
 from phoena_translator.workers import TaskJob, TaskWorkerPool
 
+FINAL_STATUSES = ("completed", "failed")
+# Called with (task_id, final record, raised error or None) after the final
+# record is saved; it must not raise or block (see task_notify.TaskNotifier).
+TaskFinishedHook = Callable[[str, dict, BaseException | None], None]
+
 
 @dataclass(frozen=True)
 class TaskRecoveryDependencies:
@@ -20,6 +25,7 @@ class TaskRecoveryDependencies:
     enqueue_task: Callable[[str, str, str, str], bool]
     source_sha256: Callable[[str], str]
     load_cached_page_indices: Callable[[str, str], set[int]]
+    task_finished: TaskFinishedHook | None = None
 
 
 @dataclass(frozen=True)
@@ -28,6 +34,23 @@ class TranslationJobDependencies:
     load_progress: Callable[[str], dict | None]
     translate_epub: Callable[[str, str, str], Any]
     translate_pdf: Callable[..., Any]
+    task_finished: TaskFinishedHook | None = None
+
+
+def _report_finished(
+    hook: TaskFinishedHook | None,
+    task_id: str,
+    record: dict | None,
+    error: BaseException | None,
+    logger: logging.Logger,
+) -> None:
+    """Hand a final record to the hook; a hook failure never reaches the task."""
+    if hook is None or not record or record.get("status") not in FINAL_STATUSES:
+        return
+    try:
+        hook(task_id, record, error)
+    except Exception as exc:
+        logger.warning("task-notify: [%s] skipped error=%s", task_id, type(exc).__name__)
 
 
 def resume_interrupted_tasks(dependencies: TaskRecoveryDependencies) -> None:
@@ -47,13 +70,16 @@ def resume_interrupted_tasks(dependencies: TaskRecoveryDependencies) -> None:
             dependencies.logger.warning(
                 "[%s] Cannot resume: upload file missing", task_id
             )
-            dependencies.tasks.save(
+            saved = dependencies.tasks.save(
                 task_id,
                 {
                     **data,
                     "status": "failed",
                     "error": "Upload file lost after restart",
                 },
+            )
+            _report_finished(
+                dependencies.task_finished, task_id, saved, None, dependencies.logger
             )
             continue
 
@@ -134,7 +160,7 @@ def run_translation_job(
     dependencies: TranslationJobDependencies,
 ) -> None:
     data = dependencies.load_progress(job.task_id) or {}
-    if data.get("status") in ("completed", "failed"):
+    if data.get("status") in FINAL_STATUSES:
         dependencies.logger.info(
             "[%s] Worker %s: task already %s, skipping",
             job.task_id,
@@ -148,20 +174,41 @@ def run_translation_job(
         worker_id,
         job.extension,
     )
-    if job.extension == "epub":
-        dependencies.translate_epub(
+    raised: BaseException | None = None
+    try:
+        if job.extension == "epub":
+            dependencies.translate_epub(
+                job.task_id,
+                job.source_path,
+                job.output_path,
+            )
+            return
+        dependencies.translate_pdf(
             job.task_id,
             job.source_path,
             job.output_path,
+            job.pdf_password,
+            _forced_source_page_fallbacks=data.get("source_page_fallbacks"),
         )
-        return
-    dependencies.translate_pdf(
-        job.task_id,
-        job.source_path,
-        job.output_path,
-        job.pdf_password,
-        _forced_source_page_fallbacks=data.get("source_page_fallbacks"),
-    )
+    except BaseException as error:
+        raised = error
+        raise
+    finally:
+        # The pipelines save their own final record. A job that raised before
+        # saving one is recorded (and reported) by the worker pool's
+        # mark_failed; a job that ends non-final (queued for restart) is not.
+        if dependencies.task_finished is not None:
+            try:
+                record = dependencies.load_progress(job.task_id)
+            except Exception:
+                record = None
+            _report_finished(
+                dependencies.task_finished,
+                job.task_id,
+                record,
+                raised,
+                dependencies.logger,
+            )
 
 
 def enqueue_translation_task(

@@ -24,6 +24,7 @@ from phoena_translator.api_runtime import (
     raise_key_unusable_immediately,
     strip_think_tags,
 )
+from phoena_translator.alerts import TelegramAlerter
 from phoena_translator.config import AppConfig
 from phoena_translator.epub.archive import ArchiveLimits
 from phoena_translator.epub.pipeline import EPUBPipeline, EPUBPipelineDependencies
@@ -63,6 +64,7 @@ from phoena_translator.task_runtime import (
     resume_interrupted_tasks,
     run_translation_job,
 )
+from phoena_translator.task_notify import TaskNotifier, build_task_notifier
 from phoena_translator.task_store import TaskRepository, TaskStore
 from phoena_translator.web import WebDependencies, create_app
 from phoena_translator.workers import TaskJob, TaskWorkerPool
@@ -200,10 +202,25 @@ def build_llm_gateway(
     )
     if not failover:
         return slots[0].gateway
+    alerter = None
+    if config.key_alerts_enabled:
+        alerter = TelegramAlerter.for_telegram(
+            token=config.telegram_bot_token,
+            chat_id=config.telegram_chat_id,
+            label=config.telegram_label,
+            min_interval_seconds=config.telegram_min_interval_seconds,
+            logger=logger,
+        )
+        logger.info(
+            "LLM failover alerts: telegram on, label=%s, min interval %.0fs",
+            config.telegram_label,
+            config.telegram_min_interval_seconds,
+        )
     return FailoverLLMGateway(
         slots,
         retry_primary_seconds=config.llm_failover_retry_primary_seconds,
         logger=logger,
+        alerter=alerter,
     )
 
 
@@ -223,6 +240,9 @@ class Runtime:
     ) -> None:
         self.config = config
         self.gateway = gateway or build_llm_gateway(config, log)
+        # None unless the Telegram channel is set and NOTIFY_DONE is on; tests
+        # may swap in a notifier with a stub sender after construction.
+        self.task_notifier: TaskNotifier | None = build_task_notifier(config, log)
         self.tasks = TaskRepository(
             TaskStore(config.progress_dir, config.upload_dir, config.output_dir)
         )
@@ -317,6 +337,7 @@ class Runtime:
             load_progress=self.tasks.load,
             translate_epub=self.translate_epub,
             translate_pdf=self.translate_pdf,
+            task_finished=self._task_finished,
         )
         self._recovery = TaskRecoveryDependencies(
             tasks=self.tasks,
@@ -326,6 +347,7 @@ class Runtime:
             enqueue_task=self.enqueue,
             source_sha256=_pdf_source_sha256,
             load_cached_page_indices=_load_pdf_cached_page_indices,
+            task_finished=self._task_finished,
         )
 
     # -- lifecycle ---------------------------------------------------------
@@ -440,6 +462,18 @@ class Runtime:
     def _run_job(self, job: TaskJob, worker_id: int) -> None:
         run_translation_job(job, worker_id, self._jobs)
 
+    def _task_finished(
+        self, task_id: str, record: dict, error: BaseException | None = None
+    ) -> None:
+        """Hook run after a task's final record is saved; never raises."""
+        notifier = self.task_notifier
+        if notifier is None:
+            return
+        try:
+            notifier.task_finished(task_id, record, error)
+        except Exception as exc:
+            log.warning("task-notify: [%s] skipped error=%s", task_id, type(exc).__name__)
+
     def _mark_failed_after_crash(self, task_id: str, error: str) -> None:
         """Last-resort terminal state for a job whose handler crashed."""
         record = self.tasks.load(task_id) or {}
@@ -452,4 +486,5 @@ class Runtime:
                 "error": f"Unhandled worker error: {error}"[:500],
             }
         )
-        self.tasks.save(task_id, record)
+        saved = self.tasks.save(task_id, record)
+        self._task_finished(task_id, saved)

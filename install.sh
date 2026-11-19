@@ -844,6 +844,75 @@ safe_env_value() {
     [[ "$value" != *$'\r'* && "$value" != *$'\n'* ]] || return 1
 }
 
+# The optional prompts below accept Enter or end of input as "skip", so an
+# install that answers only the three original prompts still completes.
+read_optional_secret() {
+    local prompt="$1"
+    local result=""
+    printf '%s: ' "$prompt" >/dev/tty
+    IFS= read -r -s result </dev/tty || result=""
+    printf '\n' >/dev/tty
+    printf '%s' "$result"
+}
+
+read_optional_value() {
+    local prompt="$1"
+    local default_value="$2"
+    local result=""
+    printf '%s [%s]: ' "$prompt" "$default_value" >/dev/tty
+    IFS= read -r result </dev/tty || result=""
+    [[ -n "$result" ]] || result="$default_value"
+    printf '%s' "$result"
+}
+
+yes_no_flag() {
+    case "$1" in
+        [Yy]|[Yy][Ee][Ss]) printf '1' ;;
+        [Nn]|[Nn][Oo]) printf '0' ;;
+        *) return 1 ;;
+    esac
+}
+
+# A reinstall carries these lines over from the existing translator.env: the
+# optional key slots (LLM_*), the provider settings (OPENAI_*, CLAUDE_*,
+# ANTHROPIC_*, TRANSLATOR_LLM_PROVIDER) and the Telegram channel
+# (TRANSLATOR_TELEGRAM_*). The installer's own prompts write none of the
+# provider names, so no variable is written twice.
+preserved_env_lines() {
+    local env_file="$1"
+    [[ -f "$env_file" ]] || return 0
+    grep -E '^(LLM_[A-Z0-9_]+|OPENAI_[A-Z0-9_]+|CLAUDE_[A-Z0-9_]+|ANTHROPIC_[A-Z0-9_]+|TRANSLATOR_LLM_PROVIDER|TRANSLATOR_TELEGRAM_[A-Z0-9_]+)=' -- "$env_file" || true
+}
+
+preserved_env_value() {
+    local env_file="$1"
+    local name="$2"
+    preserved_env_lines "$env_file" | sed -n "s/^${name}=//p" | tail -n 1
+}
+
+# The optional lines of the new translator.env: the preserved lines, the
+# per-file switch set to $4 (1, 0, or empty to keep the preserved one), and a
+# new Telegram channel ($2 bot token, $3 chat id) when one was entered.
+render_optional_env_lines() {
+    local env_file="$1"
+    local token="$2"
+    local chat_id="$3"
+    local notify_done="$4"
+    local line
+    while IFS= read -r line; do
+        case "$line" in
+            TRANSLATOR_TELEGRAM_NOTIFY_DONE=*) [[ -z "$notify_done" ]] || continue ;;
+            TRANSLATOR_TELEGRAM_BOT_TOKEN=*|TRANSLATOR_TELEGRAM_CHAT_ID=*) [[ -z "$token" ]] || continue ;;
+        esac
+        printf '%s\n' "$line"
+    done < <(preserved_env_lines "$env_file")
+    if [[ -n "$token" ]]; then
+        printf 'TRANSLATOR_TELEGRAM_BOT_TOKEN=%s\n' "$token"
+        printf 'TRANSLATOR_TELEGRAM_CHAT_ID=%s\n' "$chat_id"
+    fi
+    [[ -z "$notify_done" ]] || printf 'TRANSLATOR_TELEGRAM_NOTIFY_DONE=%s\n' "$notify_done"
+}
+
 read_secret
 API_BASE_URL="$(read_value "OpenAI-compatible API Base URL" "https://api.deepseek.com")"
 API_MODEL="$(read_value "Model name" "deepseek-v4-flash")"
@@ -852,6 +921,42 @@ safe_env_value "$API_BASE_URL" || die "API Base URL contains unsafe whitespace o
 safe_env_value "$API_MODEL" || die "model name contains unsafe whitespace or quoting"
 [[ "$API_BASE_URL" =~ ^https?://[^[:space:]]+$ ]] || die "API Base URL must begin with http:// or https://"
 log "Configuration accepted: API Base URL and model '$API_MODEL' (API Key hidden)"
+
+# Optional Telegram messages: key-failover alerts, and with the per-file
+# switch one message when each file finishes.  A channel already in
+# translator.env is kept; only the per-file switch is asked again.
+TELEGRAM_TOKEN=""
+TELEGRAM_CHAT_ID=""
+TELEGRAM_NOTIFY_DONE=""
+TELEGRAM_NOTIFY_PROMPT="Telegram: send a message when each file finishes? (yes/no)"
+if [[ -n "$(preserved_env_value "$ENV_FILE" TRANSLATOR_TELEGRAM_BOT_TOKEN)" \
+    && -n "$(preserved_env_value "$ENV_FILE" TRANSLATOR_TELEGRAM_CHAT_ID)" ]]; then
+    log "Telegram: keeping the bot token and chat id already in $ENV_FILE"
+    case "$(preserved_env_value "$ENV_FILE" TRANSLATOR_TELEGRAM_NOTIFY_DONE)" in
+        1|[Tt][Rr][Uu][Ee]|[Yy][Ee][Ss]|[Oo][Nn]) telegram_notify_default="yes" ;;
+        *) telegram_notify_default="no" ;;
+    esac
+    TELEGRAM_NOTIFY_DONE="$(yes_no_flag "$(read_optional_value "$TELEGRAM_NOTIFY_PROMPT" "$telegram_notify_default")")" \
+        || die "answer yes or no"
+else
+    TELEGRAM_TOKEN="$(read_optional_secret "Telegram bot token for notifications (Enter to skip)")"
+    if [[ -n "$TELEGRAM_TOKEN" ]]; then
+        [[ "$TELEGRAM_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]] \
+            || die "Telegram bot token must look like <digits>:<letters, digits, _ or ->"
+        TELEGRAM_CHAT_ID="$(read_optional_value "Telegram chat id" "")"
+        [[ "$TELEGRAM_CHAT_ID" =~ ^(-?[0-9]+|@[A-Za-z0-9_]+)$ ]] \
+            || die "Telegram chat id must be a number (a group id starts with -) or @channelname"
+        TELEGRAM_NOTIFY_DONE="$(yes_no_flag "$(read_optional_value "$TELEGRAM_NOTIFY_PROMPT" "no")")" \
+            || die "answer yes or no"
+    fi
+fi
+kept_llm_lines="$(preserved_env_lines "$ENV_FILE" | grep -vc '^TRANSLATOR_TELEGRAM_' || true)"
+[[ "$kept_llm_lines" -eq 0 ]] || log "Keeping $kept_llm_lines LLM_*/OPENAI_*/CLAUDE_*/ANTHROPIC_*/TRANSLATOR_LLM_PROVIDER line(s) from $ENV_FILE (values hidden)"
+if [[ -z "$TELEGRAM_NOTIFY_DONE" ]]; then
+    log "Telegram: skipped (set TRANSLATOR_TELEGRAM_* in $ENV_FILE later to enable)"
+else
+    log "Telegram: on (token and chat id hidden); message per finished file: $([[ "$TELEGRAM_NOTIFY_DONE" == 1 ]] && printf yes || printf no)"
+fi
 
 if getent group "$SERVICE_GROUP" >/dev/null 2>&1; then
     service_gid="$(getent group "$SERVICE_GROUP" | awk -F: '{print $3}')"
@@ -1011,6 +1116,10 @@ ENV_NEW="$ROLLBACK_ROOT/new-translator.env"
     printf 'DEEPSEEK_MODEL=%s\n' "$API_MODEL"
     printf '%s\n' '# Optional primary/backup key failover (see README): set LLM_PRIMARY_API_KEY'
     printf '%s\n' '# and LLM_BACKUP_API_KEY (Claude, OpenAI or DeepSeek keys); DEEPSEEK_API_KEY is then unused.'
+    printf '%s\n' '# Optional Telegram messages (see README): TRANSLATOR_TELEGRAM_BOT_TOKEN and _CHAT_ID;'
+    printf '%s\n' '# TRANSLATOR_TELEGRAM_NOTIFY_DONE=1 adds one message per finished file. Reinstalls keep these lines'
+    printf '%s\n' '# and the LLM_*, OPENAI_*, CLAUDE_*, ANTHROPIC_* and TRANSLATOR_LLM_PROVIDER lines.'
+    render_optional_env_lines "$ENV_FILE" "$TELEGRAM_TOKEN" "$TELEGRAM_CHAT_ID" "$TELEGRAM_NOTIFY_DONE"
     printf 'TRANSLATOR_UPLOAD_DIR=%s\n' "$DATA_ROOT/uploads"
     printf 'TRANSLATOR_OUTPUT_DIR=%s\n' "$DATA_ROOT/outputs"
     printf 'TRANSLATOR_PROGRESS_DIR=%s\n' "$DATA_ROOT/progress"

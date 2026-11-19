@@ -23,9 +23,9 @@
 ## 安装与校验
 
 ```bash
-sha256sum -c PhoenaTranslator-20261119-llm-key-failover-reinstall.tar.gz.sha256
-tar -xzf PhoenaTranslator-20261119-llm-key-failover-reinstall.tar.gz
-cd PhoenaTranslator-20261119-llm-key-failover-reinstall
+sha256sum -c PhoenaTranslator-20261119b-telegram-notify-reinstall.tar.gz.sha256
+tar -xzf PhoenaTranslator-20261119b-telegram-notify-reinstall.tar.gz
+cd PhoenaTranslator-20261119b-telegram-notify-reinstall
 ./install.sh --verify-only
 sudo ./install.sh
 ```

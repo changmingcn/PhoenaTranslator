@@ -2,6 +2,7 @@ app.py
 constraints.txt
 index.html
 phoena_translator/__init__.py
+phoena_translator/alerts.py
 phoena_translator/api_runtime.py
 phoena_translator/application.py
 phoena_translator/claude_models.py
@@ -82,6 +83,7 @@ phoena_translator/pdf/verify/output.py
 phoena_translator/prompts.py
 phoena_translator/runtime.py
 phoena_translator/storage_layout.py
+phoena_translator/task_notify.py
 phoena_translator/task_runtime.py
 phoena_translator/task_store.py
 phoena_translator/web.py
